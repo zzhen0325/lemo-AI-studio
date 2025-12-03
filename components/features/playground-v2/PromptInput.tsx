@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, ChevronDown, X } from "lucide-react";
@@ -34,7 +35,6 @@ export default function PromptInput({
 }: PromptInputProps) {
 
 
-  const Inputbutton1 = "w-auto text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10"; 
   const Inputbutton2 = "w-auto text-zinc-900 rounded-2xl bg-zinc-50  border border-zinc-200"; 
 
   return (
@@ -118,9 +118,11 @@ export default function PromptInput({
           <div className="mt-4 flex flex-wrap gap-2">
             {uploadedImages.map((image, index) => (
               <div key={index} className="relative">
-                <img
+                <Image
                   src={image.previewUrl}
                   alt={`上传的图片 ${index + 1}`}
+                  width={64}
+                  height={64}
                   className="w-16 h-16 object-cover rounded-lg border"
                 />
                 <button

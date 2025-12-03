@@ -12,7 +12,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
   import { useCozeWorkflow } from "@/hooks/features/useCozeWorkflow";
   import { fetchByteArtistImage } from "@/lib/api/PlaygroundV2";
   import type { ByteArtistResponse } from "@/lib/api/PlaygroundV2";
-  import ColorBends from '@/components/common/graphics/ColorBends';
+  
 
   import PromptInput from "@/components/features/playground-v2/PromptInput";
   import ControlToolbar from "@/components/features/playground-v2/ControlToolbar";
@@ -36,7 +36,6 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
     const [algorithm] = useState("lemo_2dillustator");
     const [imageFormat] = useState("png");
     const [isGenerating, setIsGenerating] = useState(false);
-    const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
     const [generationHistory, setGenerationHistory] = useState<GenerationResult[]>([]);
     const [isAspectRatioLocked, setIsAspectRatioLocked] = useState(false);
     const [selectedModel, setSelectedModel] = useState("3D Lemo seed3");
@@ -173,10 +172,10 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
       try {
         if (uploadedImages.length > 0 && selectedModel === "Nano banana") {
           const editingResult = await editImage({ instruction: config.text, originalImage: uploadedImages[0].base64, referenceImages: uploadedImages.slice(1).map(img => img.base64), aspectRatio: getCurrentAspectRatio() });
-          if (editingResult) { const result: GenerationResult = { imageUrl: editingResult.imageUrl, config: { ...config, model: selectedModel }, timestamp: editingResult.timestamp }; setGenerationResult(result); setGenerationHistory(prev => [result, ...prev.slice(1)]); } else { setGenerationHistory(prev => prev.slice(1)); }
+          if (editingResult) { const result: GenerationResult = { imageUrl: editingResult.imageUrl, config: { ...config, model: selectedModel }, timestamp: editingResult.timestamp }; setGenerationHistory(prev => [result, ...prev.slice(1)]); } else { setGenerationHistory(prev => prev.slice(1)); }
         } else if (selectedModel === "Nano banana") {
           const genResult = await generateImage({ prompt: config.text, aspectRatio: getCurrentAspectRatio() });
-          if (genResult) { const result: GenerationResult = { imageUrl: genResult.imageUrl, config: { ...config, model: selectedModel }, timestamp: genResult.timestamp }; setGenerationResult(result); setGenerationHistory(prev => [result, ...prev.slice(1)]); } else { setGenerationHistory(prev => prev.slice(1)); }
+          if (genResult) { const result: GenerationResult = { imageUrl: genResult.imageUrl, config: { ...config, model: selectedModel }, timestamp: genResult.timestamp }; setGenerationHistory(prev => [result, ...prev.slice(1)]); } else { setGenerationHistory(prev => prev.slice(1)); }
         } else if (selectedModel === "Seed 4.0") {
           let image1FileId: string | undefined; let image2FileId: string | undefined;
           if (uploadedImages.length > 0) { const file1Result = await uploadFile(uploadedImages[0].file); if (file1Result) image1FileId = JSON.stringify({ file_id: file1Result }); if (uploadedImages.length > 1) { const file2Result = await uploadFile(uploadedImages[1].file); if (file2Result) image2FileId = JSON.stringify({ file_id: file2Result }); } }
@@ -185,7 +184,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
           const workflowParams: CozeWorkflowParams = { prompt: config.text, width: Number(config.width), height: Number(config.height) };
           if (uploadedImages.length === 2) { workflowParams.image = imageParam as string[]; } else if (uploadedImages.length === 1) { workflowParams.image1 = imageParam as string; }
           const workflowResult = await runWorkflow(workflowParams);
-          if (workflowResult) { const result: GenerationResult = { imageUrl: workflowResult, config: { ...config, model: selectedModel }, timestamp: new Date().toISOString() }; setGenerationResult(result); setGenerationHistory(prev => [result, ...prev.slice(1)]); toast({ title: "生成成功", description: "Seed 4.0 图像已成功生成！" }); } else { throw new Error("未收到有效图片数据"); }
+          if (workflowResult) { const result: GenerationResult = { imageUrl: workflowResult, config: { ...config, model: selectedModel }, timestamp: new Date().toISOString() }; setGenerationHistory(prev => [result, ...prev.slice(1)]); toast({ title: "生成成功", description: "Seed 4.0 图像已成功生成！" }); } else { throw new Error("未收到有效图片数据"); }
         } else if (selectedModel === "Workflow") {
           if (!selectedWorkflowConfig) { toast({ title: "错误", description: "请先选择工作流", variant: "destructive" }); setGenerationHistory(prev => prev.slice(1)); return; }
           const flattenInputs = (arr: IMultiValueInput[]) => { const list: { key: string; value: unknown; valueType?: string; title?: string }[] = []; arr.forEach(group => { group.inputs.forEach((input: IInputField) => { list.push({ key: input.key, value: input.value, valueType: input.valueType, title: input.title }); }); }); return list; };
@@ -217,7 +216,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
           }
           const comfyView = { inputs: mappedInputs, textOutputEnabled: false };
           const wf = selectedWorkflowConfig.workflowApiJSON || undefined;
-          await runComfyWorkflow({ viewComfy: comfyView, workflow: wf, viewcomfyEndpoint: selectedWorkflowConfig.viewComfyJSON.viewcomfyEndpoint || null, onSuccess: (outputs) => { if (outputs.length > 0) { const url = URL.createObjectURL(outputs[0]); const result: GenerationResult = { imageUrl: url, config: { ...config, model: selectedModel }, timestamp: new Date().toISOString() }; setGenerationResult(result); setGenerationHistory(prev => [result, ...prev.slice(1)]); } else { setGenerationHistory(prev => prev.slice(1)); } }, onError: (error) => { setGenerationHistory(prev => prev.slice(1)); toast({ title: "生成失败", description: error?.errorMsg || error?.message || "工作流执行失败", variant: "destructive" }); } });
+          await runComfyWorkflow({ viewComfy: comfyView, workflow: wf, viewcomfyEndpoint: selectedWorkflowConfig.viewComfyJSON.viewcomfyEndpoint || null, onSuccess: (outputs) => { if (outputs.length > 0) { const url = URL.createObjectURL(outputs[0]); const result: GenerationResult = { imageUrl: url, config: { ...config, model: selectedModel }, timestamp: new Date().toISOString() }; setGenerationHistory(prev => [result, ...prev.slice(1)]); } else { setGenerationHistory(prev => prev.slice(1)); } }, onError: (error) => { setGenerationHistory(prev => prev.slice(1)); toast({ title: "生成失败", description: error?.errorMsg || error?.message || "工作流执行失败", variant: "destructive" }); } });
         } else {
           setIsGenerating(true);
           const finalConfig = { ...config, seed: config.seed || Math.floor(Math.random() * 2147483647) };
@@ -228,7 +227,6 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
           const base64 = afr[0].pic as string;
           const dataUrl = base64.startsWith("data:") ? base64 : `data:image/${imageFormat};base64,${base64}`;
           const result = { imageUrl: dataUrl, config: { ...finalConfig, model: selectedModel }, timestamp: new Date().toISOString() };
-          setGenerationResult(result);
           setGenerationHistory(prev => [result, ...prev.slice(1)]);
           toast({ title: "生成成功", description: "图像已成功生成！" });
         }
@@ -321,7 +319,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
                 <div className="flex w-full max-w-5xl flex-col items-start gap-6 rounded-2xl bg-zinc-50 border border-zinc-200 px-6 py-6 mx-auto">
               
                 <PromptInput text={config.text} onTextChange={(val) => setConfig(prev => ({ ...prev, text: val }))} uploadedImages={uploadedImages} onRemoveImage={removeImage} isOptimizing={isOptimizing} onOptimize={handleOptimizePrompt} selectedAIModel={selectedAIModel} onAIModelChange={setSelectedAIModel} />
-                <ControlToolbar selectedModel={selectedModel} onModelChange={setSelectedModel} config={config} onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))} onWidthChange={handleWidthChange} onHeightChange={handleHeightChange} aspectRatioPresets={aspectRatioPresets} currentAspectRatio={getCurrentAspectRatio()} isAspectRatioLocked={isAspectRatioLocked} onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)} onImageUpload={handleImageUpload} onGenerate={handleGenerate} isGenerating={isLoading} uploadedImagesCount={uploadedImages.length} loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."} onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)} onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)} onOpenLoraSelector={() => setIsLoraDialogOpen(true)} selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title} selectedBaseModelName={selectedBaseModel} selectedLoraNames={selectedLoras.map(l => l.model_name)} />
+                <ControlToolbar selectedModel={selectedModel} onModelChange={setSelectedModel} config={config} onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))} onWidthChange={handleWidthChange} onHeightChange={handleHeightChange} aspectRatioPresets={aspectRatioPresets} currentAspectRatio={getCurrentAspectRatio()} isAspectRatioLocked={isAspectRatioLocked} onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)} onImageUpload={handleImageUpload} onGenerate={handleGenerate} isGenerating={isLoading} uploadedImagesCount={uploadedImages.length} loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."} onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)} onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)} onOpenLoraSelector={() => setIsLoraDialogOpen(true)} selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title} selectedBaseModelName={selectedBaseModel} selectedLoraNames={selectedLoras.map(l => l.model_name)} workflows={workflows} onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }} />
               </div>
 
               </div>
