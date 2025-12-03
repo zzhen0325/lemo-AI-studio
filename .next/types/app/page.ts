@@ -1,4 +1,4 @@
-// File: /Users/bytedance/Desktop/seeseezz/lemostudio/app/page.tsx
+// File: /Users/bytedance/Desktop/seeseezz/lemo-AI-studio/app/page.tsx
 import * as entry from '../../../app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

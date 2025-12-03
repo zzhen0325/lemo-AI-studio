@@ -69,7 +69,7 @@
 }
 @layer base {
   :root {
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 98.5% 0 0;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
     --sidebar-primary-foreground: 0 0% 98%;
@@ -97,6 +97,11 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+@layer components {
+  /* 统一可复用的 Tabs Trigger 样式 */
+  
 }
 
 /* Custom dropzone styles */

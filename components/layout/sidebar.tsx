@@ -101,12 +101,12 @@ export function Sidebar({ currentTab, onTabChange, deployWindow, onDeployWindow 
     }, [collapsed]);
 
     return (
-        <UISidebar collapsed={isCondensed} className={`m-6 rounded-3xl !h-[calc(100vh-3rem)]`}>
+        <UISidebar collapsed={isCondensed} >
+            {/* className={`m-6 rounded-3xl !h-[calc(100vh-3rem)]`} */}
             <SidebarHeader className={`${isCondensed ? 'justify-center' : ''} h-15`}>
                 <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                     <div className="flex items-center ">
-                        <Image src="/images/logos/logo.png" alt="Lemon8 AI" width={36} height={36} className="size-12" />
-                        {!isCondensed && <span className="text-xl font-semibold">Lemon8 AI</span>}
+                        {!isCondensed && <span className="text-xl font-semibold font-aquebella">Lemon8 AI</span>}
                     </div>
                 </motion.div>
                 {!isSmallScreen && (

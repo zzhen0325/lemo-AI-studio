@@ -11,8 +11,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(({ collapsed, classN
       ref={ref}
       className={cn(
         "flex flex-col h-full overflow-y-auto transition-all duration-300",
-        "bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] border border-[hsl(var(--sidebar-border))]",
-        collapsed ? "w-12" : "w-60",
+        "bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] ",
+        collapsed ? "w-[10rem]" : "w-[14rem]",
         className
       )}
       {...props}
@@ -26,7 +26,7 @@ const SidebarHeader = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
     ref={ref}
     className={cn(
       "flex items-center gap-2 p-4 w-full",
-      "bg-[hsl(var(--sidebar-background))] border-b border-[hsl(var(--sidebar-border))]",
+      "bg-[hsl(var(--sidebar-background))] ",
       className
     )}
     {...props}
@@ -48,7 +48,7 @@ const SidebarFooter = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
     ref={ref}
     className={cn(
       "sticky bottom-0 p-2",
-      "bg-[hsl(var(--sidebar-background))] border-t border-[hsl(var(--sidebar-border))]",
+      "bg-[hsl(var(--sidebar-background))] ",
       className
     )}
     {...props}

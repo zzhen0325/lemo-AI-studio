@@ -59,16 +59,19 @@ export default function ControlToolbar({
   selectedBaseModelName,
   selectedLoraNames = []
 }: ControlToolbarProps) {
+
+
+    const Inputbutton2 = "h-10 w-auto text-sm text-zinc-900 rounded-2xl bg-zinc-50  border border-zinc-200"; 
   return (
     <div className="w-full flex justify-between items-center gap-4">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="h-10 w-30 text-sm text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10 px-4 justify-between">
+          <Button variant="outline" className={Inputbutton2}>
             {selectedModel}
             <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-30 text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10">
+        <DropdownMenuContent className="w-30 text-zinc-900 rounded-2xl bg-white border border-zinc-200 ">
           <DropdownMenuItem onClick={() => onModelChange("Seed 3.0")}>3D Lemo seed3</DropdownMenuItem>
           <DropdownMenuItem onClick={() => onModelChange("Nano banana")}>Nano banana</DropdownMenuItem>
           <DropdownMenuItem onClick={() => onModelChange("Seed 4.0")}>Seed 4.0</DropdownMenuItem>
@@ -78,12 +81,12 @@ export default function ControlToolbar({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="h-10 w-auto text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10 px-4 text-sm">
+          <Button variant="outline" className={Inputbutton2}>
             {currentAspectRatio}
             <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-auto min-w-[280px] max-w-[400px] p-4 text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10">
+        <DropdownMenuContent className="w-auto min-w-[280px] max-w-[400px] p-4 text-zinc-900 rounded-2xl bg-white border border-zinc-200 ">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Size</div>
@@ -101,14 +104,14 @@ export default function ControlToolbar({
               ))}
             </div>
 
-            <DropdownMenuSeparator className="bg-white/10 border-white/10" />
+            <DropdownMenuSeparator className=" border-zinc-200" />
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2  border-zinc-200 ">
               <Label className="text-xs">W</Label>
-              <Input className="h-8 w-full text-sm rounded-xl bg-white/10 border border-white/10 shadow-none" placeholder="2048" value={config.width} onChange={(e) => onWidthChange(parseInt(e.target.value) || 1024)} />
+              <Input className="h-8 w-full text-sm text-zinc-900 rounded-xl bg-zinc-50 border border-zinc-200 shadow-none" placeholder="2048" value={config.width} onChange={(e) => onWidthChange(parseInt(e.target.value) || 1024)} />
               <Label className="text-xs">H</Label>
-              <Input className="h-8 w-full text-sm rounded-xl bg-white/10 border border-white/10 items" placeholder="2048" value={config.height} onChange={(e) => onHeightChange(parseInt(e.target.value) || 1024)} />
-              <Button variant="outline" size="sm" className="h-8 w-8 p-2 rounded-xl bg-white/10 border border-white/10" onClick={onToggleAspectRatioLock}>
+              <Input className="h-8 w-full text-sm text-zinc-900 rounded-xl bg-zinc-50 border border-zinc-200 shadow-none" placeholder="2048" value={config.height} onChange={(e) => onHeightChange(parseInt(e.target.value) || 1024)} />
+              <Button variant="outline" size="sm" className="h-8 w-8 p-2 rounded-xl bg-zinc-50 border border-zinc-200" onClick={onToggleAspectRatioLock}>
                 {isAspectRatioLocked ? <Link className="h-4 w-4" /> : <Unlink className="h-4 w-4" />}
               </Button>
             </div>

@@ -3,12 +3,15 @@
 
   import { useState, useEffect } from "react";
   import { useToast } from "@/hooks/common/use-toast";
-  import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
   import { useImageGeneration } from "@/hooks/features/PlaygroundV2/useImageGeneration";
   import { useImageEditing } from "@/hooks/features/PlaygroundV2/useImageEditing";
   import { usePromptOptimization, AIModel } from "@/hooks/features/PlaygroundV2/usePromptOptimization";
   import { useCozeWorkflow } from "@/hooks/features/useCozeWorkflow";
   import { fetchByteArtistImage } from "@/lib/api/PlaygroundV2";
+  import type { ByteArtistResponse } from "@/lib/api/PlaygroundV2";
   import ColorBends from '@/components/common/graphics/ColorBends';
 
   import PromptInput from "@/components/features/playground-v2/PromptInput";
@@ -21,6 +24,9 @@
   import LoraSelectorDialog, { SelectedLora } from "@/components/features/playground-v2/LoraSelectorDialog";
   import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
   import type { IMultiValueInput, IInputField } from "@/lib/workflow-api-parser";
+  import type { WorkflowApiJSON } from "@/lib/workflow-api-parser";
+  import type { UIComponent } from "@/types/features/mapping-editor";
+  import type { CozeWorkflowParams } from "@/types/coze-workflow";
   import { usePostPlayground } from "@/hooks/features/playground/use-post-playground";
 
   export function PlaygroundV2Page({ onEditMapping }: { onEditMapping?: (workflow: IViewComfy) => void }) {
@@ -59,23 +65,25 @@
     }, []);
 
     const applyWorkflowDefaults = (workflow: IViewComfy) => {
-      const mappingConfig = (workflow.viewComfyJSON as any).mappingConfig;
+      const mappingConfig = workflow.viewComfyJSON.mappingConfig as { components: UIComponent[] } | undefined;
       const newConfig = { ...config };
       let newBaseModel = selectedBaseModel;
       const newLoras: SelectedLora[] = [];
 
       if (mappingConfig?.components && Array.isArray(mappingConfig.components) && mappingConfig.components.length > 0) {
           const components = mappingConfig.components;
-          const workflowApiJSON = workflow.workflowApiJSON as any;
-          components.forEach((comp: any) => {
+          const workflowApiJSON = workflow.workflowApiJSON as WorkflowApiJSON | undefined;
+          components.forEach((comp: UIComponent) => {
               const paramName = comp.properties?.paramName;
               const defaultValue = comp.properties?.defaultValue;
               const workflowPath = comp.mapping?.workflowPath;
               if (!paramName) return;
               const getActualValue = () => {
-                  if (workflowApiJSON && workflowPath && Array.isArray(workflowPath) && workflowPath.length >= 3) {
+                  if (workflowApiJSON && Array.isArray(workflowPath) && workflowPath.length >= 3) {
                       const [nodeId, section, key] = workflowPath;
-                      return workflowApiJSON[nodeId]?.[section]?.[key];
+                      if (section === "inputs") {
+                        return workflowApiJSON[nodeId]?.inputs?.[key];
+                      }
                   }
                   return undefined;
               };
@@ -173,9 +181,9 @@
           let image1FileId: string | undefined; let image2FileId: string | undefined;
           if (uploadedImages.length > 0) { const file1Result = await uploadFile(uploadedImages[0].file); if (file1Result) image1FileId = JSON.stringify({ file_id: file1Result }); if (uploadedImages.length > 1) { const file2Result = await uploadFile(uploadedImages[1].file); if (file2Result) image2FileId = JSON.stringify({ file_id: file2Result }); } }
           let imageParam: string | string[] | undefined;
-          if (uploadedImages.length === 2) { const imageArray = []; if (image1FileId) imageArray.push(image1FileId); if (image2FileId) imageArray.push(image2FileId); imageParam = imageArray; } else if (uploadedImages.length === 1) { imageParam = image1FileId; }
-          const workflowParams: any = { prompt: config.text, width: config.width.toString(), height: config.height.toString() };
-          if (uploadedImages.length === 2) { workflowParams.image = imageParam; } else if (uploadedImages.length === 1) { workflowParams.image1 = imageParam; }
+          if (uploadedImages.length === 2) { const imageArray: string[] = []; if (image1FileId) imageArray.push(image1FileId); if (image2FileId) imageArray.push(image2FileId); imageParam = imageArray; } else if (uploadedImages.length === 1) { imageParam = image1FileId; }
+          const workflowParams: CozeWorkflowParams = { prompt: config.text, width: Number(config.width), height: Number(config.height) };
+          if (uploadedImages.length === 2) { workflowParams.image = imageParam as string[]; } else if (uploadedImages.length === 1) { workflowParams.image1 = imageParam as string; }
           const workflowResult = await runWorkflow(workflowParams);
           if (workflowResult) { const result: GenerationResult = { imageUrl: workflowResult, config: { ...config, model: selectedModel }, timestamp: new Date().toISOString() }; setGenerationResult(result); setGenerationHistory(prev => [result, ...prev.slice(1)]); toast({ title: "生成成功", description: "Seed 4.0 图像已成功生成！" }); } else { throw new Error("未收到有效图片数据"); }
         } else if (selectedModel === "Workflow") {
@@ -184,11 +192,12 @@
           const basic = flattenInputs(selectedWorkflowConfig.viewComfyJSON.inputs);
           const adv = flattenInputs(selectedWorkflowConfig.viewComfyJSON.advancedInputs);
           const allInputs = [...basic, ...adv];
-          const mappingConfig = (selectedWorkflowConfig.viewComfyJSON as any).mappingConfig;
-          let mappedInputs: any[] = [];
+          const mappingConfig = selectedWorkflowConfig.viewComfyJSON.mappingConfig as { components: UIComponent[] } | undefined;
+          type MappedInput = { key: string; value: unknown };
+          let mappedInputs: MappedInput[] = [];
           if (mappingConfig?.components && Array.isArray(mappingConfig.components) && mappingConfig.components.length > 0) {
-              const paramMap = new Map<string, any>();
-              mappingConfig.components.forEach((comp: any) => {
+              const paramMap = new Map<string, unknown>();
+              mappingConfig.components.forEach((comp: UIComponent) => {
                   if (!comp.properties?.paramName || !comp.mapping?.workflowPath) return;
                   const key = comp.mapping.workflowPath.join("-");
                   const paramName = comp.properties.paramName;
@@ -213,8 +222,8 @@
           setIsGenerating(true);
           const finalConfig = { ...config, seed: config.seed || Math.floor(Math.random() * 2147483647) };
           const apiConfig = { width: finalConfig.width, height: finalConfig.height, batch_size: finalConfig.batch_size, seed: finalConfig.seed, prompt: finalConfig.text };
-          const response = await fetchByteArtistImage({ conf: apiConfig, algorithms: algorithm, img_return_format: imageFormat }) as any;
-          const afr = response?.data?.afr_data;
+          const response: ByteArtistResponse = await fetchByteArtistImage({ conf: apiConfig, algorithms: algorithm, img_return_format: imageFormat });
+          const afr = (response as { data?: { afr_data?: Array<{ pic?: string }> } }).data?.afr_data;
           if (!afr || !Array.isArray(afr) || !afr[0]?.pic) { throw new Error("未收到有效图片数据"); }
           const base64 = afr[0].pic as string;
           const dataUrl = base64.startsWith("data:") ? base64 : `data:image/${imageFormat};base64,${base64}`;
@@ -241,47 +250,89 @@
     const openImageModal = (imageUrl: string) => { setModalImageUrl(imageUrl); setIsImageModalOpen(true); };
     const closeImageModal = () => { setIsImageModalOpen(false); setModalImageUrl(""); };
 
+
+    // 样式定义
+    const tabPill = "rounded-full font-aquebella bg-transparent text-zinc-900  text-xs border border-border px-4 py-2 transition-colors hover:bg-zinc-100";
+    
     return (
-      <div className="relative h-screen rounded-3xl p-6 bg-slate-100 overflow-hidden">
+      <div className="relative h-full overflow-hidden">
         {/* <div className="absolute inset-0 bg-[#000] z-0 pointer-events-none">
           <ColorBends colors={["#ff5c7a", "#8a5cff", "#00ffd1"]} rotation={60} speed={0.3} scale={1.6} frequency={1.1} warpStrength={1} mouseInfluence={0} parallax={0} noise={0.2} opacity={0.9} transparent />
         </div> */}
-        <div className="h-screen overflow-y-auto relative z-10">
+        <div className="h-full overflow-y-auto relative z-10">
           <div className="max-w-8xl mx-auto relative z-10">
             {(isLoading || generationHistory.length > 0) ? (
               <h1 className="text-[2vw] text-black text-center mt-10 mb-10" style={{ fontFamily: 'ShowsGracious, sans-serif' }}>Lemon8 AI Playground</h1>
             ) : (
               <div className="flex flex-col items-center justify-center mt-20">
                 <h2 className="text-[2vw] text-black text-center" style={{ fontFamily: 'ShowsGracious, sans-serif' }}>Lemon8</h2>
-                <h1 className="text-[12vw] text-black text-center mt-[-5.375rem]" style={{ fontFamily: 'ShowsGracious, sans-serif' }}>AI Playground</h1>
+                <h1 className="text-[8vw] text-black text-center mt-[-5.375rem]" style={{ fontFamily: 'ShowsGracious, sans-serif' }}>AI Playground</h1>
               </div>
             )}
+              <Card className=" max-w-5xl mx-auto bg-transparent shadow-none border-none flex items-center justify-center">
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-center gap-3">
+                      
+                      <div className="flex items-center justify-center flex-wrap gap-2">
+                        <Button
+                          className={`${tabPill} ${selectedModel !== "Workflow" && selectedModel === "3D Lemo seed3" ? "is-active" : ""}`}
+                          onClick={() => { setSelectedModel("3D Lemo seed3"); setSelectedWorkflowConfig(undefined); }}
+                        >
+                          Seed 3.0
+                        </Button>
+                        <Button
+                          className={`${tabPill} ${selectedModel !== "Workflow" && selectedModel === "Seed 4.0" ? "is-active" : ""}`}
+                          onClick={() => { setSelectedModel("Seed 4.0"); setSelectedWorkflowConfig(undefined); }}
+                        >
+                          Seed 4.0
+                        </Button>
+                        <Button
+                          className={`${tabPill} ${selectedModel !== "Workflow" && selectedModel === "Nano banana" ? "is-active" : ""}`}
+                          onClick={() => { setSelectedModel("Nano banana"); setSelectedWorkflowConfig(undefined); }}
+                        >
+                          Nano banana
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center gap-3">
+                      
+                      <ScrollArea className="w-full" type="scroll">
+                        <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                          {workflows.map(wf => (
+                            <Button
+                              key={wf.viewComfyJSON.id}
+                              className={`${tabPill} ${selectedModel === "Workflow" && selectedWorkflowConfig?.viewComfyJSON.id === wf.viewComfyJSON.id ? "is-active" : ""}`}
+                              onClick={() => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
+                            >
+                              {wf.viewComfyJSON.title || "Untitled Workflow"}
+                            </Button>
+                          ))}
+                        </div>
+                        <ScrollBar orientation="horizontal" />
+                      </ScrollArea>
+                    </div>
+                  </CardContent>
+                </Card> 
             <div className={`${generationHistory.length > 0 ? 'flex w-full max-w-5xl flex-none flex-col items-start rounded-3xl p-4 mx-auto' : 'flex justify-center items-center p-4'}`}>
-              <div className="flex w-full max-w-5xl flex-none flex-col items-start gap-6 rounded-3xl bg-black/20 backdrop-blur-2xl border border-white/20 px-6 py-6 mx-auto">
+             {/* 生成区域外边框 */}
+              <div className="flex w-full max-w-5xl border border-zinc-200 p-2 rounded-3xl shadow-2xl shadow-zinc-200">
+                 {/* 生成区域卡片样式 */}
+
+                <div className="flex w-full max-w-5xl flex-col items-start gap-6 rounded-2xl bg-zinc-50 border border-zinc-200 px-6 py-6 mx-auto">
               
                 <PromptInput text={config.text} onTextChange={(val) => setConfig(prev => ({ ...prev, text: val }))} uploadedImages={uploadedImages} onRemoveImage={removeImage} isOptimizing={isOptimizing} onOptimize={handleOptimizePrompt} selectedAIModel={selectedAIModel} onAIModelChange={setSelectedAIModel} />
                 <ControlToolbar selectedModel={selectedModel} onModelChange={setSelectedModel} config={config} onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))} onWidthChange={handleWidthChange} onHeightChange={handleHeightChange} aspectRatioPresets={aspectRatioPresets} currentAspectRatio={getCurrentAspectRatio()} isAspectRatioLocked={isAspectRatioLocked} onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)} onImageUpload={handleImageUpload} onGenerate={handleGenerate} isGenerating={isLoading} uploadedImagesCount={uploadedImages.length} loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."} onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)} onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)} onOpenLoraSelector={() => setIsLoraDialogOpen(true)} selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title} selectedBaseModelName={selectedBaseModel} selectedLoraNames={selectedLoras.map(l => l.model_name)} />
               </div>
+
+              </div>
+              
             </div>
-            <><div>
-                <Tabs value={selectedModel === "Workflow" ? selectedWorkflowConfig?.viewComfyJSON.id : selectedModel} onValueChange={(val) => { if (val === "3D Lemo seed3" || val === "Seed 4.0" || val === "Nano banana") { setSelectedModel(val); setSelectedWorkflowConfig(undefined); } else { const wf = workflows.find(w => w.viewComfyJSON.id === val); if (wf) { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); } } }} className="w-full">
-                  <TabsList className="w-full bg-transparent p-0 h-auto grid grid-cols-2 gap-4">
-                    <div className="flex items-center flex-wrap gap-2">
-                      <span className="px-2 py-1 text-xs rounded-full bg-black/5 text-black/80">online</span>   
-                      <TabsTrigger value="3D Lemo seed3" className="rounded-full bg-black/10 data-[state=active]:bg-white data-[state=active]:text-black text-white border border-white/10 px-4 py-2">Seed 3.0</TabsTrigger>
-                      <TabsTrigger value="Seed 4.0" className="rounded-full bg-black/10 data-[state=active]:bg-white data-[state=active]:text-black text-white border border-white/10 px-4 py-2">Seed 4.0</TabsTrigger>
-                      <TabsTrigger value="Nano banana" className="rounded-full bg-black/10 data-[state=active]:bg-white data-[state=active]:text-black text-white border border-white/10 px-4 py-2">Nano banana</TabsTrigger>
-                    </div>
-                    <div className="flex items-center flex-wrap gap-2">
-                      <span className="px-2 py-1 text-xs rounded-full bg-black/5 text-black/80">workflow</span>
-                      {workflows.map(wf => (
-                        <TabsTrigger key={wf.viewComfyJSON.id} value={wf.viewComfyJSON.id} className="rounded-full bg-white/10 data-[state=active]:bg-white data-[state=active]:text-black text-white border border-white/10 px-4 py-2">{wf.viewComfyJSON.title || "Untitled Workflow"}</TabsTrigger>
-                      ))}
-                    </div>
-                  </TabsList>
-                </Tabs>
+            <>
+            <div>
+              
                 
-                </div></>
+                </div>
+                </>
             <HistoryList history={generationHistory} onRegenerate={handleRegenerate} onDownload={handleDownload} onImageClick={openImageModal} isGenerating={isLoading} />
           </div>
         </div>

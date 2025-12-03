@@ -1,4 +1,4 @@
-// File: /Users/bytedance/Desktop/seeseezz/lemostudio/app/api/view-comfy/route.ts
+// File: /Users/bytedance/Desktop/seeseezz/lemo-AI-studio/app/api/view-comfy/route.ts
 import * as entry from '../../../../../app/api/view-comfy/route.js'
 import type { NextRequest } from 'next/server.js'
 

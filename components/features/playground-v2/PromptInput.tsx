@@ -32,11 +32,16 @@ export default function PromptInput({
   selectedAIModel,
   onAIModelChange
 }: PromptInputProps) {
+
+
+  const Inputbutton1 = "w-auto text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10"; 
+  const Inputbutton2 = "w-auto text-zinc-900 rounded-2xl bg-zinc-50  border border-zinc-200"; 
+
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 ">
       <div className="flex w-full items-center justify-between">
         <div className="flex items-center gap-2 self-stretch">
-          <span className="text-[24px] font-[ShowsGracious] text-white">
+          <span className="text-[24px] font-[ShowsGracious] text-zinc-900">
             Prompts
           </span>
         </div>
@@ -45,7 +50,7 @@ export default function PromptInput({
           <Button
             variant="outline"
             size="sm"
-            className="h-10 px-4 items-center gap-1 text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/20"
+            className={Inputbutton2}
             disabled={isOptimizing || !text.trim()}
             onClick={() => {
               if (!isOptimizing && text.trim()) {
@@ -69,29 +74,29 @@ export default function PromptInput({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-10 px-1 items-center text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/20"
+                className={Inputbutton2}
               >
                 <ChevronDown className="w-3 h-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-auto text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10">
+            <DropdownMenuContent align="end" className={Inputbutton2}>
               <DropdownMenuItem
                 onClick={() => onAIModelChange('gemini')}
-                className={selectedAIModel === 'gemini' ? 'bg-white/10' : ''}
+                className={selectedAIModel === 'gemini' ? 'bg-zinc-100 text-zinc-900' : ''}
               >
                 <Sparkles className="w-3 h-3 mr-2" />
                 Gemini
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onAIModelChange('doubao')}
-                className={selectedAIModel === 'doubao' ? 'bg-white/20' : ''}
+                className={selectedAIModel === 'doubao' ? 'bg-zinc-100 text-zinc-900' : ''}
               >
                 <Sparkles className="w-3 h-3 mr-2" />
                 豆包1.6
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onAIModelChange('gpt')}
-                className={selectedAIModel === 'gpt' ? 'bg-white/20' : ''}
+                className={selectedAIModel === 'gpt' ? 'bg-zinc-100 text-zinc-900' : ''}
               >
                 <Sparkles className="w-3 h-3 mr-2" />
                 GPT
@@ -101,12 +106,12 @@ export default function PromptInput({
         </div>
       </div>
 
-      <div className="w-full relative">
+      <div className="w-full relative ">
         <Textarea
           placeholder="请描述您想要生成的图像，例如：黄色的lemo圣诞老人，淡蓝色的背景"
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
-          className="h-36 w-full placeholder:text-white/40 resize-none bg-black/40 backdrop-blur-3xl shadow-none rounded-2xl text-white leading-relaxed tracking-wide p-4 border !border-white/15"
+          className="h-36 w-full placeholder:text-white/40 resize-none bg-white  shadow-none rounded-2xl text-zinc-900 leading-relaxed tracking-wide p-4 border border-zinc-200"
         />
 
         {uploadedImages.length > 0 && (
