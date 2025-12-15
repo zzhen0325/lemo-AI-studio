@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Wand2, ImagePlus, ChevronDown, Link, Unlink } from "lucide-react";
+import { Loader2, Wand2, ImagePlus, ChevronDown, Link, Unlink, Sparkles } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -46,6 +46,8 @@ interface ControlToolbarProps {
   selectedLoraNames?: string[];
   workflows?: IViewComfy[];
   onWorkflowSelect?: (wf: IViewComfy) => void;
+  onOptimize: () => void;
+  isOptimizing: boolean;
 }
 
 export default function ControlToolbar({
@@ -72,10 +74,12 @@ export default function ControlToolbar({
   selectedLoraNames = [],
   workflows = [],
   onWorkflowSelect,
+  onOptimize,
+  isOptimizing,
 }: ControlToolbarProps) {
 
 
-    const Inputbutton2 = "h-10 w-auto text-sm text-zinc-900 rounded-2xl bg-zinc-50  border border-zinc-200";
+    const Inputbutton2 = "w-auto text-white rounded-3xl bg-white/5 backdrop-blur-sm border border-white/40";
     const [selectValue, setSelectValue] = useState<string | undefined>(undefined);
     // 初始化与回填：根据外部选中模型/工作流，映射到 Select 的 value
     React.useEffect(() => {
@@ -205,6 +209,25 @@ export default function ControlToolbar({
             </div>
           </Button>
         </label>
+        <div className="ml-2 flex items-center w-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            className={Inputbutton2}
+            disabled={isOptimizing}
+            onClick={() => {
+              if (!isOptimizing) {
+                onOptimize();
+              }
+            }}
+          >
+            {isOptimizing ? (
+              <Loader2 className="w-2 h-2 animate-spin " />
+            ) : (
+              <Sparkles className="w-2 h-2 " />
+            )}
+          </Button>
+        </div>
       </div>
 
       <Button onClick={onGenerate} disabled={isGenerating} className="ml-auto w-30 h-10 bg-white text-black font-medium py-3 rounded-2xl hover:bg-black hover:border-white hover:border hover:text-white">
@@ -216,7 +239,7 @@ export default function ControlToolbar({
         ) : (
           <>
             <Wand2 className="w-4 h-4" />
-            开始生成
+            Generate
           </>
         )}
       </Button>

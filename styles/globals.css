@@ -8,9 +8,19 @@
   font-weight: normal;
   font-style: normal;
   font-display: swap;
+}
 
+@font-face {
   font-family: 'ShowsGracious';
-  src: url('/Font/ShowsGracious.otf') format('truetype');
+  src: url('/Font/ShowsGracious.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'InstrumentSerif-Regular';
+  src: url('/Font/InstrumentSerif-Regular.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

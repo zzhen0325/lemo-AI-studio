@@ -1,5 +1,5 @@
 "use client"
-import { Sidebar, TabValue, TabContext } from "@/components/layout/sidebar";
+import {  TabValue, TabContext } from "@/components/layout/sidebar";
 import { Suspense, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,10 +70,11 @@ export default function Page() {
 
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
-      <div className="flex h-screen bg-zinc-100">
-        <Sidebar currentTab={currentTab} onTabChange={handleTabChange} deployWindow={deployWindow} onDeployWindow={setDeployWindow} />
+      <div className="flex h-screen bg-white">
+        {/* <Sidebar currentTab={currentTab} onTabChange={handleTabChange} deployWindow={deployWindow} onDeployWindow={setDeployWindow} /> */}
         <main className="flex-1 overflow-auto" key={currentTab}>
-          <div className="relative h-[calc(100%-3rem)] w-auto m-6 border border-zinc-200  bg-white rounded-3xl overflow-hidden">
+          <div className="relative h-[calc(100%-3rem)] m-4 rounded-[2rem] w-auto   bg-white  box-shadow-[0_0_200px_200px_rgba(255,255,255,0.5)] overflow-hidden"> 
+            {/* mx-[20rem] my-[6rem] rounded-[8rem] */}
             {currentTab === TabValue.Playground && (
               <Suspense>
                 <PlaygroundV2Page onEditMapping={handleEditMapping} />

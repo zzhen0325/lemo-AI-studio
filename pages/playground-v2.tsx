@@ -12,8 +12,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
   import { useCozeWorkflow } from "@/hooks/features/useCozeWorkflow";
   import { fetchByteArtistImage } from "@/lib/api/PlaygroundV2";
   import type { ByteArtistResponse } from "@/lib/api/PlaygroundV2";
-  
-
+  import Image from "next/image";
   import PromptInput from "@/components/features/playground-v2/PromptInput";
   import ControlToolbar from "@/components/features/playground-v2/ControlToolbar";
   import HistoryList from "@/components/features/playground-v2/HistoryList";
@@ -31,6 +30,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
   import ShaderShowcase from "@/components/ui/hero";
   import { DottedGlowBackground } from "@/components/ui/dotted-glow-background";
 import ColorBends from "@/components/common/graphics/ColorBends";
+import { BackgroundImage } from "@/components/common/graphics/BackgroundImage";
+// Image 已在上方导入，避免重复声明
   export function PlaygroundV2Page({ onEditMapping }: { onEditMapping?: (workflow: IViewComfy) => void }) {
     const { toast } = useToast();
     const [config, setConfig] = useState<GenerationConfig>({ text: "", width: 1200, height: 1200, batch_size: 1 });
@@ -252,27 +253,42 @@ import ColorBends from "@/components/common/graphics/ColorBends";
 
 
     // 样式定义
-    const tabPill = "rounded-full font-aquebella bg-white text-zinc-900  text-xs border border-border px-4 py-2 transition-colors hover:bg-zinc-100";
-    
+    const tabPill = "rounded-full font-aquebella bg-white/10 backdrop-blur-xl text-white  text-xs border border-border/10 px-4 py-2 transition-colors hover:bg-zinc-100";
+      const Inputbg = "flex w-full max-w-5xl flex-col items-start gap-6 rounded-3xl bg-[rgba(221,255,192,1)] border border-border/10 p-6 mx-auto"; 
+     
     return (
-      <div className="relative h-full overflow-hidden">
-        {/* <div className="absolute inset-0 z-0 pointer-events-none">
-          <ShaderShowcase />
-        </div> */}
+      <div className="relative h-full   overflow-hidden">
+       
+        
+       
+      
         <div className="absolute inset-0 z-0 pointer-events-none">
-          <DottedGlowBackground className="z-0" gap={14} radius={2} opacity={1} backgroundOpacity={0} speedMin={0.4} speedMax={1.2} speedScale={1} colorDarkVar="color-zinc-100" glowColorDarkVar="color-zinc-400" />
+          {/* <Image
+            src="/images/bg6.jpg"
+            alt="背景"
+            fill
+            priority
+            className="object-cover "
+          /> */}
+          <video
+            src="/images/bg.mp4"
+            autoPlay
+            loop
+            muted
+            className="object-cover absolute inset-0 w-full h-full"
+          />
         </div>
-        <div className="absolute inset-0 bg-[#000] z-0 pointer-events-none">
-          <ColorBends colors={["#ff5c7a", "#8a5cff", "#00ffd1"]} rotation={60} speed={0.3} scale={1.6} frequency={1.1} warpStrength={1} mouseInfluence={0} parallax={0} noise={0.2} opacity={0.9} transparent />
+        <div className="absolute inset-0 z-999 pointer-events-none">
+          <DottedGlowBackground className="z-999" gap={14} radius={1} opacity={0.6} backgroundOpacity={0} speedMin={0.4} speedMax={1.2} speedScale={1} colorDarkVar="color-zinc-100" glowColorDarkVar="color-zinc-100" />
         </div>
         <div className="h-full overflow-y-auto relative  z-10">
           <div className="max-w-8xl mx-auto relative z-10">
             {(isLoading || generationHistory.length > 0) ? (
-              <h1 className="text-[2vw] text-center mt-10 mb-10" style={{ fontFamily: 'ShowsGracious, sans-serif' }}>Lemon8 AI Playground</h1>
+              <h1 className="text-[2vw] text-center mt-10 mb-10" style={{ fontFamily: 'ShowsGracious, sans-serif' }}>Lemon8 AI Studio</h1>
             ) : (
               <div className="flex flex-col text-white items-center justify-center mt-20">
-                <h2 className="text-[2vw] text-center" style={{ fontFamily: 'ShowsGracious, sans-serif' }}>Lemon8</h2>
-                <h1 className="text-[8vw] text-center mt-[-5.375rem]" style={{ fontFamily: 'ShowsGracious, sans-serif' }}>AI Playground</h1>
+                
+                <h1 className="text-[4vw] text-center mt-[-2rem]" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>Lemon8 AI Studio</h1>
               </div>
             )}
               <Card className=" max-w-5xl mx-auto bg-transparent shadow-none border-none flex items-center justify-center">
@@ -321,16 +337,16 @@ import ColorBends from "@/components/common/graphics/ColorBends";
                 </Card> 
             <div className={`${generationHistory.length > 0 ? 'flex w-full max-w-5xl flex-none flex-col items-start rounded-3xl p-4 mx-auto' : 'flex justify-center items-center p-4'}`}>
              {/* 生成区域外边框 */}
-              <div className="flex w-full max-w-5xl border bg-white border-zinc-200 p-2 rounded-3xl ">
+              
                  {/* 生成区域卡片样式 */}
 
-                <div className="flex w-full max-w-5xl flex-col items-start gap-6 rounded-2xl bg-zinc-50 border border-zinc-200 px-6 py-6 mx-auto">
+                <div className={Inputbg}>
               
                 <PromptInput text={config.text} onTextChange={(val) => setConfig(prev => ({ ...prev, text: val }))} uploadedImages={uploadedImages} onRemoveImage={removeImage} isOptimizing={isOptimizing} onOptimize={handleOptimizePrompt} selectedAIModel={selectedAIModel} onAIModelChange={setSelectedAIModel} />
-                <ControlToolbar selectedModel={selectedModel} onModelChange={setSelectedModel} config={config} onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))} onWidthChange={handleWidthChange} onHeightChange={handleHeightChange} aspectRatioPresets={aspectRatioPresets} currentAspectRatio={getCurrentAspectRatio()} isAspectRatioLocked={isAspectRatioLocked} onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)} onImageUpload={handleImageUpload} onGenerate={handleGenerate} isGenerating={isLoading} uploadedImagesCount={uploadedImages.length} loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."} onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)} onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)} onOpenLoraSelector={() => setIsLoraDialogOpen(true)} selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title} selectedBaseModelName={selectedBaseModel} selectedLoraNames={selectedLoras.map(l => l.model_name)} workflows={workflows} onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }} />
+                <ControlToolbar selectedModel={selectedModel} onModelChange={setSelectedModel} config={config} onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))} onWidthChange={handleWidthChange} onHeightChange={handleHeightChange} aspectRatioPresets={aspectRatioPresets} currentAspectRatio={getCurrentAspectRatio()} isAspectRatioLocked={isAspectRatioLocked} onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)} onImageUpload={handleImageUpload} onGenerate={handleGenerate} isGenerating={isLoading} uploadedImagesCount={uploadedImages.length} loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."} onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)} onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)} onOpenLoraSelector={() => setIsLoraDialogOpen(true)} selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title} selectedBaseModelName={selectedBaseModel} selectedLoraNames={selectedLoras.map(l => l.model_name)} workflows={workflows} onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }} onOptimize={handleOptimizePrompt} isOptimizing={isOptimizing} />
               </div>
 
-              </div>
+             
               
             </div>
             <>
