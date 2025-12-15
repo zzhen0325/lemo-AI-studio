@@ -2,17 +2,25 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Wand2, ImagePlus, ChevronDown, Link, Unlink, BadgeCheck, ChevronRight } from "lucide-react";
+import { Loader2, Wand2, ImagePlus, ChevronDown, Link, Unlink } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { GenerationConfig } from '@/components/features/playground-v2/types';
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+  SelectSeparator,
+} from "@/components/ui/select"
 
 interface ControlToolbarProps {
   selectedModel: string;
@@ -67,101 +75,87 @@ export default function ControlToolbar({
 }: ControlToolbarProps) {
 
 
-    const Inputbutton2 = "h-10 w-auto text-sm text-zinc-900 rounded-2xl bg-zinc-50  border border-zinc-200"; 
-    const [menuCategory, setMenuCategory] = useState<'seed'|'nano'|'workflow'>('seed');
+    const Inputbutton2 = "h-10 w-auto text-sm text-zinc-900 rounded-2xl bg-zinc-50  border border-zinc-200";
+    const [selectValue, setSelectValue] = useState<string | undefined>(undefined);
+    // 初始化与回填：根据外部选中模型/工作流，映射到 Select 的 value
+    React.useEffect(() => {
+      let v: string | undefined;
+      if (selectedModel === '3D Lemo seed3') v = 'seed3';
+      else if (selectedModel === 'Seed 4.0') v = 'seed4';
+      else if (selectedModel === 'Nano banana') v = 'nano_banana';
+      else if (selectedModel === 'Workflow' && selectedWorkflowName) {
+        const wf = (Array.isArray(workflows) ? workflows : []).find(
+          (w) => w.viewComfyJSON.title === selectedWorkflowName
+        );
+        if (wf) v = `wf:${String(wf.viewComfyJSON.id)}`;
+      }
+      setSelectValue(v);
+    }, [selectedModel, selectedWorkflowName, workflows]);
+    const handleUnifiedSelectChange = (val: string) => {
+      setSelectValue(val);
+      if (val === 'seed3') onModelChange('3D Lemo seed3');
+      else if (val === 'seed4') onModelChange('Seed 4.0');
+      else if (val === 'nano_banana') onModelChange('Nano banana');
+      else if (val.startsWith('wf:')) {
+        const id = val.slice(3);
+        const wf = (Array.isArray(workflows) ? workflows : []).find(
+          (w) => String(w.viewComfyJSON.id) === id
+        );
+        if (wf) {
+          onModelChange('Workflow');
+          onWorkflowSelect?.(wf);
+        }
+      }
+    };
   return (
     <div className="w-full flex justify-between items-center gap-4">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" className={Inputbutton2}>
-            {selectedModel}
-            <ChevronDown className="h-4 w-4 opacity-50" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="min-w-[520px]  justify-center p-3 text-zinc-900 rounded-2xl bg-white border border-zinc-200">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex w-full flex-col gap-2">
-              <Item variant="outline" size="sm" asChild onClick={() => setMenuCategory('seed')}>
-                <a href="#" onClick={(e) => e.preventDefault()}>
-                  <ItemMedia>
-                    <BadgeCheck className="size-5 text-zinc-600" />
-                  </ItemMedia>
-                  <ItemContent>
-                    <ItemTitle>Seed</ItemTitle>
-                  </ItemContent>
-                  <ItemActions>
-                    <ChevronRight className="size-4 text-zinc-600" />
-                  </ItemActions>
-                </a>
-              </Item>
-              <Item variant="outline" size="sm" asChild onClick={() => setMenuCategory('nano')}>
-                <a href="#" onClick={(e) => e.preventDefault()}>
-                  <ItemMedia>
-                    <BadgeCheck className="size-5 text-zinc-600" />
-                  </ItemMedia>
-                  <ItemContent>
-                    <ItemTitle>Nano</ItemTitle>
-                  </ItemContent>
-                  <ItemActions>
-                    <ChevronRight className="size-4 text-zinc-600" />
-                  </ItemActions>
-                </a>
-              </Item>
-              <Item variant="outline" size="sm" asChild onClick={() => setMenuCategory('workflow')}>
-                <a href="#" onClick={(e) => e.preventDefault()}>
-                  <ItemMedia>
-                    <BadgeCheck className="size-5 text-zinc-600" />
-                  </ItemMedia>
-                  <ItemContent>
-                    <ItemTitle>Workflow</ItemTitle>
-                  </ItemContent>
-                  <ItemActions>
-                    <ChevronRight className="size-4 text-zinc-600" />
-                  </ItemActions>
-                </a>
-              </Item>
+      <div className="flex items-center gap-2">
+        <Select value={selectValue} onValueChange={handleUnifiedSelectChange}>
+          <SelectTrigger className={Inputbutton2}>
+            <SelectValue placeholder="选择模型/工作流" />
+          </SelectTrigger>
+          <SelectContent className="p-3 text-zinc-900 rounded-3xl bg-white border border-zinc-200">
+            <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-start">
+              <div>
+                <SelectGroup >
+                  <SelectLabel className="px-2 text-sm font-normal text-zinc-400">Online</SelectLabel>
+                  <SelectItem  value="seed3">Seed 3</SelectItem>
+                  <SelectItem  value="seed4">Seed 4</SelectItem>
+                  <SelectItem  value="nano_banana">Nano banana</SelectItem>
+                </SelectGroup>
+              </div>
+              <SelectSeparator className="my-0 w-px h-full bg-zinc-200" />
+              <div>
+                <SelectGroup>
+                  <SelectLabel className="px-2 text-sm font-normal text-zinc-400">Workflow</SelectLabel>
+                  {(Array.isArray(workflows) ? workflows : []).map((wf: IViewComfy) => (
+                    <SelectItem key={wf.viewComfyJSON.id} value={`wf:${String(wf.viewComfyJSON.id)}`}>
+                      {wf.viewComfyJSON.title || 'Untitled Workflow'}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </div>
             </div>
-            <div>
-              {menuCategory === 'seed' && (
-                <div className="flex flex-col gap-2">
-                  <DropdownMenuItem className="rounded-xl" onSelect={() => onModelChange("3D Lemo seed3")}>Seed 3</DropdownMenuItem>
-                  <DropdownMenuItem className="rounded-xl" onSelect={() => onModelChange("Seed 4.0")}>Seed 4</DropdownMenuItem>
-                </div>
-              )}
-              {menuCategory === 'nano' && (
-                <div className="flex flex-col gap-2">
-                  <DropdownMenuItem className="rounded-xl" onSelect={() => onModelChange("Nano banana")}>Nano banana</DropdownMenuItem>
-                </div>
-              )}
-              {menuCategory === 'workflow' && (
-                <ScrollArea className="max-h-[240px]">
-                  <div className="flex flex-col gap-2 pr-2">
-                    {(Array.isArray(workflows) ? workflows : []).map((wf: IViewComfy) => (
-                      <Item
-                        key={wf.viewComfyJSON.id}
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        onClick={() => { onModelChange("Workflow"); onWorkflowSelect?.(wf); }}
-                      >
-                        <a href="#" onClick={(e) => e.preventDefault()}>
-                          <ItemMedia>
-                            <BadgeCheck className="size-5 text-zinc-600" />
-                          </ItemMedia>
-                          <ItemContent>
-                            <ItemTitle>{wf.viewComfyJSON.title || 'Untitled Workflow'}</ItemTitle>
-                          </ItemContent>
-                        </a>
-                      </Item>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
-            </div>
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </SelectContent>
+        </Select>
+      </div>
+      
+   
 
+      {selectedModel === 'Workflow' && (
+        <div className="flex items-center gap-2">
+          {/* <Button variant="outline" className={Inputbutton2} onClick={() => onOpenWorkflowSelector?.()}>
+            {selectedWorkflowName || "选择工作流"}
+          </Button> */}
+          <Button variant="outline" className={Inputbutton2} onClick={() => onOpenBaseModelSelector?.()}>
+            {selectedBaseModelName || "基础模型"}
+          </Button>
+          <Button variant="outline" className={Inputbutton2} onClick={() => onOpenLoraSelector?.()}>
+            {selectedLoraNames.length > 0 ? `LoRA (${selectedLoraNames.length})` : "LoRA 模型"}
+          </Button>
+        </div>
+      )}
+           {/* 尺寸按钮 */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className={Inputbutton2}>
@@ -202,24 +196,10 @@ export default function ControlToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {selectedModel === 'Workflow' && (
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="h-10 px-4 text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10" onClick={() => onOpenWorkflowSelector?.()}>
-            {selectedWorkflowName || "选择工作流"}
-          </Button>
-          <Button variant="outline" className="h-10 px-4 text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10" onClick={() => onOpenBaseModelSelector?.()}>
-            {selectedBaseModelName || "基础模型"}
-          </Button>
-          <Button variant="outline" className="h-10 px-4 text-white rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10" onClick={() => onOpenLoraSelector?.()}>
-            {selectedLoraNames.length > 0 ? `LoRA (${selectedLoraNames.length})` : "LoRA 模型"}
-          </Button>
-        </div>
-      )}
-
       <div className="flex items-center">
         <input type="file" multiple accept="image/*" onChange={onImageUpload} className="hidden" id="image-upload" />
         <label htmlFor="image-upload">
-          <Button type="button" variant="outline" size="sm" className="h-10 w-10 p-0 text-white hover:bg-white hover:text-black rounded-2xl bg-black/30 backdrop-blur-2xl border border-white/10" asChild>
+          <Button type="button" variant="outline" size="sm" className={Inputbutton2} asChild>
             <div>
               <ImagePlus className="h-4 w-4" />
             </div>
@@ -236,47 +216,10 @@ export default function ControlToolbar({
         ) : (
           <>
             <Wand2 className="w-4 h-4" />
-            {selectedModel === "Nano banana" && uploadedImagesCount > 0 ? "开始生成" : "开始生成"}
+            开始生成
           </>
         )}
       </Button>
     </div>
   );
 }
-// Inline Item components for styled list entries in dropdown (no new files)
-interface ItemProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'outline' | 'ghost';
-  size?: 'sm' | 'md';
-  asChild?: boolean;
-}
-const Item = ({ variant = 'outline', size = 'sm', asChild, className, children, ...props }: ItemProps) => {
-  const base = "flex items-center gap-2 rounded-xl cursor-pointer select-none transition-colors";
-  const v = variant === 'outline' ? "border border-zinc-200 bg-white hover:bg-zinc-100" : "bg-transparent hover:bg-zinc-100";
-  const s = size === 'sm' ? "px-3 py-2" : "px-4 py-3";
-  if (asChild && React.isValidElement(children)) {
-    const child = children as React.ReactElement<any>;
-    const mergedClass = `${base} ${v} ${s} ${className ?? ''} ${(child.props as any)?.className ?? ''}`;
-    const mergedProps: any = { className: mergedClass };
-    if (typeof (props as any).onClick === 'function') {
-      mergedProps.onClick = (props as any).onClick;
-    }
-    return React.cloneElement(child, mergedProps);
-  }
-  return (
-    <div className={`${base} ${v} ${s} ${className ?? ''}`} {...props}>
-      {children}
-    </div>
-  );
-};
-const ItemMedia = ({ className, children }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex items-center ${className ?? ''}`}>{children}</div>
-);
-const ItemContent = ({ className, children }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex-1 min-w-0 ${className ?? ''}`}>{children}</div>
-);
-const ItemTitle = ({ className, children }: React.HTMLAttributes<HTMLSpanElement>) => (
-  <span className={`text-sm text-zinc-900 ${className ?? ''}`}>{children}</span>
-);
-const ItemActions = ({ className, children }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex items-center ${className ?? ''}`}>{children}</div>
-);

@@ -67,26 +67,35 @@ export default function LoraSelectorDialog({ open, onOpenChange, value, onConfir
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-6xl rounded-3xl">
         <DialogHeader>
           <DialogTitle>选择 LoRA 模型</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <ScrollArea className="max-h-[60vh]">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {list.map(item => (
-                <div key={item.model_name} className="border rounded-lg p-3 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Checkbox checked={item.model_name in selected} onCheckedChange={() => toggle(item.model_name)} />
+                // 模型卡片
+                <div key={item.model_name} className="relative border rounded-3xl p-1">
+                  <Checkbox
+                    checked={item.model_name in selected}
+                    onCheckedChange={() => toggle(item.model_name)}
+                    className="absolute top-2 right-2 z-10 h-5 w-5 bg-white/80 backdrop-blur-sm rounded-full shadow-sm"
+                  />
+                  {item.preview_url && (
+                    <img src={item.preview_url} alt={item.model_name} className="w-full h-48 object-contain rounded-2xl bg-muted" />
+                  )}
+                   <div className="flex items-center gap-2">
+                   
                     <span className="truncate text-sm">{item.model_name}</span>
                   </div>
-                  {item.preview_url && (
-                    <img src={item.preview_url} alt={item.model_name} className="w-full h-32 object-contain rounded-md bg-muted" />
-                  )}
                   {item.model_name in selected && (
-                    <div className="space-y-2">
+                    <div className="flex flex-colspace-y-2">
+                      
                       <div className="text-xs text-muted-foreground">强度 {selected[item.model_name].toFixed(2)}</div>
+                      
                       <Slider value={[selected[item.model_name]]} min={0} max={1} step={0.05} onValueChange={(vals) => setStrength(item.model_name, vals[0] ?? 0)} />
+                        
                     </div>
                   )}
                 </div>
