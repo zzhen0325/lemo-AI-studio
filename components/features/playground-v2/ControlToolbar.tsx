@@ -79,7 +79,6 @@ export default function ControlToolbar({
 }: ControlToolbarProps) {
 
 
-    const Inputbutton2 = "w-auto text-white rounded-3xl bg-white/5 backdrop-blur-sm border border-white/40";
     const [selectValue, setSelectValue] = useState<string | undefined>(undefined);
     // 初始化与回填：根据外部选中模型/工作流，映射到 Select 的 value
     React.useEffect(() => {
@@ -111,9 +110,11 @@ export default function ControlToolbar({
         }
       }
     };
+
+    const Inputbutton2 = "h-10 w-auto text-white rounded-2xl bg-white/30 border-white/10";
   return (
-    <div className="w-full flex justify-between items-center gap-4">
-      <div className="flex items-center gap-2">
+    <div className="w-full h-12 flex justify-between items-center gap-2 px-2  py-2">
+      <div className="flex items-center ">
         <Select value={selectValue} onValueChange={handleUnifiedSelectChange}>
           <SelectTrigger className={Inputbutton2}>
             <SelectValue placeholder="选择模型/工作流" />
@@ -230,7 +231,7 @@ export default function ControlToolbar({
         </div>
       </div>
 
-      <Button onClick={onGenerate} disabled={isGenerating} className="ml-auto w-30 h-10 bg-white text-black font-medium py-3 rounded-2xl hover:bg-black hover:border-white hover:border hover:text-white">
+      <Button onClick={onGenerate} disabled={isGenerating} className="ml-auto w-10 h-10 bg-white text-[#0b4634] font-medium py-1 rounded-full hover:bg-white shadow-[0_0_8px_rgba(255,255,255,0.35)] hover:shadow-[0_0_18px_rgba(255,255,255,0.7)] transition-shadow duration-300 hover:border-white hover:border hover:text-[#203d87]">
         {isGenerating ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -239,7 +240,7 @@ export default function ControlToolbar({
         ) : (
           <>
             <Wand2 className="w-4 h-4" />
-            Generate
+           
           </>
         )}
       </Button>

@@ -31,6 +31,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
   import { DottedGlowBackground } from "@/components/ui/dotted-glow-background";
 import ColorBends from "@/components/common/graphics/ColorBends";
 import { BackgroundImage } from "@/components/common/graphics/BackgroundImage";
+
 // Image 已在上方导入，避免重复声明
   export function PlaygroundV2Page({ onEditMapping }: { onEditMapping?: (workflow: IViewComfy) => void }) {
     const { toast } = useToast();
@@ -253,34 +254,33 @@ import { BackgroundImage } from "@/components/common/graphics/BackgroundImage";
 
 
     // 样式定义
-    const tabPill = "rounded-full font-aquebella bg-white/10 backdrop-blur-xl text-white  text-xs border border-border/10 px-4 py-2 transition-colors hover:bg-zinc-100";
-      const Inputbg = "flex w-full max-w-5xl flex-col items-start gap-6 rounded-3xl bg-[rgba(221,255,192,1)] border border-border/10 p-6 mx-auto"; 
-     
-    return (
-      <div className="relative h-full   overflow-hidden">
-       
-        
-       
-      
+    const tabPill = "rounded-full font-aquebella bg-white/10 backdrop-blur-xl text-white  text-xs border border-border/10 px-4";      
+     const Inputbg = "flex w-full text-black max-w-4xl flex-col items-start gap-2 rounded-[30px] bg-white/30 backdrop-blur-sm border-none p-2 mx-auto";    
+      return (
+    <div className="relative h-full  bg-transparent overflow-hidden">
         <div className="absolute inset-0 z-0 pointer-events-none">
-          {/* <Image
-            src="/images/bg6.jpg"
+          <Image
+            src="/images/bg4.png"
             alt="背景"
             fill
             priority
             className="object-cover "
-          /> */}
-          <video
+          />
+           {/* <video
             src="/images/bg.mp4"
             autoPlay
             loop
             muted
             className="object-cover absolute inset-0 w-full h-full"
-          />
+          /> */}
         </div>
-        <div className="absolute inset-0 z-999 pointer-events-none">
+        
+       
+      
+        
+        {/* <div className="absolute inset-0 z-999 pointer-events-none">
           <DottedGlowBackground className="z-999" gap={14} radius={1} opacity={0.6} backgroundOpacity={0} speedMin={0.4} speedMax={1.2} speedScale={1} colorDarkVar="color-zinc-100" glowColorDarkVar="color-zinc-100" />
-        </div>
+        </div> */}
         <div className="h-full overflow-y-auto relative  z-10">
           <div className="max-w-8xl mx-auto relative z-10">
             {(isLoading || generationHistory.length > 0) ? (
@@ -288,10 +288,10 @@ import { BackgroundImage } from "@/components/common/graphics/BackgroundImage";
             ) : (
               <div className="flex flex-col text-white items-center justify-center mt-20">
                 
-                <h1 className="text-[4vw] text-center mt-[-2rem]" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>Lemon8 AI Studio</h1>
+                <h1 className="text-[8vw] text-center mt-[-2rem]" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>Lemon8 AI Studio</h1>
               </div>
             )}
-              <Card className=" max-w-5xl mx-auto bg-transparent shadow-none border-none flex items-center justify-center">
+              {/* <Card className=" max-w-5xl mx-auto bg-transparent shadow-none border-none flex items-center justify-center">
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-center gap-3">
                       
@@ -334,14 +334,15 @@ import { BackgroundImage } from "@/components/common/graphics/BackgroundImage";
                       </ScrollArea>
                     </div>
                   </CardContent>
-                </Card> 
-            <div className={`${generationHistory.length > 0 ? 'flex w-full max-w-5xl flex-none flex-col items-start rounded-3xl p-4 mx-auto' : 'flex justify-center items-center p-4'}`}>
+                </Card>  */}
+            <div className={generationHistory.length > 0 ? 'flex w-full max-w-5xl flex-none flex-col items-start rounded-3xl  mx-auto' : 'flex justify-center items-center p-4'}>
              {/* 生成区域外边框 */}
               
                  {/* 生成区域卡片样式 */}
 
-                <div className={Inputbg}>
-              
+               <div className={Inputbg}
+               >
+                
                 <PromptInput text={config.text} onTextChange={(val) => setConfig(prev => ({ ...prev, text: val }))} uploadedImages={uploadedImages} onRemoveImage={removeImage} isOptimizing={isOptimizing} onOptimize={handleOptimizePrompt} selectedAIModel={selectedAIModel} onAIModelChange={setSelectedAIModel} />
                 <ControlToolbar selectedModel={selectedModel} onModelChange={setSelectedModel} config={config} onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))} onWidthChange={handleWidthChange} onHeightChange={handleHeightChange} aspectRatioPresets={aspectRatioPresets} currentAspectRatio={getCurrentAspectRatio()} isAspectRatioLocked={isAspectRatioLocked} onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)} onImageUpload={handleImageUpload} onGenerate={handleGenerate} isGenerating={isLoading} uploadedImagesCount={uploadedImages.length} loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."} onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)} onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)} onOpenLoraSelector={() => setIsLoraDialogOpen(true)} selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title} selectedBaseModelName={selectedBaseModel} selectedLoraNames={selectedLoras.map(l => l.model_name)} workflows={workflows} onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }} onOptimize={handleOptimizePrompt} isOptimizing={isOptimizing} />
               </div>

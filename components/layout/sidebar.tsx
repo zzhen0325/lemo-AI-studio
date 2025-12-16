@@ -1,7 +1,7 @@
 import { SquareTerminal, LifeBuoy, FileJson, Cloud,Star, History, Palette, Layers, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button"
-import { Sidebar as UISidebar, SidebarHeader, SidebarContent, SidebarFooter } from "@/components/ui/sidebar"
+ 
 import { TooltipButton } from "@/components/ui/tooltip-button"
 import Link from "next/link";
 import { useMediaQuery } from "@/hooks/common/use-media-query"
@@ -60,7 +60,7 @@ const SidebarButton = ({ icon, label, isActive, onClick, isSmallScreen }: { icon
     return (
         <Button
             variant={isActive ? "secondary" : "ghost"}
-            className="w-full justify-start"
+            className="justify-start"
             onClick={onClick}
         >
             {icon}
@@ -83,10 +83,9 @@ export function Sidebar({ currentTab, onTabChange, deployWindow, onDeployWindow 
     });
     const isCondensed = isSmallScreen || collapsed;
 
-    // 设置CSS变量来定义边栏宽度
     useEffect(() => {
-        const sidebarWidth = isCondensed ? '48px' : '240px';
-        document.documentElement.style.setProperty('--sidebar-width', sidebarWidth);
+        const topbarHeight = '60px';
+        document.documentElement.style.setProperty('--topbar-height', topbarHeight);
     }, [isCondensed]);
 
     useEffect(() => {
@@ -101,32 +100,29 @@ export function Sidebar({ currentTab, onTabChange, deployWindow, onDeployWindow 
     }, [collapsed]);
 
     return (
-        <UISidebar collapsed={isCondensed} >
-            {/* className={`m-6 rounded-3xl !h-[calc(100vh-3rem)]`} */}
-            <SidebarHeader className={`${isCondensed ? 'justify-center' : ''} h-15`}>
+        <header className="fixed top-0 left-0 right-0 z-50   text-white  bg-white/10 backdrop-blur-md border-b border-white/20 shadow-[0_0_24px_rgba(255,255,255,0.15)]">
+            <div className="flex items-center h-14 px-4 gap-3">
                 <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                     <div className="flex items-center ">
                         {!isCondensed && <span className="text-xl font-semibold font-aquebella">Lemon8 AI</span>}
                     </div>
                 </motion.div>
                 {!isSmallScreen && (
-                    <Button variant="ghost" size="icon" className="ml-auto" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+                    <Button variant="ghost" size="icon" className="ml-1" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
                         {collapsed ? <ChevronRight className="size-5" /> : <ChevronLeft className="size-5" />}
                     </Button>
                 )}
-            </SidebarHeader>
-            <SidebarContent>
-                {viewMode ? (
-                    <SidebarButton
-                        icon={<SquareTerminal className="size-5" />}
-                        label="Playground"
-                        isActive={currentTab === TabValue.Playground}
-                        onClick={() => onTabChange(TabValue.Playground)}
-                        isSmallScreen={isCondensed}
-                    />
-                ) : (
-                    <>
-                        
+                <div className="flex items-center gap-2 ml-auto">
+                    {viewMode ? (
+                        <SidebarButton
+                            icon={<SquareTerminal className="size-5" />}
+                            label="Playground"
+                            isActive={currentTab === TabValue.Playground}
+                            onClick={() => onTabChange(TabValue.Playground)}
+                            isSmallScreen={isCondensed}
+                        />
+                    ) : (
+                        <>
                             <SidebarButton
                                 icon={<Layers className="size-5" />}
                                 label="Mapping Editor"
@@ -134,28 +130,24 @@ export function Sidebar({ currentTab, onTabChange, deployWindow, onDeployWindow 
                                 onClick={() => onTabChange(TabValue.MappingEditor)}
                                 isSmallScreen={isCondensed}
                             />
-                       
-                        {/* ByteArtist 按钮带角标 */}
-                        <div className="relative">
-                            <SidebarButton
-                                icon={<Palette className="size-5" />}
-                                label="Playground 2.0"
-                                isActive={currentTab === TabValue.ByteArtist}
-                                onClick={() => onTabChange(TabValue.ByteArtist)}
-                                isSmallScreen={isCondensed}
-                            />
-                            {/* NEW 角标 */}
-                            <div className="absolute -top-3 -right-1 z-10">
-                                <Image 
-                                    src="/images/new.svg" 
-                                    alt="New" 
-                                    width={20} 
-                                    height={20} 
-                                    className="w-16 h-16"
+                            <div className="relative">
+                                <SidebarButton
+                                    icon={<Palette className="size-5" />}
+                                    label="Playground 2.0"
+                                    isActive={currentTab === TabValue.ByteArtist}
+                                    onClick={() => onTabChange(TabValue.ByteArtist)}
+                                    isSmallScreen={isCondensed}
                                 />
+                                <div className="absolute -top-3 -right-1 z-10">
+                                    <Image 
+                                        src="/images/new.svg" 
+                                        alt="New" 
+                                        width={20} 
+                                        height={20} 
+                                        className="w-16 h-16"
+                                    />
+                                </div>
                             </div>
-                        </div>
-
                             <SidebarButton
                                 icon={<History className="size-5" />}
                                 label="history"
@@ -177,33 +169,24 @@ export function Sidebar({ currentTab, onTabChange, deployWindow, onDeployWindow 
                                 onClick={() => onTabChange(TabValue.Settings)}
                                 isSmallScreen={isCondensed}
                             />
-                        {/* <SidebarButton
-                            icon={<Cloud className="size-5" />}
-                            label="Deploy"
-                            isActive={deployWindow === true}
-                            onClick={() => onDeployWindow(!deployWindow)}
-                            isSmallScreen={isSmallScreen}
-                        /> */}
-                    </>
-                )}
-            </SidebarContent>
-            <SidebarFooter>
-                <Link href="https://bytedance.larkoffice.com/wiki/M0hxw9xARiigSTkq2iJcQUrOn3e" target="_blank" rel="noopener noreferrer">
-                    {isSmallScreen ? (
-                        <TooltipButton
-                            icon={<Image src="/images/logos/lark_logo.png" alt="Lemon8 AI 文档" width={20} height={20} className="size-5" />}
-                            label="Lemon8 AI 文档"
-                            tooltipContent="Lemon8 AI 文档"
-                            
-                        />
-                    ) : (
-                        <Button variant="outline" className="w-full justify-start rounded-3xl">
-                            <Image src="/images/logos/lark_logo.png" alt="Lemon8 AI 文档" width={20} height={20} className="size-5 mr-2" />
-                            Lemon8 AI 文档
-                        </Button>
+                        </>
                     )}
-                </Link>
-            </SidebarFooter>
-        </UISidebar>
+                    <Link href="https://bytedance.larkoffice.com/wiki/M0hxw9xARiigSTkq2iJcQUrOn3e" target="_blank" rel="noopener noreferrer" className="ml-2">
+                        {isSmallScreen ? (
+                            <TooltipButton
+                                icon={<Image src="/images/logos/lark_logo.png" alt="Lemon8 AI 文档" width={20} height={20} className="size-5" />}
+                                label="Lemon8 AI 文档"
+                                tooltipContent="Lemon8 AI 文档"
+                            />
+                        ) : (
+                            <Button variant="outline" className="justify-start rounded-2xl">
+                                <Image src="/images/logos/lark_logo.png" alt="Lemon8 AI 文档" width={20} height={20} className="size-5 mr-2" />
+                                Lemon8 AI 文档
+                            </Button>
+                        )}
+                    </Link>
+                </div>
+            </div>
+        </header>
     )
 }

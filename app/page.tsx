@@ -1,5 +1,5 @@
 "use client"
-import {  TabValue, TabContext } from "@/components/layout/sidebar";
+import {  TabValue, TabContext, Sidebar } from "@/components/layout/sidebar";
 import { Suspense, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { PlaygroundV2Page } from "@/pages/playground-v2";
 import { MappingEditorPage } from "@/pages/mapping-editor-page";
 import { Toaster } from "@/components/ui/toaster";
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
-
+import Image from "next/image";
 export default function Page() {
   const [currentTab, setCurrentTab] = useState<TabValue>(TabValue.Playground);
   const [deployWindow, setDeployWindow] = useState<boolean>(false);
@@ -70,10 +70,27 @@ export default function Page() {
 
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
-      <div className="flex h-screen bg-white">
+      <div className="flex h-screen bg-">
+        {/* <div className="absolute inset-0 z-0 pointer-events-none">
+          <Image
+            src="/images/bg6.jpg"
+            alt="背景"
+            fill
+            priority
+            className="object-cover "
+          />
+          {/* <video
+            src="/images/bg.mp4"
+            autoPlay
+            loop
+            muted
+            className="object-cover absolute inset-0 w-full h-full"
+          /> */}
+        {/* //</div> */} 
         {/* <Sidebar currentTab={currentTab} onTabChange={handleTabChange} deployWindow={deployWindow} onDeployWindow={setDeployWindow} /> */}
-        <main className="flex-1 overflow-auto" key={currentTab}>
-          <div className="relative h-[calc(100%-3rem)] m-4 rounded-[2rem] w-auto   bg-white  box-shadow-[0_0_200px_200px_rgba(255,255,255,0.5)] overflow-hidden"> 
+        <main className="flex-1 overflow-auto " key={currentTab}>
+          {/* pt-[var(--topbar-height)] */}
+          <div className="relative h-[calc(100%-4rem)] m-8 rounded-[2rem] w-auto     overflow-hidden"> 
             {/* mx-[20rem] my-[6rem] rounded-[8rem] */}
             {currentTab === TabValue.Playground && (
               <Suspense>

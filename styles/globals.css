@@ -114,6 +114,25 @@
   
 }
 
+@layer base {
+  * {
+    scrollbar-color: rgba(255, 255, 255,0.1) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255,0.1);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
 /* Custom dropzone styles */
 .custom-dropzone {
     height: 100px;
