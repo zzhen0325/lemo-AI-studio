@@ -16,7 +16,7 @@
 @supports not (backdrop-filter: blur(1px)) {
   .gradual-blur-inner > div {
     background: transparent;
-    opacity: 0;
+    opacity: 1;
   }
 }
 

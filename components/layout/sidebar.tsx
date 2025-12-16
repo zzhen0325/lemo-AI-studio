@@ -1,4 +1,4 @@
-import { SquareTerminal, LifeBuoy, FileJson, Cloud,Star, History, Palette, Layers, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { SquareTerminal,  Star, History, Palette, Layers, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button"
  
@@ -69,7 +69,7 @@ const SidebarButton = ({ icon, label, isActive, onClick, isSmallScreen }: { icon
     )
 }
 
-export function Sidebar({ currentTab, onTabChange, deployWindow, onDeployWindow }: SidebarProps) {
+export function Sidebar({ currentTab, onTabChange }: SidebarProps) {
     console.log(process.env.PORT, 'process.env.PORT')
     const viewMode = process.env.PORT === '3000';
     const isSmallScreen = useMediaQuery("(max-width: 1024px)");

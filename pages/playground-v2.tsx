@@ -6,6 +6,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Item, ItemContent, ItemTitle } from "@/components/ui/item";
   import { useImageGeneration } from "@/hooks/features/PlaygroundV2/useImageGeneration";
   import { useImageEditing } from "@/hooks/features/PlaygroundV2/useImageEditing";
   import { usePromptOptimization, AIModel } from "@/hooks/features/PlaygroundV2/usePromptOptimization";
@@ -294,40 +295,40 @@ import { BackgroundImage } from "@/components/common/graphics/BackgroundImage";
               {/* <Card className=" max-w-5xl mx-auto bg-transparent shadow-none border-none flex items-center justify-center">
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-center gap-3">
-                      
                       <div className="flex items-center justify-center flex-wrap gap-2">
-                        <Button
-                          className={`${tabPill} ${selectedModel !== "Workflow" && selectedModel === "3D Lemo seed3" ? "is-active" : ""}`}
-                          onClick={() => { setSelectedModel("3D Lemo seed3"); setSelectedWorkflowConfig(undefined); }}
-                        >
-                          Seed 3.0
-                        </Button>
-                        <Button
-                          className={`${tabPill} ${selectedModel !== "Workflow" && selectedModel === "Seed 4.0" ? "is-active" : ""}`}
-                          onClick={() => { setSelectedModel("Seed 4.0"); setSelectedWorkflowConfig(undefined); }}
-                        >
-                          Seed 4.0
-                        </Button>
-                        <Button
-                          className={`${tabPill} ${selectedModel !== "Workflow" && selectedModel === "Nano banana" ? "is-active" : ""}`}
-                          onClick={() => { setSelectedModel("Nano banana"); setSelectedWorkflowConfig(undefined); }}
-                        >
-                          Nano banana
-                        </Button>
+                        <Item variant="outline" size="sm" aria-selected={selectedModel!=="Workflow" && selectedModel==="3D Lemo seed3"} className="data-[aria-selected=true]:bg-white data-[aria-selected=true]:text-black" onClick={() => { setSelectedModel("3D Lemo seed3"); setSelectedWorkflowConfig(undefined); }}>
+                          <ItemContent>
+                            <ItemTitle>Seed 3.0</ItemTitle>
+                          </ItemContent>
+                        </Item>
+                        <Item variant="outline" size="sm" aria-selected={selectedModel!=="Workflow" && selectedModel==="Seed 4.0"} className="data-[aria-selected=true]:bg-white data-[aria-selected=true]:text-black" onClick={() => { setSelectedModel("Seed 4.0"); setSelectedWorkflowConfig(undefined); }}>
+                          <ItemContent>
+                            <ItemTitle>Seed 4.0</ItemTitle>
+                          </ItemContent>
+                        </Item>
+                        <Item variant="outline" size="sm" aria-selected={selectedModel!=="Workflow" && selectedModel==="Nano banana"} className="data-[aria-selected=true]:bg-white data-[aria-selected=true]:text-black" onClick={() => { setSelectedModel("Nano banana"); setSelectedWorkflowConfig(undefined); }}>
+                          <ItemContent>
+                            <ItemTitle>Nano banana</ItemTitle>
+                          </ItemContent>
+                        </Item>
                       </div>
                     </div>
                     <div className="flex items-center justify-center gap-3">
-                      
                       <ScrollArea className="w-full" type="scroll">
                         <div className="flex items-center justify-center gap-2 whitespace-nowrap">
                           {workflows.map(wf => (
-                            <Button
+                            <Item
                               key={wf.viewComfyJSON.id}
-                              className={`${tabPill} ${selectedModel === "Workflow" && selectedWorkflowConfig?.viewComfyJSON.id === wf.viewComfyJSON.id ? "is-active" : ""}`}
+                              variant="outline"
+                              size="sm"
+                              aria-selected={selectedModel === "Workflow" && selectedWorkflowConfig?.viewComfyJSON.id === wf.viewComfyJSON.id}
+                              className="data-[aria-selected=true]:bg-white data-[aria-selected=true]:text-black"
                               onClick={() => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
                             >
-                              {wf.viewComfyJSON.title || "Untitled Workflow"}
-                            </Button>
+                              <ItemContent>
+                                <ItemTitle>{wf.viewComfyJSON.title || "Untitled Workflow"}</ItemTitle>
+                              </ItemContent>
+                            </Item>
                           ))}
                         </div>
                         <ScrollBar orientation="horizontal" />

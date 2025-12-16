@@ -3,24 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Wand2, ImagePlus, ChevronDown, Link, Unlink, Sparkles } from "lucide-react";
+import GradualBlur from "@/components/GradualBlur";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
+ 
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { GenerationConfig } from '@/components/features/playground-v2/types';
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-  SelectSeparator,
-} from "@/components/ui/select"
+
+
 
 interface ControlToolbarProps {
   selectedModel: string;
@@ -65,8 +62,7 @@ export default function ControlToolbar({
   onGenerate,
   isGenerating,
   loadingText = "生成中...",
-  uploadedImagesCount,
-  onOpenWorkflowSelector,
+  
   onOpenBaseModelSelector,
   onOpenLoraSelector,
   selectedWorkflowName,
@@ -111,42 +107,70 @@ export default function ControlToolbar({
       }
     };
 
-    const Inputbutton2 = "h-10 w-auto text-white rounded-2xl bg-white/30 border-white/10";
+    const Inputbutton2 = "h-10 w-auto text-white rounded-2xl bg-black/40 border-none";
+    const triggerLabel = (() => {
+      if (selectValue === 'seed3') return 'Seed 3';
+      if (selectValue === 'seed4') return 'Seed 4';
+      if (selectValue === 'nano_banana') return 'Nano banana';
+      if (selectValue && selectValue.startsWith('wf:')) return selectedWorkflowName || '选择工作流';
+      return '选择模型/工作流';
+    })();
+
+
+  const itemLable = "px-2 py-2 text-sm text-white/30    ";
+  const itemClassName = "px-2 py-2 text-md text-white/70 rounded-xl bg-black/20 hover:bg-white/20  flex items-center gap-2";
   return (
-    <div className="w-full h-12 flex justify-between items-center gap-2 px-2  py-2">
+    <div className="w-full h-12 mt-2 flex justify-between items-center gap-2 px-2  py-2">
       <div className="flex items-center ">
-        <Select value={selectValue} onValueChange={handleUnifiedSelectChange}>
-          <SelectTrigger className={Inputbutton2}>
-            <SelectValue placeholder="选择模型/工作流" />
-          </SelectTrigger>
-          <SelectContent className="p-3 text-zinc-900 rounded-3xl bg-white border border-zinc-200">
-            <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-start">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className={Inputbutton2}>
+              {triggerLabel}
+              <ChevronDown className="h-4 w-4 opacity-50 ml-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="rounded-2xl  backdrop-blur-md border border-white/20 bg-[#1e25224d]" align="start">
+            <div className="relative items-start w-56 h-[400px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ">
               <div>
-                <SelectGroup >
-                  <SelectLabel className="px-2 text-sm font-normal text-zinc-400">Online</SelectLabel>
-                  <SelectItem  value="seed3">Seed 3</SelectItem>
-                  <SelectItem  value="seed4">Seed 4</SelectItem>
-                  <SelectItem  value="nano_banana">Nano banana</SelectItem>
-                </SelectGroup>
-              </div>
-              <SelectSeparator className="my-0 w-px h-full bg-zinc-200" />
-              <div>
-                <SelectGroup>
-                  <SelectLabel className="px-2 text-sm font-normal text-zinc-400">Workflow</SelectLabel>
+                <DropdownMenuLabel className={itemLable}>Online</DropdownMenuLabel>
+                <DropdownMenuRadioGroup className="space-y-2 px-2" value={selectValue} onValueChange={handleUnifiedSelectChange}>
+                  <DropdownMenuRadioItem value="seed3" className={itemClassName}>
+                    <span className={`w-2 h-2 rounded-full ${selectValue === 'seed3' ? 'bg-emerald-400' : 'bg-transparent border border-white/30'}`} />
+                    Seed 3
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="seed4" className={itemClassName}>
+                    <span className={`w-2 h-2 rounded-full ${selectValue === 'seed4' ? 'bg-emerald-400' : 'bg-transparent border border-white/30'}`} />
+                    Seed 4
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="nano_banana" className={itemClassName}>
+                    <span className={`w-2 h-2 rounded-full ${selectValue === 'nano_banana' ? 'bg-emerald-400' : 'bg-transparent border border-white/30'}`} />
+                    Nano banana
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator className="my-2 bg-white/10" />
+                <DropdownMenuLabel className={itemLable}>Workflow</DropdownMenuLabel>
+                <DropdownMenuRadioGroup className="space-y-2 px-2" value={selectValue} onValueChange={handleUnifiedSelectChange}>
                   {(Array.isArray(workflows) ? workflows : []).map((wf: IViewComfy) => (
-                    <SelectItem key={wf.viewComfyJSON.id} value={`wf:${String(wf.viewComfyJSON.id)}`}>
+                    <DropdownMenuRadioItem value={`wf:${String(wf.viewComfyJSON.id)}`} key={wf.viewComfyJSON.id} className={itemClassName}>
+                      <span className={`w-2 h-2 rounded-full ${selectValue === `wf:${String(wf.viewComfyJSON.id)}` ? 'bg-emerald-400' : 'bg-transparent border border-white/30'}`} />
                       {wf.viewComfyJSON.title || 'Untitled Workflow'}
-                    </SelectItem>
+                    </DropdownMenuRadioItem>
                   ))}
-                </SelectGroup>
+                </DropdownMenuRadioGroup>
+                
               </div>
-            </div>
-          </SelectContent>
-        </Select>
+              <div className='fixed bottom-0 left-0 right-0 rounded-2xl bg-transparent'>
+                 <GradualBlur position="bottom" target="parent" exponential={true} strength={1} curve="bezier" divCount={10} opacity={0.85} height="6rem" />
+              </div>
+              </div>
+              
+             
+          </DropdownMenuContent>
+        
+        </DropdownMenu>
       </div>
       
    
-
       {selectedModel === 'Workflow' && (
         <div className="flex items-center gap-2">
           {/* <Button variant="outline" className={Inputbutton2} onClick={() => onOpenWorkflowSelector?.()}>
@@ -178,7 +202,7 @@ export default function ControlToolbar({
                 <Button
                   key={preset.name}
                   variant="outline"
-                  className="h-8 rounded-xl bg-white/10 border border-white/10"
+                  className="h-8 rounded-xl bg-black/20 border border-white/10 text-white"
                   onClick={() => onConfigChange({ width: preset.width, height: preset.height })}
                 >
                   {preset.name}
@@ -204,10 +228,8 @@ export default function ControlToolbar({
       <div className="flex items-center">
         <input type="file" multiple accept="image/*" onChange={onImageUpload} className="hidden" id="image-upload" />
         <label htmlFor="image-upload">
-          <Button type="button" variant="outline" size="sm" className={Inputbutton2} asChild>
-            <div>
-              <ImagePlus className="h-4 w-4" />
-            </div>
+          <Button type="button" variant="outline" size="sm" className={Inputbutton2}>
+            <ImagePlus className="h-4 w-4" />
           </Button>
         </label>
         <div className="ml-2 flex items-center w-auto">
@@ -231,7 +253,7 @@ export default function ControlToolbar({
         </div>
       </div>
 
-      <Button onClick={onGenerate} disabled={isGenerating} className="ml-auto w-10 h-10 bg-white text-[#0b4634] font-medium py-1 rounded-full hover:bg-white shadow-[0_0_8px_rgba(255,255,255,0.35)] hover:shadow-[0_0_18px_rgba(255,255,255,0.7)] transition-shadow duration-300 hover:border-white hover:border hover:text-[#203d87]">
+      <Button onClick={onGenerate} disabled={isGenerating} className="ml-auto w-auto h-10 bg-white text-[#0b4634] font-medium py-1 rounded-full hover:bg-white shadow-[0_0_16px_rgba(255,255,255,0.6)] hover:shadow-[0_0_24px_rgba(255,255,255,0.9)] transition-shadow duration-300 hover:border-white hover:border hover:text-[#203d87]">
         {isGenerating ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -240,7 +262,7 @@ export default function ControlToolbar({
         ) : (
           <>
             <Wand2 className="w-4 h-4" />
-           
+           Generate
           </>
         )}
       </Button>
