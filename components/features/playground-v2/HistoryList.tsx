@@ -41,7 +41,7 @@ export default function HistoryList({
                     <Button
                       size="sm"
                       onClick={() => onRegenerate(result.config)}
-                      className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-2xl border border-white/10 font-medium hover:bg-white hover:text-black"
+                      className="w-10 h-10 rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 font-medium hover:bg-white hover:text-black"
                       disabled={isGenerating}
                     >
                       <RefreshCw className="w-4 h-4" />
@@ -50,7 +50,7 @@ export default function HistoryList({
                     <Button
                       size="sm"
                       onClick={() => onDownload(result.imageUrl)}
-                      className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-2xl border border-white/10 font-medium hover:bg-white hover:text-black"
+                      className="w-10 h-10 rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 font-medium hover:bg-white hover:text-black"
                     >
                       <Download className="w-4 h-4" />
                     </Button>
@@ -61,7 +61,7 @@ export default function HistoryList({
                       <div className="relative group w-full h-full">
                         <img
                           src={result.imageUrl}
-                          alt="Generated image"
+                          alt={`Generated image ${index}`}
                           className="w-full h-full object-cover rounded-2xl cursor-pointer"
                           onClick={() => onImageClick(result.imageUrl)}
                         />

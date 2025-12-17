@@ -3,17 +3,14 @@
 
   import { useState, useEffect } from "react";
   import { useToast } from "@/hooks/common/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Item, ItemContent, ItemTitle } from "@/components/ui/item";
+
   import { useImageGeneration } from "@/hooks/features/PlaygroundV2/useImageGeneration";
   import { useImageEditing } from "@/hooks/features/PlaygroundV2/useImageEditing";
   import { usePromptOptimization, AIModel } from "@/hooks/features/PlaygroundV2/usePromptOptimization";
   import { useCozeWorkflow } from "@/hooks/features/useCozeWorkflow";
   import { fetchByteArtistImage } from "@/lib/api/PlaygroundV2";
   import type { ByteArtistResponse } from "@/lib/api/PlaygroundV2";
-  import Image from "next/image";
+ 
   import PromptInput from "@/components/features/playground-v2/PromptInput";
   import ControlToolbar from "@/components/features/playground-v2/ControlToolbar";
   import HistoryList from "@/components/features/playground-v2/HistoryList";
@@ -28,12 +25,9 @@ import { Item, ItemContent, ItemTitle } from "@/components/ui/item";
   import type { UIComponent } from "@/types/features/mapping-editor";
   import type { CozeWorkflowParams } from "@/types/coze-workflow";
   import { usePostPlayground } from "@/hooks/features/playground/use-post-playground";
-  import ShaderShowcase from "@/components/ui/hero";
-  import { DottedGlowBackground } from "@/components/ui/dotted-glow-background";
-import ColorBends from "@/components/common/graphics/ColorBends";
-import { BackgroundImage } from "@/components/common/graphics/BackgroundImage";
 
-// Image 已在上方导入，避免重复声明
+
+
   export function PlaygroundV2Page({ onEditMapping }: { onEditMapping?: (workflow: IViewComfy) => void }) {
     const { toast } = useToast();
     const [config, setConfig] = useState<GenerationConfig>({ text: "", width: 1200, height: 1200, batch_size: 1 });
@@ -255,44 +249,25 @@ import { BackgroundImage } from "@/components/common/graphics/BackgroundImage";
 
 
     // 样式定义
-    const tabPill = "rounded-full font-aquebella bg-white/10 backdrop-blur-xl text-white  text-xs border border-border/10 px-4";      
-     const Inputbg = "flex w-full text-black max-w-4xl flex-col items-start gap-2 rounded-[30px] bg-white/30 backdrop-blur-sm border-none p-2 mx-auto";    
-      return (
-    <div className="relative h-full  bg-transparent overflow-hidden">
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <Image
-            src="/images/bg4.png"
-            alt="背景"
-            fill
-            priority
-            className="object-cover "
-          />
-           {/* <video
-            src="/images/bg.mp4"
-            autoPlay
-            loop
-            muted
-            className="object-cover absolute inset-0 w-full h-full"
-          /> */}
-        </div>
         
-       
+     const Inputbg = "flexitems-center justify-center w-full text-black flex-col   my-auto  rounded-[30px] bg-gradient-to-b  from-[rgba(0,0,0,0.4)] to-[rgba(80,129,118,0.4)]  backdrop-blur-md outline outline-white/20 outline-offset-[-1px] p-2 mx-auto";    
       
-        
-        {/* <div className="absolute inset-0 z-999 pointer-events-none">
-          <DottedGlowBackground className="z-999" gap={14} radius={1} opacity={0.6} backgroundOpacity={0} speedMin={0.4} speedMax={1.2} speedScale={1} colorDarkVar="color-zinc-100" glowColorDarkVar="color-zinc-100" />
-        </div> */}
-        <div className="h-full overflow-y-auto relative  z-10">
-          <div className="max-w-8xl mx-auto relative z-10">
-            {(isLoading || generationHistory.length > 0) ? (
-              <h1 className="text-[2vw] text-center mt-10 mb-10" style={{ fontFamily: 'ShowsGracious, sans-serif' }}>Lemon8 AI Studio</h1>
-            ) : (
-              <div className="flex flex-col text-white items-center justify-center mt-20">
-                
-                <h1 className="text-[8vw] text-center mt-[-2rem]" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>Lemon8 AI Studio</h1>
+     
+    return (
+    <div className="h-screen flex flex-col items-center gap-2 justify-center bg-transparent overflow-hidden">
+             <div className="items-center max-w-4xl space-y-4 w-full mt-[-12rem]">
+              <h1 className="text-[40px] text-white text-center" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>Let Your Imagination Soar </h1>
+             
+              
+              <div className={Inputbg}>
+             
+                <PromptInput text={config.text} onTextChange={(val) => setConfig(prev => ({ ...prev, text: val }))} uploadedImages={uploadedImages} onRemoveImage={removeImage} isOptimizing={isOptimizing} onOptimize={handleOptimizePrompt} selectedAIModel={selectedAIModel} onAIModelChange={setSelectedAIModel}  />
+                <ControlToolbar selectedModel={selectedModel} onModelChange={setSelectedModel} config={config} onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))} onWidthChange={handleWidthChange} onHeightChange={handleHeightChange} aspectRatioPresets={aspectRatioPresets} currentAspectRatio={getCurrentAspectRatio()} isAspectRatioLocked={isAspectRatioLocked} onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)} onImageUpload={handleImageUpload} onGenerate={handleGenerate} isGenerating={isLoading} uploadedImagesCount={uploadedImages.length} loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."} onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)} onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)} onOpenLoraSelector={() => setIsLoraDialogOpen(true)} selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title} selectedBaseModelName={selectedBaseModel} selectedLoraNames={selectedLoras.map(l => l.model_name)} workflows={workflows} onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }} onOptimize={handleOptimizePrompt} isOptimizing={isOptimizing} />
               </div>
-            )}
-              {/* <Card className=" max-w-5xl mx-auto bg-transparent shadow-none border-none flex items-center justify-center">
+          </div>
+            {/* 标签部分 */}
+             {/* <div>
+              <Card className=" max-w-5xl mx-auto bg-transparent shadow-none border-none flex items-center justify-center">
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-center gap-3">
                       <div className="flex items-center justify-center flex-wrap gap-2">
@@ -335,31 +310,17 @@ import { BackgroundImage } from "@/components/common/graphics/BackgroundImage";
                       </ScrollArea>
                     </div>
                   </CardContent>
-                </Card>  */}
-            <div className={generationHistory.length > 0 ? 'flex w-full max-w-5xl flex-none flex-col items-start rounded-3xl  mx-auto' : 'flex justify-center items-center p-4'}>
-             {/* 生成区域外边框 */}
-              
-                 {/* 生成区域卡片样式 */}
+                </Card> 
+              </div>  */}
 
-               <div className={Inputbg}
-               >
-                
-                <PromptInput text={config.text} onTextChange={(val) => setConfig(prev => ({ ...prev, text: val }))} uploadedImages={uploadedImages} onRemoveImage={removeImage} isOptimizing={isOptimizing} onOptimize={handleOptimizePrompt} selectedAIModel={selectedAIModel} onAIModelChange={setSelectedAIModel} />
-                <ControlToolbar selectedModel={selectedModel} onModelChange={setSelectedModel} config={config} onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))} onWidthChange={handleWidthChange} onHeightChange={handleHeightChange} aspectRatioPresets={aspectRatioPresets} currentAspectRatio={getCurrentAspectRatio()} isAspectRatioLocked={isAspectRatioLocked} onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)} onImageUpload={handleImageUpload} onGenerate={handleGenerate} isGenerating={isLoading} uploadedImagesCount={uploadedImages.length} loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."} onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)} onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)} onOpenLoraSelector={() => setIsLoraDialogOpen(true)} selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title} selectedBaseModelName={selectedBaseModel} selectedLoraNames={selectedLoras.map(l => l.model_name)} workflows={workflows} onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }} onOptimize={handleOptimizePrompt} isOptimizing={isOptimizing} />
-              </div>
+              {/* 生成区域卡片样式 */}
 
              
-              
-            </div>
-            <>
-            <div>
-              
-                
-                </div>
-                </>
+
+            
             <HistoryList history={generationHistory} onRegenerate={handleRegenerate} onDownload={handleDownload} onImageClick={openImageModal} isGenerating={isLoading} />
-          </div>
-        </div>
+          
+        
         <ImagePreviewModal isOpen={isImageModalOpen} onClose={closeImageModal} imageUrl={modalImageUrl} />
         <WorkflowSelectorDialog open={isWorkflowDialogOpen} onOpenChange={setIsWorkflowDialogOpen} onSelect={(wf) => setSelectedWorkflowConfig(wf)} onEdit={onEditMapping} />
         <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={selectedBaseModel} onConfirm={(m) => setSelectedBaseModel(m)} />

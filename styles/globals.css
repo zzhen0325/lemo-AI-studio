@@ -109,18 +109,14 @@
   }
 }
 
-@layer components {
-  /* 统一可复用的 Tabs Trigger 样式 */
-  
-}
 
 @layer base {
   * {
     scrollbar-color: rgba(255, 255, 255,0.1) transparent;
   }
   *::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 2px;
+    height: 4px;
     background: transparent;
   }
   *::-webkit-scrollbar-thumb {
