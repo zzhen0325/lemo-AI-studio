@@ -7,6 +7,7 @@ export interface GoogleGenAIConfig {
 }
 
 export interface GoogleGenAIResponse {
+  imageBase64?: string;
   imageUrl?: string;
   text?: string;
   error?: string;
@@ -34,12 +35,12 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
     // 如果有输入图片，添加到请求中
     if (config.images && config.images.length > 0) {
       console.log(`🖼️ 添加 ${config.images.length} 张输入图片`);
-      config.images.forEach((imageBase64, index) => {
+      config.images.forEach((base64Image, index) => {
         console.log(`📸 处理第 ${index + 1} 张图片`);
         parts.push({
           inlineData: {
             mimeType: "image/png",
-            data: imageBase64,
+            data: base64Image,
           },
         });
       });
@@ -50,7 +51,7 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
     parts.push({ text: config.prompt });
 
     console.log("📤 发送请求到 Google GenAI API");
-    console.log("🎯 使用模型: gemini-2.5-flash-image");
+    console.log("🎯 使用模型: gemini-3-pro-image-preview");
     console.log("🖼️ 配置响应模式: 仅返回图片");
     
     const contents = [
@@ -60,18 +61,18 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
       },
     ];
 
-    const configObj: Record<string, unknown> = {
+    const generationConfig: Record<string, unknown> = {
       responseModalities: ["IMAGE"],
     };
 
     if (config.aspectRatio) {
-      configObj.imageConfig = { aspectRatio: config.aspectRatio };
+      generationConfig.imageConfig = { aspectRatio: config.aspectRatio };
     }
 
     const requestConfig = {
       model: "gemini-3-pro-image-preview",
       contents,
-      config: configObj,
+      generationConfig,
     };
    
 
@@ -80,7 +81,19 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
       console.log(`📏 设置图片比例: ${config.aspectRatio}`);
     }
     
-    const response = await ai.models.generateContent(requestConfig);
+    let response;
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        response = await ai.models.generateContent(requestConfig);
+        break;
+      } catch (e) {
+        lastError = e;
+        console.warn(`⚠️ 第 ${attempt + 1} 次请求失败，准备重试`, e);
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+    if (!response) throw lastError ?? new Error('请求失败');
 
     console.log("📥 收到 API 响应");
     console.log("🔍 响应结构:", {
@@ -111,11 +124,10 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
      for (const part of candidate.content.parts) {
        if (part.inlineData && part.inlineData.data) {
          console.log("🖼️ 找到图片数据，MIME类型:", part.inlineData.mimeType);
-         const imageData = part.inlineData.data;
-         console.log("🖼️ 返回图片响应，数据长度:", imageData.length);
-         
-         const dataUrl = `data:${part.inlineData.mimeType};base64,${imageData}`;
-         console.log("✨ 图片数据URL生成成功，长度:", dataUrl.length);
+         const imageData = part.inlineData.data; // base64
+         const mime = part.inlineData.mimeType || "image/png";
+         const dataUrl = `data:${mime};base64,${imageData}`;
+         console.log("✨ 生成 Data URL，长度:", dataUrl.length);
          return { imageUrl: dataUrl };
        } else if (part.text) {
          console.log("💬 找到文本内容:", part.text.substring(0, 100) + "...");
@@ -128,8 +140,7 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
     return { error: "未收到有效的图片数据" };
   } catch (error) {
     console.error("💥 Google GenAI API 调用失败:", error);
-    return { 
-      error: error instanceof Error ? error.message : "未知错误" 
-    };
+    const message = error instanceof Error ? error.message : "未知错误";
+    return { error: message };
   }
 }

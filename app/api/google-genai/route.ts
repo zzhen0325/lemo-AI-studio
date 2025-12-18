@@ -11,7 +11,7 @@ export const googleGenAiRequestSchema = z.object({
 export type GoogleGenAiRequest = z.infer<typeof googleGenAiRequestSchema>
 
 export const googleGenAiResponseSchema = z.object({
-  imageUrl: z.string().url().optional(),
+  imageUrl: z.string().min(1).optional(),
   text: z.string().optional(),
   error: z.string().optional(),
 })
@@ -30,4 +30,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 })
   }
 }
-

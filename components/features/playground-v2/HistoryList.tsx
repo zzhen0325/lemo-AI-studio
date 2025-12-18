@@ -67,6 +67,32 @@ export default function HistoryList({
                         />
                       </div>
                     </div>
+                    <div className="flex-1 h-full overflow-hidden">
+                      <div className="w-full h-full rounded-2xl bg-black/20 border border-white/10 p-4 text-white">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="opacity-70">Prompt</div>
+                          <div className="truncate">{result.config.prompt}</div>
+                          <div className="opacity-70">宽度</div>
+                          <div>{result.config.img_width}</div>
+                          <div className="opacity-70">高度</div>
+                          <div>{result.config.image_height}</div>
+                          <div className="opacity-70">数量</div>
+                          <div>{result.config.gen_num}</div>
+                          <div className="opacity-70">基础模型</div>
+                          <div className="truncate">{result.config.base_model}</div>
+                          <div className="opacity-70">LoRA</div>
+                          <div className="truncate">{result.config.lora}</div>
+                          <div className="opacity-70">参考图</div>
+                          <div>
+                            {result.config.ref_image ? (
+                              <img src={result.config.ref_image} alt="ref" className="w-16 h-16 object-cover rounded-lg border" />
+                            ) : (
+                              <span className="opacity-50">无</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}

@@ -39,18 +39,9 @@ export class GeminiService {
       }
 
       const result = await response.json();
+      if (result.error) throw new Error(result.error);
+      if (result.imageUrl) return [result.imageUrl];
       
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      // The API returns a single image URL, convert to array format
-      if (result.imageUrl) {
-        // Extract base64 data from data URL
-        const base64Data = result.imageUrl.split(',')[1];
-        return [base64Data];
-      }
-
       return [];
     } catch (error) {
       console.error('Error generating image:', error);
@@ -78,18 +69,9 @@ export class GeminiService {
       }
 
       const result = await response.json();
+      if (result.error) throw new Error(result.error);
+      if (result.imageUrl) return [result.imageUrl];
       
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      // The API returns a single image URL, convert to array format
-      if (result.imageUrl) {
-        // Extract base64 data from data URL
-        const base64Data = result.imageUrl.split(',')[1];
-        return [base64Data];
-      }
-
       return [];
     } catch (error) {
       console.error('Error editing image:', error);
