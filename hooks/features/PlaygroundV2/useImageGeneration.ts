@@ -6,6 +6,7 @@ export interface ImageGenerationConfig {
   prompt: string;
   referenceImages?: string[];
   aspectRatio?: string;
+  imageSize?: string;
 }
 
 export interface ImageGenerationResult {
@@ -27,7 +28,12 @@ export function useImageGeneration() {
 
     setIsGenerating(true);
     try {
-      const request: GenerationRequest = { prompt: config.prompt, referenceImages: config.referenceImages, aspectRatio: config.aspectRatio };
+      const request: GenerationRequest = {
+        prompt: config.prompt,
+        referenceImages: config.referenceImages,
+        aspectRatio: config.aspectRatio,
+        imageSize: config.imageSize
+      };
       const images = await geminiService.generateImage(request);
       if (!images || images.length === 0) throw new Error('未收到有效图片数据');
       const imageUrl = images[0].startsWith('data:') ? images[0] : `data:image/png;base64,${images[0]}`;

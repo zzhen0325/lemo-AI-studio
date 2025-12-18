@@ -6,6 +6,7 @@ export const googleGenAiRequestSchema = z.object({
   prompt: z.string().min(1),
   images: z.array(z.string()).optional(),
   aspectRatio: z.string().optional(),
+  imageSize: z.string().optional(),
 })
 
 export type GoogleGenAiRequest = z.infer<typeof googleGenAiRequestSchema>

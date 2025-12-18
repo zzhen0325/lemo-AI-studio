@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -17,7 +18,6 @@ interface BaseModelSelectorDialogProps {
 
 export default function BaseModelSelectorDialog({ open, onOpenChange, value, onConfirm }: BaseModelSelectorDialogProps) {
   const [selectedName, setSelectedName] = useState<string>(value || '');
-  const [loading, setLoading] = useState(false);
 
   // 静态封面列表（来源于 public/basemodels）
   const list: BaseModelMeta[] = useMemo(() => ([
@@ -46,7 +46,14 @@ export default function BaseModelSelectorDialog({ open, onOpenChange, value, onC
                   }}
                   className="absolute top-2 right-2 z-10 h-5 w-5 bg-white/80 backdrop-blur-sm rounded-md shadow-sm"
                 />
-                <img src={item.cover} alt={item.name} className="w-full h-32 object-contain rounded-md bg-muted" />
+                <div className="relative w-full h-32 m-auto">
+                  <Image
+                    src={item.cover}
+                    alt={item.name}
+                    fill
+                    className="object-contain rounded-md bg-muted"
+                  />
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm">{item.name}</span>
                 </div>
@@ -54,8 +61,8 @@ export default function BaseModelSelectorDialog({ open, onOpenChange, value, onC
             ))}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>取消</Button>
-            <Button onClick={() => { onConfirm(selectedName); onOpenChange(false); }} disabled={!selectedName || loading}>确定</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+            <Button onClick={() => { onConfirm(selectedName); onOpenChange(false); }} disabled={!selectedName}>确定</Button>
           </div>
         </div>
       </DialogContent>

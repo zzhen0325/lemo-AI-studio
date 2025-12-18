@@ -7,7 +7,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export function GoogleApiStatus() {
+export function GoogleApiStatus({ className }: { className?: string }) {
     const [status, setStatus] = useState<'idle' | 'checking' | 'connected' | 'blocked' | 'offline'>('idle');
     const [lastCheck, setLastCheck] = useState<Date | null>(null);
 
@@ -50,7 +50,7 @@ export function GoogleApiStatus() {
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md cursor-help hover:bg-white/10 transition-colors">
+                    <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md cursor-help hover:bg-white/10 transition-colors", className)}>
                         <div className={cn("w-2 h-2 rounded-full", config.color, config.glow)} />
                         <span className="text-[10px] font-medium text-white/50 tracking-widest uppercase">
                             Google API

@@ -2,14 +2,14 @@ import React from 'react';
 import Image from 'next/image';
 
 import { Textarea } from "@/components/ui/textarea";
-import {  X } from "lucide-react";
+import { X } from "lucide-react";
 
 import { AIModel } from "@/hooks/features/PlaygroundV2/usePromptOptimization";
 import { UploadedImage } from '@/components/features/playground-v2/types';
 
 interface PromptInputProps {
-  text: string;
-  onTextChange: (value: string) => void;
+  prompt: string;
+  onPromptChange: (value: string) => void;
   uploadedImages: UploadedImage[];
   onRemoveImage: (index: number) => void;
   isOptimizing: boolean;
@@ -19,24 +19,24 @@ interface PromptInputProps {
 }
 
 export default function PromptInput({
-  text,
-  onTextChange,
+  prompt,
+  onPromptChange,
   uploadedImages,
   onRemoveImage,
- 
+
 }: PromptInputProps) {
 
 
 
   return (
     <div className="w-full space-y-2 ">
-     
+
 
       <div className="w-full relative ">
         <Textarea
           placeholder="请描述您想要生成的图像，例如：黄色的lemo圣诞老人，淡蓝色的背景"
-          value={text}
-          onChange={(e) => onTextChange(e.target.value)}
+          value={prompt}
+          onChange={(e) => onPromptChange(e.target.value)}
           className="h-36 w-full placeholder:text-white/40 resize-none bg-black/40 backdrop-blur-xl  inset-[-1px] shadow-none rounded-3xl text-white leading-relaxed tracking-wide p-4 border border-white/20"
         />
 

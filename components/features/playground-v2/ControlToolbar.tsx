@@ -43,6 +43,9 @@ interface ControlToolbarProps {
   selectedLoraNames?: string[];
   workflows?: IViewComfy[];
   onWorkflowSelect?: (wf: IViewComfy) => void;
+  onAspectRatioChange: (ar: string) => void;
+  currentImageSize: '1K' | '2K' | '4K';
+  onImageSizeChange: (size: '1K' | '2K' | '4K') => void;
   onOptimize: () => void;
   isOptimizing: boolean;
 }
@@ -72,6 +75,9 @@ export default function ControlToolbar({
   onWorkflowSelect,
   onOptimize,
   isOptimizing,
+  onAspectRatioChange,
+  currentImageSize,
+  onImageSizeChange,
 }: ControlToolbarProps) {
 
 
@@ -194,31 +200,50 @@ export default function ControlToolbar({
             <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-auto min-w-[280px] max-w-[400px] p-4 text-zinc-900 rounded-2xl bg-white border border-zinc-200 ">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium">Size</div>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {aspectRatioPresets.map(preset => (
-                <Button
-                  key={preset.name}
-                  variant="outline"
-                  className="h-8 rounded-xl bg-black/20 border border-white/10 text-white"
-                  onClick={() => onConfigChange({ width: preset.width, height: preset.height })}
-                >
-                  {preset.name}
-                </Button>
-              ))}
+        <DropdownMenuContent className="w-auto min-w-[320px] max-w-[450px] p-4 text-zinc-900 rounded-2xl bg-white border border-zinc-200 ">
+          <div className="space-y-4">
+            {selectedModel === 'Nano banana' && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Resolution</div>
+                <div className="flex gap-2">
+                  {(['1K', '2K', '4K'] as const).map(size => (
+                    <Button
+                      key={size}
+                      variant={currentImageSize === size ? "default" : "outline"}
+                      className={`flex-1 h-8 rounded-xl ${currentImageSize === size ? "bg-emerald-600 border-none" : "bg-zinc-50 border-zinc-200 text-zinc-600"}`}
+                      onClick={() => onImageSizeChange(size)}
+                    >
+                      {size}
+                    </Button>
+                  ))}
+                </div>
+                <DropdownMenuSeparator className="bg-zinc-100" />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Aspect Ratio</div>
+              <div className="grid grid-cols-4 gap-2">
+                {aspectRatioPresets.map(preset => (
+                  <Button
+                    key={preset.name}
+                    variant={currentAspectRatio === preset.name ? "default" : "outline"}
+                    className={`h-8 rounded-xl ${currentAspectRatio === preset.name ? "bg-emerald-600 border-none" : "bg-zinc-50 border-zinc-200 text-zinc-600"}`}
+                    onClick={() => onAspectRatioChange(preset.name)}
+                  >
+                    {preset.name}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <DropdownMenuSeparator className=" border-zinc-200" />
 
             <div className="flex items-center gap-2  border-zinc-200 ">
               <Label className="text-xs">W</Label>
-              <Input className="h-8 w-full text-sm text-zinc-900 rounded-xl bg-zinc-50 border border-zinc-200 shadow-none" placeholder="2048" value={config.width} onChange={(e) => onWidthChange(parseInt(e.target.value) || 1024)} />
+              <Input className="h-8 w-full text-sm text-zinc-900 rounded-xl bg-zinc-50 border border-zinc-200 shadow-none" placeholder="2048" value={config.img_width} onChange={(e) => onWidthChange(parseInt(e.target.value) || 1024)} />
               <Label className="text-xs">H</Label>
-              <Input className="h-8 w-full text-sm text-zinc-900 rounded-xl bg-zinc-50 border border-zinc-200 shadow-none" placeholder="2048" value={config.height} onChange={(e) => onHeightChange(parseInt(e.target.value) || 1024)} />
+              <Input className="h-8 w-full text-sm text-zinc-900 rounded-xl bg-zinc-50 border border-zinc-200 shadow-none" placeholder="2048" value={config.image_height} onChange={(e) => onHeightChange(parseInt(e.target.value) || 1024)} />
               <Button variant="outline" size="sm" className="h-8 w-8 p-2 rounded-xl bg-zinc-50 border border-zinc-200" onClick={onToggleAspectRatioLock}>
                 {isAspectRatioLocked ? <Link className="h-4 w-4" /> : <Unlink className="h-4 w-4" />}
               </Button>

@@ -1,16 +1,11 @@
 export interface GenerationConfig {
-  text: string;
-  width: number;
-  height: number;
-  batch_size: number;
-  seed?: number;
-  model?: string;
   prompt: string;
   img_width: number;
   image_height: number;
   gen_num: number;
   base_model: string;
-  lora: string;
+  image_size?: '1K' | '2K' | '4K';
+  lora?: string;
   ref_image?: string;
 }
 

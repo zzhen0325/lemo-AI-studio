@@ -1,7 +1,8 @@
 "use client"
 import { TabValue, TabContext, } from "@/components/layout/sidebar";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
+import gsap from "gsap";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,8 @@ import { Toaster } from "@/components/ui/toaster";
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import Image from "next/image";
 import Link from "next/link";
-import PixelDistortion from "@/components/ui/PixelDistortion";
+import GalleryView from "@/components/features/playground-v2/GalleryView";
+
 
 export default function Page() {
   const [currentTab, setCurrentTab] = useState<TabValue>(TabValue.Playground);
@@ -22,7 +24,15 @@ export default function Page() {
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState<string>("");
   const [comfyUrl, setComfyUrl] = useState<string>("");
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  const cloudRef = useRef<HTMLDivElement>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
+  const dogRef = useRef<HTMLDivElement>(null);
+  const manRef = useRef<HTMLDivElement>(null);
+  const frontRef = useRef<HTMLDivElement>(null);
+  const bgRef = useRef<HTMLDivElement>(null);
+  const [isBackgroundOut, setIsBackgroundOut] = useState(false);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
 
   useEffect(() => {
     const parseHash = () => {
@@ -41,6 +51,45 @@ export default function Page() {
     setCurrentTab(tab);
     if (typeof window !== 'undefined') {
       window.location.hash = tab as string;
+    }
+    // 切换 Tab 时如果背景在外面，自动收回
+    if (isBackgroundOut) {
+      handleBackgroundAnimate('in');
+    }
+  };
+
+  const handleBackgroundAnimate = (direction: 'in' | 'out') => {
+    const isOut = direction === 'out';
+    setIsBackgroundOut(isOut);
+
+    // 如果已有动画正在运行，先杀掉
+    if (timelineRef.current) {
+      timelineRef.current.kill();
+    }
+
+    const tl = gsap.timeline();
+    timelineRef.current = tl;
+
+    const duration = 1;
+    const ease = "back.inOut(1, 0.3)";
+
+    if (isOut) {
+      tl.to(cloudRef.current, { y: -400, opacity: 1, duration, ease }, 0)
+        .to(treeRef.current, { y: 1200, opacity: 0, duration, ease }, 0.1)
+        .to(dogRef.current, { x: 2000, opacity: 1, duration, ease }, 0.05)
+        .to(manRef.current, { x: -900, opacity: 1, duration, ease }, 0.15)
+        .to(frontRef.current, { y: 400, opacity: 1, duration, ease }, 0.2)
+        .to(bgRef.current, { backgroundColor: '#121413', duration: 1.5, ease: 'power2.inOut' }, 0);
+    } else {
+      tl.to([cloudRef.current, treeRef.current, dogRef.current, manRef.current, frontRef.current], {
+        x: 0,
+        y: 0,
+        opacity: 1,
+        duration: 1.5,
+        ease: "back.out(1, 0.8)",
+        stagger: 0.05
+      }, 0)
+        .to(bgRef.current, { backgroundColor: '#142856', duration: 1.5, ease: 'power2.inOut' }, 0);
     }
   };
 
@@ -66,22 +115,21 @@ export default function Page() {
     const handleMouseMove = (e: MouseEvent) => {
       const x = (e.clientX / window.innerWidth) * 2 - 1;
       const y = (e.clientY / window.innerHeight) * 2 - 1;
-      setMousePosition({ x, y });
+
+      if (isBackgroundOut) return; // 动画在外面或正在执行动画时禁用视差
+
+      const duration = 0.5;
+      const ease = "power2.out";
+
+      if (cloudRef.current) gsap.to(cloudRef.current, { x: x * 25, y: y * 25, duration, ease });
+      if (treeRef.current) gsap.to(treeRef.current, { x: x * 15, y: y * 15, duration, ease });
+      if (dogRef.current) gsap.to(dogRef.current, { x: x * 35, y: y * 35, duration, ease });
+      if (manRef.current) gsap.to(manRef.current, { x: x * 40, y: y * 40, duration, ease });
+      if (frontRef.current) gsap.to(frontRef.current, { x: x * 50, y: y * 50, duration, ease });
     };
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
-
-  const getParallaxOffset = (depth: number) => ({
-    x: mousePosition.x * depth,
-    y: mousePosition.y * depth,
-  });
-
-  const cloudOffset = getParallaxOffset(25);
-  const treeOffset = getParallaxOffset(15);
-  const dogOffset = getParallaxOffset(35);
-  const manOffset = getParallaxOffset(40);
-  const frontOffset = getParallaxOffset(50);
+  }, [isBackgroundOut]);
 
   const handleSaveSettings = () => {
     try {
@@ -111,7 +159,7 @@ export default function Page() {
                 Mapping Editor
               </Button>
 
-              <Button variant="outline" className={topbutton} onClick={() => window.location.href = '/history'}>
+              <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Gallery)}>
                 Gallery
               </Button>
               <Button variant="outline" className={topbutton} onClick={() => window.open('https://goodcase-v3-383688111435.europe-west1.run.app/', '_blank')}>
@@ -130,94 +178,102 @@ export default function Page() {
           </div>
         </header>
 
-        <div className="absolute inset-0 z-0 w-[100vw] h-[100vh] pointer-events-none overflow-hidden scale-[1.1]">
-          {/* <PixelDistortion /> */}
-          <div className="absolute inset-0 bg-[#142856]" />
+        {/* 视差动画背景 */}
 
-          <motion.div
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
+          {/* <PixelDistortion /> */}
+          <div ref={bgRef} className="absolute inset-0 bg-[#142856]" />
+
+          <div
+            ref={cloudRef}
             className="absolute flex h-[739.543px] items-center justify-center left-[853.01px] top-[31.43px] w-[1189.462px]"
-            animate={{ x: cloudOffset.x, y: cloudOffset.y }}
-            transition={{ type: "spring", stiffness: 150, damping: 20, mass: 0.5 }}
           >
             <div className="flex-none rotate-[346.65deg]">
               <div className="h-[498.023px] relative w-[1104.312px]">
                 <Image alt="" src="/images/parallax/cloud.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
               </div>
             </div>
-          </motion.div>
-          <motion.div
+          </div>
+          <div
+            ref={treeRef}
             className="absolute bottom-0  h-full w-full"
-            animate={{ x: treeOffset.x, y: treeOffset.y }}
-            transition={{ type: "spring", stiffness: 150, damping: 20, mass: 0.5 }}
           >
             <Image alt="" src="/images/parallax/tree.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
-          </motion.div>
-          <motion.div
+          </div>
+          <div
+            ref={dogRef}
             className="absolute flex h-[248.291px] items-center justify-center left-[821.49px] top-[723.27px] w-[216.026px]"
-            animate={{ x: dogOffset.x, y: dogOffset.y }}
-            transition={{ type: "spring", stiffness: 150, damping: 20, mass: 0.5 }}
           >
             <div className="flex-none rotate-[355.014deg]">
               <div className="h-[232.084px] relative w-[196.601px]">
                 <Image alt="" src="/images/parallax/dog.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
               </div>
             </div>
-          </motion.div>
-          <motion.div
+          </div>
+          <div
+            ref={manRef}
             className="absolute h-[324.406px] left-[676.57px] top-[569.17px] w-[83.815px]"
-            animate={{ x: manOffset.x, y: manOffset.y }}
-            transition={{ type: "spring", stiffness: 150, damping: 20, mass: 0.5 }}
           >
             <Image alt="" src="/images/parallax/man.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
-          </motion.div>
-          <motion.div
+          </div>
+          <div
+            ref={frontRef}
             className="absolute h-[500px] left-[7.22px] top-[606.53px] w-[1600px]"
-            animate={{ x: frontOffset.x, y: frontOffset.y }}
-            transition={{ type: "spring", stiffness: 150, damping: 20, mass: 0.5 }}
           >
             <Image alt="" src="/images/parallax/front.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
-          </motion.div>
+          </div>
         </div>
 
 
 
         <main className="relative z-10 flex-1 overflow-auto" key={currentTab}>
-          {/* pt-[var(--topbar-height)] */}
-          <div className="relative  w-auto     overflow-hidden">
-            {/* mx-[20rem] my-[6rem] rounded-[8rem] */}
-            {currentTab === TabValue.Playground && (
-              <Suspense>
-                <PlaygroundV2Page onEditMapping={handleEditMapping} />
-              </Suspense>
+          <div className={`flex flex-col flex-1 h-screen overflow-hidden transition-all duration-500 ${currentTab === TabValue.Gallery ? 'bg-[#050505]' : 'bg-transparent'}`}>
+
+            {/* Gallery Tab */}
+            {currentTab === TabValue.Gallery && (
+              <div className="flex flex-col flex-1 h-screen overflow-hidden animate-in fade-in duration-500">
+                <GalleryView />
+              </div>
             )}
-            {currentTab === TabValue.ByteArtist && (
-              <Suspense>
-                <PlaygroundV2Page onEditMapping={handleEditMapping} />
+
+            {/* Playground Tabs (Hidden logic to preserve state) */}
+            <div className={`flex flex-col flex-1 h-screen overflow-hidden ${(currentTab !== TabValue.Playground && currentTab !== TabValue.ByteArtist) ? 'hidden' : ''
+              }`}>
+              <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Playground...</div>}>
+                <PlaygroundV2Page
+                  onEditMapping={handleEditMapping}
+                  onGenerate={() => handleBackgroundAnimate('out')}
+                />
               </Suspense>
-            )}
+            </div>
+
+            {/* Mapping Editor Tab */}
             {currentTab === TabValue.MappingEditor && (
-              <MappingEditorPage onNavigate={() => handleTabChange(TabValue.ByteArtist)} />
+              <div className="flex flex-col flex-1 h-screen overflow-hidden">
+                <MappingEditorPage onNavigate={() => handleTabChange(TabValue.Playground)} />
+              </div>
             )}
-            {currentTab === TabValue.WorkflowApi && null}
+
+            {/* Settings Tab */}
             {currentTab === TabValue.Settings && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="p-6">
-                <Card className="max-w-2xl mx-auto">
+                <Card className="max-w-2xl mx-auto backdrop-blur-xl bg-black/40 border-white/10">
                   <CardHeader>
-                    <CardTitle>Settings</CardTitle>
+                    <CardTitle className="text-white">Settings</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="apiKey">Google API Key</Label>
-                      <Input id="apiKey" type="password" placeholder="请输入 Google API Key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="bg-black/10 text-white rounded-xl" />
-                      <p className="text-xs text-muted-foreground">仅保存在本地浏览器，不会上传服务器。</p>
+                      <Label htmlFor="apiKey" className="text-white/70">Google API Key</Label>
+                      <Input id="apiKey" type="password" placeholder="请输入 Google API Key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="bg-white/5 border-white/10 text-white rounded-xl" />
+                      <p className="text-xs text-white/30">仅保存在本地浏览器，不会上传服务器。</p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="comfyUrl">ComfyUI 地址</Label>
-                      <Input id="comfyUrl" type="text" placeholder="例如：http://127.0.0.1:8188/" value={comfyUrl} onChange={(e) => setComfyUrl(e.target.value)} className="bg-black/10 text-white rounded-xl" />
-                      <p className="text-xs text-muted-foreground">用于工作流执行的 ComfyUI 服务地址。</p>
+                      <Label htmlFor="comfyUrl" className="text-white/70">ComfyUI 地址</Label>
+                      <Input id="comfyUrl" type="text" placeholder="例如：http://127.0.0.1:8188/" value={comfyUrl} onChange={(e) => setComfyUrl(e.target.value)} className="bg-white/5 border-white/10 text-white rounded-xl" />
+                      <p className="text-xs text-white/30">用于工作流执行的 ComfyUI 服务地址。</p>
                     </div>
                     <div className="pt-2">
-                      <Button onClick={handleSaveSettings} className="rounded-xl">保存设置</Button>
+                      <Button onClick={handleSaveSettings} className="rounded-xl bg-white/10 hover:bg-white/20 text-white">保存设置</Button>
                     </div>
                   </CardContent>
                 </Card>

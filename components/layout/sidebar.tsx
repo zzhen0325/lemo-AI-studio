@@ -1,7 +1,7 @@
-import { SquareTerminal,  Star, History, Palette, Layers, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { SquareTerminal, Star, History, Palette, Layers, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button"
- 
+
 import { TooltipButton } from "@/components/ui/tooltip-button"
 import Link from "next/link";
 import { useMediaQuery } from "@/hooks/common/use-media-query"
@@ -18,7 +18,8 @@ export enum TabValue {
     Account = 'account',
     WorkflowApi = 'workflow_api',
     ByteArtist = 'byte_artist',
-    MappingEditor = 'mapping_editor'
+    MappingEditor = 'mapping_editor',
+    Gallery = 'gallery'
 }
 
 export type TabContextValue = {
@@ -139,11 +140,11 @@ export function Sidebar({ currentTab, onTabChange }: SidebarProps) {
                                     isSmallScreen={isCondensed}
                                 />
                                 <div className="absolute -top-3 -right-1 z-10">
-                                    <Image 
-                                        src="/images/new.svg" 
-                                        alt="New" 
-                                        width={20} 
-                                        height={20} 
+                                    <Image
+                                        src="/images/new.svg"
+                                        alt="New"
+                                        width={20}
+                                        height={20}
                                         className="w-16 h-16"
                                     />
                                 </div>
@@ -151,8 +152,8 @@ export function Sidebar({ currentTab, onTabChange }: SidebarProps) {
                             <SidebarButton
                                 icon={<History className="size-5" />}
                                 label="history"
-                                isActive={false}
-                                onClick={() => window.open('http://10.75.163.225:1000/browser/web/index.html', '_blank')}
+                                isActive={currentTab === TabValue.Gallery}
+                                onClick={() => onTabChange(TabValue.Gallery)}
                                 isSmallScreen={isCondensed}
                             />
                             <SidebarButton

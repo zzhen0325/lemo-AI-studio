@@ -4,6 +4,7 @@ export interface GenerationRequest {
   prompt: string;
   referenceImages?: string[]; // base64 array
   aspectRatio?: string; // 图片比例，如 "16:9", "1:1", "9:16" 等
+  imageSize?: string; // 分辨率，如 "1K", "2K", "4K"
   // temperature?: number;
   // seed?: number;
 }
@@ -13,6 +14,7 @@ export interface EditRequest {
   originalImage: string; // base64
   referenceImages?: string[]; // base64 array
   aspectRatio?: string; // 图片比例，如 "16:9", "1:1", "9:16" 等
+  imageSize?: string; // 分辨率，如 "1K", "2K", "4K"
   // temperature?: number;
   // seed?: number;
 }
@@ -31,6 +33,7 @@ export class GeminiService {
           prompt: request.prompt,
           images: request.referenceImages,
           aspectRatio: request.aspectRatio,
+          imageSize: request.imageSize,
         }),
       });
 
@@ -41,7 +44,7 @@ export class GeminiService {
       const result = await response.json();
       if (result.error) throw new Error(result.error);
       if (result.imageUrl) return [result.imageUrl];
-      
+
       return [];
     } catch (error) {
       console.error('Error generating image:', error);
@@ -61,6 +64,7 @@ export class GeminiService {
           prompt: this.buildEditPrompt(request),
           images: [request.originalImage, ...(request.referenceImages || [])],
           aspectRatio: request.aspectRatio,
+          imageSize: request.imageSize,
         }),
       });
 
@@ -71,7 +75,7 @@ export class GeminiService {
       const result = await response.json();
       if (result.error) throw new Error(result.error);
       if (result.imageUrl) return [result.imageUrl];
-      
+
       return [];
     } catch (error) {
       console.error('Error editing image:', error);

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
-import Image from 'next/image';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Download, Hash } from "lucide-react";
@@ -111,19 +110,19 @@ export default function HistoryPage() {
 
                                         {item.metadata?.prompt && (
                                             <div className="text-sm text-white/80 line-clamp-2 italic font-light">
-                                                &ldquo;{String(item.metadata.prompt || item.metadata.text)}&rdquo;
+                                                &ldquo;{item.metadata.prompt as string}&rdquo;
                                             </div>
                                         )}
 
                                         <div className="flex flex-wrap gap-2 pt-1">
-                                            {item.metadata?.model && (
+                                            {item.metadata?.base_model && (
                                                 <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] rounded-full border border-emerald-500/20 uppercase tracking-widest">
-                                                    {String(item.metadata.model)}
+                                                    {item.metadata.base_model as string}
                                                 </span>
                                             )}
-                                            {item.metadata?.width && (
+                                            {item.metadata?.img_width && (
                                                 <span className="px-2 py-0.5 bg-white/5 text-white/50 text-[10px] rounded-full border border-white/5">
-                                                    {String(item.metadata.width)}x{String(item.metadata.height)}
+                                                    {item.metadata.img_width as number}x{item.metadata.image_height as number}
                                                 </span>
                                             )}
                                         </div>

@@ -85,17 +85,17 @@ export default function LoraSelectorDialog({ open, onOpenChange, value, onConfir
                   {item.preview_url && (
                     <img src={item.preview_url} alt={item.model_name} className="w-full h-48 object-contain rounded-2xl bg-muted" />
                   )}
-                   <div className="flex items-center gap-2">
-                   
+                  <div className="flex items-center gap-2">
+
                     <span className="truncate text-sm">{item.model_name}</span>
                   </div>
                   {item.model_name in selected && (
                     <div className="flex flex-colspace-y-2">
-                      
+
                       <div className="text-xs text-muted-foreground">强度 {selected[item.model_name].toFixed(2)}</div>
-                      
+
                       <Slider value={[selected[item.model_name]]} min={0} max={1} step={0.05} onValueChange={(vals) => setStrength(item.model_name, vals[0] ?? 0)} />
-                        
+
                     </div>
                   )}
                 </div>
