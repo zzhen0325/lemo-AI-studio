@@ -21,19 +21,22 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
 
   try {
     console.log("🔑 初始化 GoogleGenAI 客户端");
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GOOGLE_GENAI_API_KEY || "",
-    });
+    const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "";
+    if (!apiKey) {
+      console.error("❌ 缺少 Google API Key，请在环境变量中配置 GOOGLE_API_KEY 或 GOOGLE_GENAI_API_KEY");
+      return { error: "缺少 Google API Key，请在环境变量中配置 GOOGLE_API_KEY 或 GOOGLE_GENAI_API_KEY" };
+    }
+    const ai = new GoogleGenAI({ apiKey });
 
     console.log("📦 构建请求内容数组");
-    const prompt = [];
+    const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
 
     // 如果有输入图片，添加到请求中
     if (config.images && config.images.length > 0) {
       console.log(`🖼️ 添加 ${config.images.length} 张输入图片`);
       config.images.forEach((imageBase64, index) => {
         console.log(`📸 处理第 ${index + 1} 张图片`);
-        prompt.push({
+        parts.push({
           inlineData: {
             mimeType: "image/png",
             data: imageBase64,
@@ -44,27 +47,37 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
 
     // 添加文本提示
     console.log("💬 添加文本提示到请求中");
-    prompt.push({ text: config.prompt });
+    parts.push({ text: config.prompt });
 
     console.log("📤 发送请求到 Google GenAI API");
     console.log("🎯 使用模型: gemini-2.5-flash-image");
     console.log("🖼️ 配置响应模式: 仅返回图片");
     
-    // 构建请求配置
-    const requestConfig: any = {
-      model: "gemini-2.5-flash-image",
-      contents: prompt,
-      config: {
-        responseModalities: ['Image']
-      }
+    const contents = [
+      {
+        role: "user",
+        parts,
+      },
+    ];
+
+    const configObj: Record<string, unknown> = {
+      responseModalities: ["IMAGE"],
     };
+
+    if (config.aspectRatio) {
+      configObj.imageConfig = { aspectRatio: config.aspectRatio };
+    }
+
+    const requestConfig = {
+      model: "gemini-3-pro-image-preview",
+      contents,
+      config: configObj,
+    };
+   
 
     // 如果指定了比例，添加到配置中
     if (config.aspectRatio) {
       console.log(`📏 设置图片比例: ${config.aspectRatio}`);
-      requestConfig.config.imageConfig = {
-        aspectRatio: config.aspectRatio
-      };
     }
     
     const response = await ai.models.generateContent(requestConfig);
@@ -84,13 +97,6 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
     }
 
     const candidate = response.candidates[0];
-    
-    // 检查finishReason
-    if (candidate.finishReason === "NO_IMAGE") {
-      console.error("❌ API无法生成图片，原因: NO_IMAGE");
-      console.log("📋 候选结果:", JSON.stringify(candidate, null, 2));
-      return { error: "API无法生成图片，请检查提示词是否适合图片生成，或尝试不同的输入图片" };
-    }
 
     // 检查是否有内容部分
     if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {

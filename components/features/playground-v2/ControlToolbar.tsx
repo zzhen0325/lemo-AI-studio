@@ -227,11 +227,18 @@ export default function ControlToolbar({
 
       <div className="flex items-center">
         <input type="file" multiple accept="image/*" onChange={onImageUpload} className="hidden" id="image-upload" />
-        <label htmlFor="image-upload">
-          <Button type="button" variant="outline" size="sm" className={Inputbutton2}>
-            <ImagePlus className="h-4 w-4" />
-          </Button>
-        </label>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={Inputbutton2}
+          onClick={() => {
+            const el = document.getElementById('image-upload') as HTMLInputElement | null;
+            el?.click();
+          }}
+        >
+          <ImagePlus className="h-4 w-4" />
+        </Button>
         <div className="ml-2 flex items-center w-auto">
           <Button
             variant="outline"

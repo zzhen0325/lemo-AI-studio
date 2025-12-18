@@ -1,4 +1,6 @@
 import { ComfyWorkflowError } from '@/app/models/errors';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 function buildFormData(data: {
     logs: boolean;
@@ -103,10 +105,18 @@ export const infer = async ({
         const stream = new ReadableStream<Uint8Array>({
             async start(controller) {
                 debugger;
+                const outputsDir = path.join(process.cwd(), 'public', 'outputs');
+                await fs.mkdir(outputsDir, { recursive: true });
+                let i = 0;
                 for (const blob of results.outputs) {
                     try {
                         const mimeType = blob.type;
                         const mimeInfo = `Content-Type: ${mimeType}\r\n\r\n`;
+                        const ext = mimeType.split('/')?.[1] || 'png';
+                        const filename = `${Date.now()}-${i++}.${ext}`;
+                        const filePath = path.join(outputsDir, filename);
+                        const buffer = Buffer.from(await blob.arrayBuffer());
+                        await fs.writeFile(filePath, buffer);
                         controller.enqueue(new TextEncoder().encode(mimeInfo));
                         controller.enqueue(new Uint8Array(await blob.arrayBuffer()));
                         controller.enqueue(
