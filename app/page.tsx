@@ -1,5 +1,5 @@
 "use client"
-import {  TabValue, TabContext,  } from "@/components/layout/sidebar";
+import { TabValue, TabContext, } from "@/components/layout/sidebar";
 import { Suspense, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/toaster";
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import Image from "next/image";
 import Link from "next/link";
+import PixelDistortion from "@/components/ui/PixelDistortion";
 
 export default function Page() {
   const [currentTab, setCurrentTab] = useState<TabValue>(TabValue.Playground);
@@ -25,7 +26,7 @@ export default function Page() {
 
   useEffect(() => {
     const parseHash = () => {
-      const h = (typeof window !== 'undefined' ? window.location.hash.replace('#','') : '') as TabValue;
+      const h = (typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '') as TabValue;
       if (h && Object.values(TabValue).includes(h)) {
         setCurrentTab(h);
       }
@@ -91,14 +92,14 @@ export default function Page() {
       toast({ title: "保存失败", description: e instanceof Error ? e.message : "未知错误", variant: "destructive" });
     }
   };
- 
-const topbutton = "w-auto text-white text-md border-none rounded-2xl font-[InstrumentSerif-Regular,serif] bg-transparent hover:bg-white/10 hover:text-white"; 
+
+  const topbutton = "w-auto text-white text-md border-none rounded-2xl font-[InstrumentSerif-Regular,serif] bg-transparent hover:bg-white/10 hover:text-white";
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
       <div className="relative flex h-screen justify-center">
         <header className="fixed w-[70vw]  mt-8 rounded-3xl px-4 mx-auto z-50 text-white bg-black/30 backdrop-blur-md border border-white/10">
           <div className="flex items-center h-14 px-4 gap-3">
-            
+
             <div className="flex-1 flex items-center justify-start">
               <h1 className="text-[1.5rem] text-white text-center" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>Lemon8 AI Studio</h1>
             </div>
@@ -109,9 +110,9 @@ const topbutton = "w-auto text-white text-md border-none rounded-2xl font-[Instr
               <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.MappingEditor)}>
                 Mapping Editor
               </Button>
-            
-              <Button variant="outline" className={topbutton} onClick={() => window.open('http://10.75.163.225:1000/browser/web/index.html', '_blank')}>
-                history
+
+              <Button variant="outline" className={topbutton} onClick={() => window.location.href = '/history'}>
+                Gallery
               </Button>
               <Button variant="outline" className={topbutton} onClick={() => window.open('https://goodcase-v3-383688111435.europe-west1.run.app/', '_blank')}>
                 Goodcase
@@ -121,18 +122,18 @@ const topbutton = "w-auto text-white text-md border-none rounded-2xl font-[Instr
               </Button>
               <Link href="https://bytedance.larkoffice.com/wiki/M0hxw9xARiigSTkq2iJcQUrOn3e" target="_blank" rel="noopener noreferrer" className="ml-2">
                 <Button variant="outline" className={topbutton}>
-                 
+
                   Lemon8 AI 文档
                 </Button>
               </Link>
             </div>
           </div>
         </header>
-       
+
         <div className="absolute inset-0 z-0 w-[100vw] h-[100vh] pointer-events-none overflow-hidden scale-[1.1]">
-           
-          <div className="absolute   inset-0  bg-[#142856]" />
-          
+          {/* <PixelDistortion /> */}
+          <div className="absolute inset-0 bg-[#142856]" />
+
           <motion.div
             className="absolute flex h-[739.543px] items-center justify-center left-[853.01px] top-[31.43px] w-[1189.462px]"
             animate={{ x: cloudOffset.x, y: cloudOffset.y }}
@@ -177,12 +178,12 @@ const topbutton = "w-auto text-white text-md border-none rounded-2xl font-[Instr
             <Image alt="" src="/images/parallax/front.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
           </motion.div>
         </div>
-      
-       
-        
+
+
+
         <main className="relative z-10 flex-1 overflow-auto" key={currentTab}>
           {/* pt-[var(--topbar-height)] */}
-          <div className="relative  w-auto     overflow-hidden"> 
+          <div className="relative  w-auto     overflow-hidden">
             {/* mx-[20rem] my-[6rem] rounded-[8rem] */}
             {currentTab === TabValue.Playground && (
               <Suspense>

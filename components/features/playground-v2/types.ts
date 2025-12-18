@@ -15,6 +15,7 @@ export interface GenerationConfig {
 }
 
 export interface GenerationResult {
+  id: string;
   imageUrl: string;
   config: GenerationConfig;
   timestamp: string;

@@ -121,3 +121,6 @@ temp/
 
 # macOS
 .DS_Store
+# Generated images and uploads
+public/outputs/
+public/upload/

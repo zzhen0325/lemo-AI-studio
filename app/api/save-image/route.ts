@@ -7,6 +7,7 @@ const BodySchema = z.object({
   imageBase64: z.string().min(1),
   ext: z.enum(['png', 'jpg', 'jpeg']).optional().default('png'),
   subdir: z.enum(['outputs', 'upload']).optional().default('outputs'),
+  metadata: z.record(z.any()).optional(),
 });
 
 function extractBase64(data: string): { base64: string; mime?: string } {
@@ -38,6 +39,11 @@ export async function POST(request: Request) {
     const filePath = path.join(targetDir, filename);
 
     await fs.writeFile(filePath, Buffer.from(base64, 'base64'));
+
+    if (parsed.data.metadata) {
+      const metadataPath = path.join(targetDir, `${filename.split('.')[0]}.json`);
+      await fs.writeFile(metadataPath, JSON.stringify(parsed.data.metadata, null, 2));
+    }
 
     const pathForClient = `/${subdir}/${filename}`;
     return NextResponse.json({ path: pathForClient });

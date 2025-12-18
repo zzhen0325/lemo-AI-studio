@@ -12,12 +12,12 @@ interface HistoryListProps {
   isGenerating: boolean;
 }
 
-export default function HistoryList({ 
-  history, 
-  onRegenerate, 
-  onDownload, 
+export default function HistoryList({
+  history,
+  onRegenerate,
+  onDownload,
   onImageClick,
-  isGenerating 
+  isGenerating
 }: HistoryListProps) {
   if (history.length === 0) return null;
 
@@ -25,7 +25,7 @@ export default function HistoryList({
     <div className="w-full max-w-5xl mx-auto space-y-6 p-4">
       <div className="space-y-4">
         {history.map((result, index) => (
-          <Card key={`${result.timestamp}-${index}`} className="rounded-3xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-none h-[300px] relative">
+          <Card key={result.id} className="generation-history-card rounded-3xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-none h-[300px] relative">
             <CardContent className="p-4 h-full">
               {result.isLoading ? (
                 <div className="flex h-full items-center justify-center">
