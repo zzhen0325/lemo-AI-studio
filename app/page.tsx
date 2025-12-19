@@ -16,8 +16,11 @@ import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import Image from "next/image";
 import Link from "next/link";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
-import { ProgressiveBlur } from "@/components/motion-primitives/progressive-blur";
-import { BeamsBackground } from "@/components/ui/beams-background";
+
+
+import Silk from "@/components/Silk";
+
+
 
 
 export default function Page() {
@@ -82,8 +85,9 @@ export default function Page() {
         .to(dogRef.current, { x: 2000, opacity: 0, duration, ease }, 0.05)
         .to(manRef.current, { x: -900, opacity: 0, duration, ease }, 0.15)
         .to(frontRef.current, { y: 400, opacity: 0, duration, ease }, 0.2)
-        .to(bgRef.current, { backgroundColor: '#121413', duration: 1.5, ease: 'power2.inOut' }, 0)
-        .to(beamsRef.current, { opacity: 1, duration: 1.5, ease: 'power2.inOut' }, 0);
+        .to(bgRef.current, { backgroundColor: '#050505', duration: 1.5, ease: 'power2.inOut' }, 0)
+        .to(beamsRef.current, { opacity: 1, duration: 1, ease: 'power2.inOut' }, 0.5);
+
     } else {
       tl.to([cloudRef.current, treeRef.current, dogRef.current, manRef.current, frontRef.current], {
         x: 0,
@@ -94,7 +98,8 @@ export default function Page() {
         stagger: 0.05
       }, 0)
         .to(bgRef.current, { backgroundColor: '#142856', duration: 1.5, ease: 'power2.inOut' }, 0)
-        .to(beamsRef.current, { opacity: 0, duration: 1.5, ease: 'power2.inOut' }, 0);
+        .to(beamsRef.current, { opacity: 0, duration: 0.8, ease: 'power2.inOut' }, 0);
+
     }
   };
 
@@ -146,7 +151,8 @@ export default function Page() {
     }
   };
 
-  const topbutton = "w-auto text-white text-md border-none rounded-2xl font-[InstrumentSerif-Regular,serif] bg-transparent hover:bg-white/10 hover:text-white";
+  const topbutton = "w-auto text-white text-md border-none rounded-2xl bg-transparent hover:bg-white/10 hover:text-white";
+
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
       <header className="fixed top-0 left-0 w-full h-14 z-50 text-white ">
@@ -154,9 +160,8 @@ export default function Page() {
 
         <div className="flex items-center h-full px-4 gap-3">
 
-          <div className="flex-1 flex items-center justify-start">
-            <h1 className="text-[1.5rem] text-white text-center" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>Lemon8 AI Studio</h1>
-          </div>
+          <h1 className="text-[1.5rem] text-white text-center">Lemon8 AI Studio</h1>
+
           <div className="flex items-center gap-2 ml-auto">
             <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Playground)}>
               Playground
@@ -189,19 +194,18 @@ export default function Page() {
           />
         </div> */}
       </header>
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
-        <Image alt="" src="/images/333.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
 
-      </div>
-          <div className="relative flex h-screen justify-center z-10">
+      <div className="relative flex h-screen justify-center z-10">
 
 
         {/* 视差动画背景 */}
 
+
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
           {/* Beams Background */}
-          <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0">
-            <BeamsBackground intensity="strong" className="h-full w-full" />
+          <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden scale-[1.1]">
+            <Silk color="#4c4a46ff" />
+
           </div>
 
           <div ref={bgRef} className="absolute inset-0 bg-[#142856] -z-10" />

@@ -11,7 +11,9 @@ export interface GenerationConfig {
 
 export interface GenerationResult {
   id: string;
-  imageUrl: string;
+  imageUrl?: string;
+  imageUrls?: string[];
+
   config: GenerationConfig;
   timestamp: string;
   isLoading?: boolean;

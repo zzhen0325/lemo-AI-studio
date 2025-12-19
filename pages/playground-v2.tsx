@@ -12,7 +12,7 @@ import { fetchByteArtistImage } from "@/lib/api/PlaygroundV2";
 import type { ByteArtistResponse } from "@/lib/api/PlaygroundV2";
 
 import { MagicCard } from "@/components/ui/MagicCard";
-import { BorderTrail } from "@/components/motion-primitives/border-trail";
+
 import { GoogleApiStatus } from "@/components/features/playground-v2/GoogleApiStatus";
 import PromptInput from "@/components/features/playground-v2/PromptInput";
 import ControlToolbar from "@/components/features/playground-v2/ControlToolbar";
@@ -29,11 +29,35 @@ import type { UIComponent } from "@/types/features/mapping-editor";
 import type { CozeWorkflowParams } from "@/types/coze-workflow";
 import { usePostPlayground } from "@/hooks/features/playground/use-post-playground";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 
-export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?: (workflow: IViewComfy) => void, onGenerate?: () => void }) {
+import { RefObject } from "react";
+
+export function PlaygroundV2Page({
+  onEditMapping,
+  onGenerate,
+
+}: {
+  onEditMapping?: (workflow: IViewComfy) => void;
+  onGenerate?: () => void;
+  backgroundRefs?: {
+    cloud: RefObject<HTMLDivElement | null>;
+    tree: RefObject<HTMLDivElement | null>;
+    dog: RefObject<HTMLDivElement | null>;
+    man: RefObject<HTMLDivElement | null>;
+    front: RefObject<HTMLDivElement | null>;
+    bg: RefObject<HTMLDivElement | null>;
+  }
+}) {
+
   const { toast } = useToast();
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [isMockMode, setIsMockMode] = useState(false);
+  const [isSelectorExpanded, setIsSelectorExpanded] = useState(false);
+
+  const isElevated = hasGenerated || isSelectorExpanded;
+
   const [config, setConfig] = useState<GenerationConfig>({
     prompt: '',
     img_width: 1376,
@@ -263,7 +287,7 @@ export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?
     setGenerationHistory(prev => [loadingResult, ...prev.slice(0, 9)]);
 
     // 启动后台生成任务 (不等待)
-    executeBackgroundGeneration(taskId, { ...config }, [...uploadedImages], selectedModel, selectedWorkflowConfig);
+    executeBackgroundGeneration(taskId, { ...config }, [...uploadedImages], selectedModel, selectedWorkflowConfig, isMockMode);
   };
 
   const executeBackgroundGeneration = async (
@@ -271,9 +295,27 @@ export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?
     currentConfig: GenerationConfig,
     currentUploadedImages: UploadedImage[],
     currentModel: string,
-    currentWorkflowConfig?: IViewComfy
+    currentWorkflowConfig?: IViewComfy,
+    useMock?: boolean
   ) => {
     try {
+      if (useMock) {
+        // 模拟生成延迟 (2-4秒)
+        await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 2000));
+        const mockImageUrl = `/uploads/1750263630880_smwzxy6h4ws.png`;
+        const result: GenerationResult = {
+          id: taskId,
+          imageUrl: mockImageUrl,
+          imageUrls: [mockImageUrl],
+          config: { ...currentConfig },
+          timestamp: new Date().toISOString(),
+        };
+
+        setGenerationHistory(prev => prev.map(item => item.id === taskId ? result : item));
+        toast({ title: "模拟生成成功", description: "Mock Mode: 已返回占位图" });
+        return;
+      }
+
       if (currentUploadedImages.length > 0 && currentModel === "Nano banana") {
         const editingResult = await editImage({
           instruction: currentConfig.prompt,
@@ -467,37 +509,42 @@ export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?
 
   // 样式定义
 
-  const Inputbg = "flexitems-center justify-center w-full text-black flex-col   my-auto  rounded-[30px] bg-gradient-to-b  from-[rgba(0,0,0,0.4)] to-[rgba(28, 74, 63, 0.4)]  backdrop-blur-md border border-white/20 p-2 mx-auto";
+  const Inputbg = "flexitems-center justify-center w-full text-black flex-col rounded-[30px]  my-auto   bg-gradient-to-b  from-[rgba(0, 0, 0, 0.85)] to-[rgba(151, 94, 29, 0.69)]  backdrop-blur-md border border-white/20 p-2 mx-auto";
 
 
   return (
     <main className="h-screen flex flex-col bg-transparent overflow-hidden">
+      {/* <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
+        <Image alt="" src="/images/333.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+
+      </div> */}
       {/* 固定居中的输入区域 */}
       <div className={cn(
         "flex-none flex flex-col items-center justify-center transition-all duration-700 ease-in-out z-50",
-        hasGenerated ? "fixed top-20 left-0 right-0 pt-4 pb-0 bg-transparent" : "mt-40 pt-8 pb-12"
+        isElevated ? "fixed top-20 left-0 right-0 pt-4 pb-0 bg-transparent" : "mt-40 pt-8 pb-12"
       )}>
         <div className={cn(
           "flex flex-col items-center space-y-4 w-full transition-all duration-700 ease-in-out px-4",
-          hasGenerated ? "max-w-7xl" : "max-w-4xl"
+          hasGenerated ? "max-w-[60vw] " : "max-w-4xl "
         )}>
 
 
           <h1
             className={cn(
               "text-[40px] text-white text-center transition-all duration-500 overflow-hidden",
-              hasGenerated ? "h-0 opacity-0 mb-0" : "h-auto opacity-100 mb-4"
+              isElevated ? "h-0 opacity-0 mb-0" : "h-auto opacity-100 mb-4"
             )}
-            style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}
+
+
           >
             Let Your Imagination Soar
           </h1>
 
 
 
-          <div className="relative w-full rounded-[30px]">
+          <div className="relative w-full rounded-[10px]">
 
-            <MagicCard className={Inputbg} gradientColor="rgba(97, 173, 110, 0.45)" gradientOpacity={0.25} gradientSize={200}>
+            <MagicCard className={Inputbg} gradientColor="rgba(255, 117, 31, 0.82)" gradientOpacity={1} gradientSize={200}>
 
               <PromptInput
                 prompt={config.prompt}
@@ -550,6 +597,10 @@ export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?
                 onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
                 onOptimize={handleOptimizePrompt}
                 isOptimizing={isOptimizing}
+                isMockMode={isMockMode}
+                onMockModeChange={setIsMockMode}
+                isSelectorExpanded={isSelectorExpanded}
+                onSelectorExpandedChange={setIsSelectorExpanded}
               />
             </MagicCard>
           </div>
@@ -559,9 +610,13 @@ export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?
 
       {/* 可滚动的历史列表 */}
       <div className={cn(
-        "flex-1 overflow-y-auto px-4 pb-8 transition-all duration-700",
-        hasGenerated ? "pt-80" : ""
+        "flex-1 overflow-y-auto px-4 pb-8 transition-all duration-300",
+        isElevated ? "pt-80" : ""
       )}>
+        <div className="flex items-center justify-center text-white/40  font-family: 'InstrumentSerif', sans-serif border-b border-white/20 mb-4">
+          <h1>History</h1>
+        </div>
+
         <HistoryList
           history={generationHistory}
           onRegenerate={handleRegenerate}

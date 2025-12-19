@@ -6,7 +6,8 @@ import { X } from "lucide-react";
 
 import { AIModel } from "@/hooks/features/PlaygroundV2/usePromptOptimization";
 import { UploadedImage } from '@/components/features/playground-v2/types';
-import { GlowEffect } from "@/components/motion-primitives/glow-effect";
+
+
 interface PromptInputProps {
   prompt: string;
   onPromptChange: (value: string) => void;
