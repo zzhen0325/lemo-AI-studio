@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Wand2, ImagePlus, ChevronDown, Link, Unlink, Sparkles } from "lucide-react";
 import GradualBlur from "@/components/GradualBlur";
+import { GlowEffect } from "@/components/motion-primitives/glow-effect";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -287,19 +288,29 @@ export default function ControlToolbar({
         </div>
       </div>
 
-      <Button onClick={onGenerate} disabled={isGenerating} className="ml-auto w-auto h-10 bg-white text-[#0b4634] font-medium py-1 rounded-full hover:bg-white shadow-[0_0_16px_rgba(255,255,255,0.6)] hover:shadow-[0_0_24px_rgba(255,255,255,0.9)] transition-shadow duration-300 hover:border-white hover:border hover:text-[#203d87]">
-        {isGenerating ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            {loadingText}
-          </>
-        ) : (
-          <>
-            <Wand2 className="w-4 h-4" />
-            Generate
-          </>
-        )}
-      </Button>
+      <div className="relative ml-auto rounded-full">
+        <GlowEffect
+          colors={['#ecffd1ff', '#40cf5aff', '#79cbffff', '#efffe1ff']}
+          mode='pulse'
+          blur='strong'
+          duration={5}
+          scale={1.5}
+          className="absolute inset-0 rounded-3xl opacity-70"
+        />
+        <Button onClick={onGenerate} disabled={isGenerating} className="relative z-10 w-auto h-10 bg-white text-black font-medium py-1 rounded-full hover:bg-white shadow-[0_0_16px_rgba(255,255,255,0.6)] hover:shadow-[0_0_24px_rgba(255,255,255,0.9)] transition-shadow duration-300 hover:border-white hover:border hover:text-[#203d87]">
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              {loadingText}
+            </>
+          ) : (
+            <>
+              <Wand2 className="w-4 h-4 " />
+              Generate
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { fetchByteArtistImage } from "@/lib/api/PlaygroundV2";
 import type { ByteArtistResponse } from "@/lib/api/PlaygroundV2";
 
 import { MagicCard } from "@/components/ui/MagicCard";
+import { BorderTrail } from "@/components/motion-primitives/border-trail";
 import { GoogleApiStatus } from "@/components/features/playground-v2/GoogleApiStatus";
 import PromptInput from "@/components/features/playground-v2/PromptInput";
 import ControlToolbar from "@/components/features/playground-v2/ControlToolbar";
@@ -27,10 +28,12 @@ import type { WorkflowApiJSON } from "@/lib/workflow-api-parser";
 import type { UIComponent } from "@/types/features/mapping-editor";
 import type { CozeWorkflowParams } from "@/types/coze-workflow";
 import { usePostPlayground } from "@/hooks/features/playground/use-post-playground";
+import { cn } from "@/lib/utils";
 
 
 export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?: (workflow: IViewComfy) => void, onGenerate?: () => void }) {
   const { toast } = useToast();
+  const [hasGenerated, setHasGenerated] = useState(false);
   const [config, setConfig] = useState<GenerationConfig>({
     prompt: '',
     img_width: 1376,
@@ -246,6 +249,7 @@ export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?
 
     // 触发外部生成回调（用于播放背景动画等）
     onGenerate?.();
+    setHasGenerated(true);
 
     const taskId = Date.now().toString() + Math.random().toString(36).substring(2, 7);
     const loadingResult: GenerationResult = {
@@ -456,86 +460,108 @@ export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?
   };
 
   const handleDownload = (imageUrl: string) => { const link = document.createElement("a"); link.href = imageUrl; link.download = `PlaygroundV2-${Date.now()}.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
-  const openImageModal = (result: GenerationResult) => { setSelectedResult(result); setIsImageModalOpen(true); };
+  const [initialRect, setInitialRect] = useState<DOMRect | undefined>(undefined);
+  const openImageModal = (result: GenerationResult, rect?: DOMRect) => { setSelectedResult(result); setInitialRect(rect); setIsImageModalOpen(true); };
   const closeImageModal = () => { setIsImageModalOpen(false); setSelectedResult(undefined); };
 
 
   // 样式定义
 
-  const Inputbg = "flexitems-center justify-center w-full text-black flex-col   my-auto  rounded-[30px] bg-gradient-to-b  from-[rgba(0,0,0,0.4)] to-[rgba(80,129,118,0.4)]  backdrop-blur-md outline outline-white/20 outline-offset-[-1px] p-2 mx-auto";
+  const Inputbg = "flexitems-center justify-center w-full text-black flex-col   my-auto  rounded-[30px] bg-gradient-to-b  from-[rgba(0,0,0,0.4)] to-[rgba(28, 74, 63, 0.4)]  backdrop-blur-md border border-white/20 p-2 mx-auto";
 
 
   return (
     <main className="h-screen flex flex-col bg-transparent overflow-hidden">
       {/* 固定居中的输入区域 */}
-      <div className="flex-none flex flex-col mt-40 items-center justify-center pt-8 pb-12">
-        <div className="flex flex-col items-center max-w-4xl space-y-4 w-full">
+      <div className={cn(
+        "flex-none flex flex-col items-center justify-center transition-all duration-700 ease-in-out z-50",
+        hasGenerated ? "fixed top-20 left-0 right-0 pt-4 pb-0 bg-transparent" : "mt-40 pt-8 pb-12"
+      )}>
+        <div className={cn(
+          "flex flex-col items-center space-y-4 w-full transition-all duration-700 ease-in-out px-4",
+          hasGenerated ? "max-w-7xl" : "max-w-4xl"
+        )}>
 
 
-          <h1 className="text-[40px] text-white text-center" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>
+          <h1
+            className={cn(
+              "text-[40px] text-white text-center transition-all duration-500 overflow-hidden",
+              hasGenerated ? "h-0 opacity-0 mb-0" : "h-auto opacity-100 mb-4"
+            )}
+            style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}
+          >
             Let Your Imagination Soar
           </h1>
 
-          <MagicCard className={Inputbg} gradientColor="rgba(10, 150, 33, 0.45)" gradientOpacity={0.25} gradientSize={200} >
-            <PromptInput
-              prompt={config.prompt}
-              onPromptChange={(val) => setConfig(prev => ({ ...prev, prompt: val }))}
-              uploadedImages={uploadedImages}
-              onRemoveImage={removeImage}
-              isOptimizing={isOptimizing}
-              onOptimize={handleOptimizePrompt}
-              selectedAIModel={selectedAIModel}
-              onAIModelChange={setSelectedAIModel}
-            />
-            <ControlToolbar
-              selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
-              config={config}
-              onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))}
-              onWidthChange={handleWidthChange}
-              onHeightChange={handleHeightChange}
-              aspectRatioPresets={aspectRatioPresets}
-              currentAspectRatio={getCurrentAspectRatio()}
-              onAspectRatioChange={(ar: string) => {
-                const size = (config.base_model === 'Nano banana') ? (config.image_size || '1K') : '1K';
-                const resolution = AR_MAP[ar]?.[size] || AR_MAP[ar]?.['1K'];
-                if (resolution) {
-                  setConfig(prev => ({ ...prev, img_width: resolution.w, image_height: resolution.h }));
-                }
-              }}
-              currentImageSize={(config.image_size as '1K' | '2K' | '4K') || '1K'}
-              onImageSizeChange={(size: '1K' | '2K' | '4K') => {
-                const ar = getCurrentAspectRatio();
-                const resolution = AR_MAP[ar]?.[size];
-                if (resolution) {
-                  setConfig(prev => ({ ...prev, image_size: size, img_width: resolution.w, image_height: resolution.h }));
-                }
-              }}
-              isAspectRatioLocked={isAspectRatioLocked}
-              onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)}
-              onImageUpload={handleImageUpload}
-              onGenerate={handleGenerate}
-              isGenerating={false}
-              uploadedImagesCount={uploadedImages.length}
-              loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."}
-              onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)}
-              onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)}
-              onOpenLoraSelector={() => setIsLoraDialogOpen(true)}
-              selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title}
-              selectedBaseModelName={selectedBaseModel}
-              selectedLoraNames={selectedLoras.map(l => l.model_name)}
-              workflows={workflows}
-              onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
-              onOptimize={handleOptimizePrompt}
-              isOptimizing={isOptimizing}
-            />
-          </MagicCard>
+
+
+          <div className="relative w-full rounded-[30px]">
+
+            <MagicCard className={Inputbg} gradientColor="rgba(97, 173, 110, 0.45)" gradientOpacity={0.25} gradientSize={200}>
+
+              <PromptInput
+                prompt={config.prompt}
+                onPromptChange={(val) => setConfig(prev => ({ ...prev, prompt: val }))}
+                uploadedImages={uploadedImages}
+                onRemoveImage={removeImage}
+                isOptimizing={isOptimizing}
+                onOptimize={handleOptimizePrompt}
+                selectedAIModel={selectedAIModel}
+                onAIModelChange={setSelectedAIModel}
+              />
+              <ControlToolbar
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+                config={config}
+                onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))}
+                onWidthChange={handleWidthChange}
+                onHeightChange={handleHeightChange}
+                aspectRatioPresets={aspectRatioPresets}
+                currentAspectRatio={getCurrentAspectRatio()}
+                onAspectRatioChange={(ar: string) => {
+                  const size = (config.base_model === 'Nano banana') ? (config.image_size || '1K') : '1K';
+                  const resolution = AR_MAP[ar]?.[size] || AR_MAP[ar]?.['1K'];
+                  if (resolution) {
+                    setConfig(prev => ({ ...prev, img_width: resolution.w, image_height: resolution.h }));
+                  }
+                }}
+                currentImageSize={(config.image_size as '1K' | '2K' | '4K') || '1K'}
+                onImageSizeChange={(size: '1K' | '2K' | '4K') => {
+                  const ar = getCurrentAspectRatio();
+                  const resolution = AR_MAP[ar]?.[size];
+                  if (resolution) {
+                    setConfig(prev => ({ ...prev, image_size: size, img_width: resolution.w, image_height: resolution.h }));
+                  }
+                }}
+                isAspectRatioLocked={isAspectRatioLocked}
+                onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)}
+                onImageUpload={handleImageUpload}
+                onGenerate={handleGenerate}
+                isGenerating={false}
+                uploadedImagesCount={uploadedImages.length}
+                loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."}
+                onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)}
+                onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)}
+                onOpenLoraSelector={() => setIsLoraDialogOpen(true)}
+                selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title}
+                selectedBaseModelName={selectedBaseModel}
+                selectedLoraNames={selectedLoras.map(l => l.model_name)}
+                workflows={workflows}
+                onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
+                onOptimize={handleOptimizePrompt}
+                isOptimizing={isOptimizing}
+              />
+            </MagicCard>
+          </div>
           <GoogleApiStatus className="fixed bottom-4 right-4" />
         </div>
       </div>
 
       {/* 可滚动的历史列表 */}
-      <div className="flex-1 overflow-y-auto px-4 pb-8">
+      <div className={cn(
+        "flex-1 overflow-y-auto px-4 pb-8 transition-all duration-700",
+        hasGenerated ? "pt-80" : ""
+      )}>
         <HistoryList
           history={generationHistory}
           onRegenerate={handleRegenerate}
@@ -550,6 +576,7 @@ export function PlaygroundV2Page({ onEditMapping, onGenerate }: { onEditMapping?
         onClose={closeImageModal}
         imageUrl={selectedResult?.imageUrl || ""}
         config={selectedResult?.config}
+        initialRect={initialRect}
       />
       <WorkflowSelectorDialog open={isWorkflowDialogOpen} onOpenChange={setIsWorkflowDialogOpen} onSelect={(wf) => setSelectedWorkflowConfig(wf)} onEdit={onEditMapping} />
       <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={selectedBaseModel} onConfirm={(m) => setSelectedBaseModel(m)} />

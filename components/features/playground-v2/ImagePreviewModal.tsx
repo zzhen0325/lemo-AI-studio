@@ -4,23 +4,64 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 
 import { GenerationConfig } from './types';
+import gsap from 'gsap';
+import { Flip } from 'gsap/all';
+
+gsap.registerPlugin(Flip);
 
 interface ImagePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   imageUrl: string;
   config?: GenerationConfig;
+  initialRect?: DOMRect;
 }
 
-export default function ImagePreviewModal({ isOpen, onClose, imageUrl, config }: ImagePreviewModalProps) {
+export default function ImagePreviewModal({ isOpen, onClose, imageUrl, config, initialRect }: ImagePreviewModalProps) {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imageRef = useRef<HTMLImageElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (isOpen) { setScale(1); setPosition({ x: 0, y: 0 }); } }, [isOpen, imageUrl]);
+  useEffect(() => {
+    if (isOpen) {
+      setScale(1);
+      setPosition({ x: 0, y: 0 });
+
+      if (initialRect && imageRef.current) {
+        // FLIP animation
+        const img = imageRef.current;
+
+        // Ensure image is rendered/sized before measuring
+        requestAnimationFrame(() => {
+          // 1. Capture the "Final" state (where the image naturally sits in the modal)
+          const state = Flip.getState(img);
+
+          // 2. Force the image to match the "Initial" state (thumbnail position/size)
+          // Flip.fit applies inline styles to position the element
+          Flip.fit(img, initialRect as any, { scale: true, absolute: true });
+
+          // 3. Apply any other initial styles to match the thumbnail (e.g., border radius)
+          gsap.set(img, { borderRadius: "16px" });
+
+          // 4. Animate from the "Initial" state (current) back to the "Final" state (captured)
+          Flip.to(state, {
+            duration: 0.6,
+            ease: "power3.inOut",
+            scale: true,
+            absolute: true, // This toggle is important if the final state wasn't absolute, but we used absolute for fit
+            onComplete: () => {
+              // Clean up inline styles to allow standard interactions (pan/zoom)
+              gsap.set(img, { clearProps: "all" });
+            }
+          });
+        });
+      }
+    }
+  }, [isOpen, imageUrl, initialRect]);
 
   const handleZoomIn = (e: React.MouseEvent) => { e.stopPropagation(); setScale(prev => Math.min(prev * 1.2, 5)); };
   const handleZoomOut = (e: React.MouseEvent) => { e.stopPropagation(); setScale(prev => Math.max(prev / 1.2, 0.1)); };

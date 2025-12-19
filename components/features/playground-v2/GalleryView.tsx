@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from "framer-motion";
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Download, Hash, Search, Calendar } from "lucide-react";
 import ImagePreviewModal from './ImagePreviewModal';
+import { ProgressiveBlur } from "@/components/motion-primitives/progressive-blur";
 
 interface HistoryItem {
     id: string;
@@ -10,7 +12,6 @@ interface HistoryItem {
     timestamp: string;
     metadata: {
         prompt?: string;
-
         base_model?: string;
         img_width: number;
         img_height: number;
@@ -86,66 +87,14 @@ export default function GalleryView() {
                         </div>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    <div className="columns-1 sm:columns-2 lg:columns-4 xl:columns-6 gap-4 space-y-4">
                         {history.map((item) => (
-                            <div
+                            <GalleryCard
                                 key={item.id}
-                                className="group relative bg-black/40 border border-white/5 overflow-hidden rounded-[2.5rem] hover:border-white/20 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-pointer"
+                                item={item}
                                 onClick={() => setSelectedItem(item)}
-                            >
-                                {/* Image Container */}
-                                <div className="relative aspect-square overflow-hidden m-3 rounded-[2rem]">
-                                    <Image
-                                        src={item.url}
-                                        alt="Generated masterwork"
-                                        fill
-                                        className="object-cover transition-transform duration-700 group-hover:scale-110"
-                                    />
-
-                                    {/* Overlay Actions */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-6">
-                                        <Button
-                                            variant="secondary"
-                                            size="lg"
-                                            className="w-full rounded-2xl bg-white/10 hover:bg-white text-white hover:text-black backdrop-blur-md border border-white/10 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0"
-                                            onClick={(e) => handleDownload(e, item.url, item.id)}
-                                        >
-                                            <Download className="w-4 h-4 mr-2" /> Download
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {/* Metadata Area */}
-                                <div className="p-6 pt-2 space-y-4">
-                                    <div className="flex items-center justify-between text-[11px] font-medium tracking-wider text-white/30 uppercase">
-                                        <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
-                                            <Hash className="w-3 h-3 text-emerald-500" /> {item.id.substring(0, 8)}
-                                        </span>
-                                        <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
-                                            <Calendar className="w-3 h-3" /> {new Date(item.timestamp).toLocaleDateString()}
-                                        </span>
-                                    </div>
-
-                                    {item.metadata?.prompt && (
-                                        <div className="text-sm text-white/70 line-clamp-2 leading-relaxed font-light group-hover:text-white transition-colors duration-300">
-                                            {item.metadata.prompt}
-                                        </div>
-                                    )}
-
-                                    <div className="flex flex-wrap gap-2">
-                                        {item.metadata?.base_model && (
-                                            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/20 uppercase tracking-widest shadow-sm">
-                                                {item.metadata.base_model}
-                                            </span>
-                                        )}
-                                        {item.metadata?.img_width && (
-                                            <span className="px-3 py-1 bg-white/5 text-white/40 text-[10px] font-bold rounded-full border border-white/5 uppercase tracking-tighter">
-                                                {item.metadata.img_width} × {item.metadata.img_height}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                                onDownload={handleDownload}
+                            />
                         ))}
                     </div>
                 )}
@@ -164,6 +113,83 @@ export default function GalleryView() {
                     gen_num: 1
                 } : undefined}
             />
+        </div>
+    );
+}
+
+function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick: () => void, onDownload: (e: React.MouseEvent, url: string, filename: string) => void }) {
+    const [isHover, setIsHover] = useState(false);
+
+    return (
+        <div
+            className="break-inside-avoid group relative bg-black/40 border border-white/5 overflow-hidden rounded-[1.5rem] hover:border-white/20 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-pointer translate-z-0"
+            onClick={onClick}
+            onMouseEnter={() => setIsHover(true)}
+            onMouseLeave={() => setIsHover(false)}
+        >
+            {/* Image Container */}
+            <div className="relative w-full">
+                <Image
+                    src={item.url}
+                    alt="Generated masterwork"
+                    width={item.metadata?.img_width || 1024}
+                    height={item.metadata?.img_height || 1024}
+                    className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+
+                <ProgressiveBlur
+                    className='pointer-events-none absolute bottom-0 left-0 h-[75%] w-full'
+                    blurIntensity={0.5}
+                    direction='bottom'
+                    animate={isHover ? 'visible' : 'hidden'}
+                    variants={{
+                        hidden: { opacity: 0 },
+                        visible: { opacity: 1 },
+                    }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                />
+
+                {/* Overlay Content */}
+                <motion.div
+                    className="absolute inset-0 flex flex-col justify-end p-4"
+                    animate={isHover ? 'visible' : 'hidden'}
+                    variants={{
+                        hidden: { opacity: 0, y: 10 },
+                        visible: { opacity: 1, y: 0 },
+                    }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                    <div className="space-y-3">
+                        {item.metadata?.prompt && (
+                            <div className="text-xs text-white/90 line-clamp-3 leading-relaxed font-light drop-shadow-md">
+                                {item.metadata.prompt}
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-[10px] font-medium tracking-wider text-white/60 uppercase">
+                            <span className="flex items-center gap-1.5">
+                                <Hash className="w-3 h-3 text-emerald-400" /> {item.id.substring(0, 4)}
+                            </span>
+                            {item.metadata?.img_width && (
+                                <span className="px-2 py-0.5 bg-white/10 rounded-full backdrop-blur-sm">
+                                    {item.metadata.img_width} × {item.metadata.img_height}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="pt-2">
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                className="w-full h-8 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black backdrop-blur-md border border-white/10 transition-all duration-300"
+                                onClick={(e) => onDownload(e, item.url, item.id)}
+                            >
+                                <Download className="w-3 h-3 mr-2" /> Download
+                            </Button>
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
         </div>
     );
 }

@@ -16,6 +16,8 @@ import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import Image from "next/image";
 import Link from "next/link";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
+import { ProgressiveBlur } from "@/components/motion-primitives/progressive-blur";
+import { BeamsBackground } from "@/components/ui/beams-background";
 
 
 export default function Page() {
@@ -31,6 +33,7 @@ export default function Page() {
   const manRef = useRef<HTMLDivElement>(null);
   const frontRef = useRef<HTMLDivElement>(null);
   const bgRef = useRef<HTMLDivElement>(null);
+  const beamsRef = useRef<HTMLDivElement>(null);
   const [isBackgroundOut, setIsBackgroundOut] = useState(false);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
 
@@ -74,12 +77,13 @@ export default function Page() {
     const ease = "back.inOut(1, 0.3)";
 
     if (isOut) {
-      tl.to(cloudRef.current, { y: -400, opacity: 1, duration, ease }, 0)
+      tl.to(cloudRef.current, { y: -400, opacity: 0, duration, ease }, 0)
         .to(treeRef.current, { y: 1200, opacity: 0, duration, ease }, 0.1)
-        .to(dogRef.current, { x: 2000, opacity: 1, duration, ease }, 0.05)
-        .to(manRef.current, { x: -900, opacity: 1, duration, ease }, 0.15)
-        .to(frontRef.current, { y: 400, opacity: 1, duration, ease }, 0.2)
-        .to(bgRef.current, { backgroundColor: '#121413', duration: 1.5, ease: 'power2.inOut' }, 0);
+        .to(dogRef.current, { x: 2000, opacity: 0, duration, ease }, 0.05)
+        .to(manRef.current, { x: -900, opacity: 0, duration, ease }, 0.15)
+        .to(frontRef.current, { y: 400, opacity: 0, duration, ease }, 0.2)
+        .to(bgRef.current, { backgroundColor: '#121413', duration: 1.5, ease: 'power2.inOut' }, 0)
+        .to(beamsRef.current, { opacity: 1, duration: 1.5, ease: 'power2.inOut' }, 0);
     } else {
       tl.to([cloudRef.current, treeRef.current, dogRef.current, manRef.current, frontRef.current], {
         x: 0,
@@ -89,7 +93,8 @@ export default function Page() {
         ease: "back.out(1, 0.8)",
         stagger: 0.05
       }, 0)
-        .to(bgRef.current, { backgroundColor: '#142856', duration: 1.5, ease: 'power2.inOut' }, 0);
+        .to(bgRef.current, { backgroundColor: '#142856', duration: 1.5, ease: 'power2.inOut' }, 0)
+        .to(beamsRef.current, { opacity: 0, duration: 1.5, ease: 'power2.inOut' }, 0);
     }
   };
 
@@ -144,45 +149,58 @@ export default function Page() {
   const topbutton = "w-auto text-white text-md border-none rounded-2xl font-[InstrumentSerif-Regular,serif] bg-transparent hover:bg-white/10 hover:text-white";
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
-      <div className="relative flex h-screen justify-center">
-        <header className="fixed w-[70vw]  mt-8 rounded-3xl px-4 mx-auto z-50 text-white bg-black/30 backdrop-blur-md border border-white/10">
-          <div className="flex items-center h-14 px-4 gap-3">
+      <header className="fixed top-0 left-0 w-full h-14 z-50 text-white ">
 
-            <div className="flex-1 flex items-center justify-start">
-              <h1 className="text-[1.5rem] text-white text-center" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>Lemon8 AI Studio</h1>
-            </div>
-            <div className="flex items-center gap-2 ml-auto">
-              <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Playground)}>
-                Playground
-              </Button>
-              <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.MappingEditor)}>
-                Mapping Editor
-              </Button>
 
-              <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Gallery)}>
-                Gallery
-              </Button>
-              <Button variant="outline" className={topbutton} onClick={() => window.open('https://goodcase-v3-383688111435.europe-west1.run.app/', '_blank')}>
-                Goodcase
-              </Button>
-              <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Settings)}>
-                Settings
-              </Button>
-              <Link href="https://bytedance.larkoffice.com/wiki/M0hxw9xARiigSTkq2iJcQUrOn3e" target="_blank" rel="noopener noreferrer" className="ml-2">
-                <Button variant="outline" className={topbutton}>
+        <div className="flex items-center h-full px-4 gap-3">
 
-                  Lemon8 AI 文档
-                </Button>
-              </Link>
-            </div>
+          <div className="flex-1 flex items-center justify-start">
+            <h1 className="text-[1.5rem] text-white text-center" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>Lemon8 AI Studio</h1>
           </div>
-        </header>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Playground)}>
+              Playground
+            </Button>
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.MappingEditor)}>
+              Mapping Editor
+            </Button>
+
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Gallery)}>
+              Gallery
+            </Button>
+            <Button variant="outline" className={topbutton} onClick={() => window.open('https://goodcase-v3-383688111435.europe-west1.run.app/', '_blank')}>
+              Goodcase
+            </Button>
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Settings)}>
+              Settings
+            </Button>
+            <Link href="https://bytedance.larkoffice.com/wiki/M0hxw9xARiigSTkq2iJcQUrOn3e" target="_blank" rel="noopener noreferrer" className="ml-2">
+              <Button variant="outline" className={topbutton}>
+
+                Lemon8 AI 文档
+              </Button>
+            </Link>
+          </div>
+        </div>
+        {/* <div className="absolute inset-0 -z-10">
+          <ProgressiveBlur className='pointer-events-none absolute top-0 left-0 h-full w-full'
+            blurIntensity={2}
+            direction='top'
+          />
+        </div> */}
+      </header>
+      <div className="relative flex h-screen justify-center">
+
 
         {/* 视差动画背景 */}
 
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
-          {/* <PixelDistortion /> */}
-          <div ref={bgRef} className="absolute inset-0 bg-[#142856]" />
+          {/* Beams Background */}
+          <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0">
+            <BeamsBackground intensity="strong" className="h-full w-full" />
+          </div>
+
+          <div ref={bgRef} className="absolute inset-0 bg-[#142856] -z-10" />
 
           <div
             ref={cloudRef}
@@ -226,7 +244,7 @@ export default function Page() {
 
 
 
-        <main className="relative z-10 flex-1 overflow-auto" key={currentTab}>
+        <div className="relative z-10 flex-1 overflow-hidden pt-20" key={currentTab}>
           <div className={`flex flex-col flex-1 h-screen overflow-hidden transition-all duration-500 ${currentTab === TabValue.Gallery ? 'bg-[#050505]' : 'bg-transparent'}`}>
 
             {/* Gallery Tab */}
@@ -243,6 +261,14 @@ export default function Page() {
                 <PlaygroundV2Page
                   onEditMapping={handleEditMapping}
                   onGenerate={() => handleBackgroundAnimate('out')}
+                  backgroundRefs={{
+                    cloud: cloudRef,
+                    tree: treeRef,
+                    dog: dogRef,
+                    man: manRef,
+                    front: frontRef,
+                    bg: bgRef
+                  }}
                 />
               </Suspense>
             </div>
@@ -281,7 +307,7 @@ export default function Page() {
             )}
           </div>
           <Toaster />
-        </main>
+        </div>
       </div>
     </TabContext.Provider>
   );

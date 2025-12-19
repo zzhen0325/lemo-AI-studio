@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 
 import { AIModel } from "@/hooks/features/PlaygroundV2/usePromptOptimization";
 import { UploadedImage } from '@/components/features/playground-v2/types';
-
+import { GlowEffect } from "@/components/motion-primitives/glow-effect";
 interface PromptInputProps {
   prompt: string;
   onPromptChange: (value: string) => void;
@@ -32,13 +32,15 @@ export default function PromptInput({
     <div className="w-full space-y-2 ">
 
 
-      <div className="w-full relative ">
+      <div className="relative w-full ">
+
         <Textarea
           placeholder="请描述您想要生成的图像，例如：黄色的lemo圣诞老人，淡蓝色的背景"
           value={prompt}
           onChange={(e) => onPromptChange(e.target.value)}
-          className="h-36 w-full placeholder:text-white/40 resize-none bg-black/40 backdrop-blur-xl  inset-[-1px] shadow-none rounded-3xl text-white leading-relaxed tracking-wide p-4 border border-white/20"
+          className="h-36 w-full placeholder:text-white/40 resize-none bg-black/80 backdrop-blur-xl  inset-[-1px] shadow-none rounded-3xl text-white leading-relaxed tracking-wide p-4 border border-white/20"
         />
+
 
         {uploadedImages.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
