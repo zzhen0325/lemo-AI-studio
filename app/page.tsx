@@ -189,7 +189,11 @@ export default function Page() {
           />
         </div> */}
       </header>
-      <div className="relative flex h-screen justify-center">
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
+        <Image alt="" src="/images/333.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+
+      </div>
+          <div className="relative flex h-screen justify-center z-10">
 
 
         {/* 视差动画背景 */}
