@@ -18,7 +18,8 @@ import Link from "next/link";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
 
 
-import Silk from "@/components/Silk";
+import GradientShaderCard from "@/components/ui/gradient-shader-card";
+import { Canvas } from "@react-three/fiber";
 
 
 
@@ -58,13 +59,16 @@ export default function Page() {
     if (typeof window !== 'undefined') {
       window.location.hash = tab as string;
     }
-    // 切换 Tab 时如果背景在外面，自动收回
-    if (isBackgroundOut) {
-      handleBackgroundAnimate('in');
-    }
+    // 切换 Tab 时如果背景在外面，自动收回 -> 用户要求执行一次就行，不要收回
+    // if (isBackgroundOut) {
+    //   handleBackgroundAnimate('in');
+    // }
   };
 
   const handleBackgroundAnimate = (direction: 'in' | 'out') => {
+    // Prevent re-triggering 'out' animation if already out
+    if (direction === 'out' && isBackgroundOut) return;
+
     const isOut = direction === 'out';
     setIsBackgroundOut(isOut);
 
@@ -76,30 +80,60 @@ export default function Page() {
     const tl = gsap.timeline();
     timelineRef.current = tl;
 
-    const duration = 1;
-    const ease = "back.inOut(1, 0.3)";
+    // 参考 codepen 弹性效果 (Elastic Slide Up)
+    const slideDuration = 1.4;
+    const slideEase = "elastic.out(1, 0.75)";
 
     if (isOut) {
-      tl.to(cloudRef.current, { y: -400, opacity: 0, duration, ease }, 0)
-        .to(treeRef.current, { y: 1200, opacity: 0, duration, ease }, 0.1)
-        .to(dogRef.current, { x: 2000, opacity: 0, duration, ease }, 0.05)
-        .to(manRef.current, { x: -900, opacity: 0, duration, ease }, 0.15)
-        .to(frontRef.current, { y: 400, opacity: 0, duration, ease }, 0.2)
-        .to(bgRef.current, { backgroundColor: '#050505', duration: 1.5, ease: 'power2.inOut' }, 0)
-        .to(beamsRef.current, { opacity: 1, duration: 1, ease: 'power2.inOut' }, 0.5);
+      // 1. 准备: Shader 置于顶层，初始位置在屏幕下方 (y: 100%)，完全不透明
+      tl.set(beamsRef.current, { zIndex: 50, opacity: 1, y: '100%' })
+
+        // 2. 只有 Shader 向上弹性滑入
+        // "Reference this elastic effect" -> 主要是指这种有弹性的位移/出现
+        .to(beamsRef.current, {
+          y: '0%',
+          duration: slideDuration,
+          ease: slideEase
+        }, 0)
+
+        // 3. Parallax 视差背景处理
+        // "then parallax animation background direct disappear"
+        // 在滑入覆盖的过程中(或者覆盖后)，让视差元素消失
+        // 为了防止弹性回弹时露出底部，可以在动画开始一小段时间后就开始淡出背景，或者等完全覆盖。
+        // 由于是 elastic 效果，可能会弹过头再回来，最好且简单的做法是让它们保留一会，直到动画稳定，或者快速淡出。
+        // 这里选择在动画中段快速消失，造成"被覆盖"的错觉
+        .to([cloudRef.current, treeRef.current, dogRef.current, manRef.current, frontRef.current], {
+          opacity: 0,
+          duration: 0.3,
+          ease: "power1.out"
+        }, 0.2)
+
+        // 4. 背景色过渡
+        .to(bgRef.current, { backgroundColor: '#ffffffff', duration: 1.0, ease: 'power2.inOut' }, 0);
 
     } else {
-      tl.to([cloudRef.current, treeRef.current, dogRef.current, manRef.current, frontRef.current], {
-        x: 0,
-        y: 0,
-        opacity: 1,
-        duration: 1.5,
-        ease: "back.out(1, 0.8)",
-        stagger: 0.05
+      // Return: Shader 滑下去 Or 淡出? 
+      // 既然进入是滑上来，出去可以是滑下去或者反向弹性
+      // 这里保持逻辑一致，反向滑出
+      tl.to(beamsRef.current, {
+        y: '100%',
+        duration: 1.0,
+        ease: "power2.inOut", // 回去的时候不需要太夸张的弹性，显得干脆点
+        onComplete: () => {
+          if (beamsRef.current) gsap.set(beamsRef.current, { zIndex: 0, opacity: 0 });
+        }
       }, 0)
-        .to(bgRef.current, { backgroundColor: '#142856', duration: 1.5, ease: 'power2.inOut' }, 0)
-        .to(beamsRef.current, { opacity: 0, duration: 0.8, ease: 'power2.inOut' }, 0);
 
+        // Parallax 恢复
+        .to([cloudRef.current, treeRef.current, dogRef.current, manRef.current, frontRef.current], {
+          x: 0,
+          y: 0,
+          opacity: 1,
+          duration: 1.2,
+          ease: "elastic.out(1, 0.8)",
+          stagger: 0.05
+        }, 0.1)
+        .to(bgRef.current, { backgroundColor: '#142856', duration: 1.2, ease: 'power2.inOut' }, 0);
     }
   };
 
@@ -128,7 +162,7 @@ export default function Page() {
 
       if (isBackgroundOut) return; // 动画在外面或正在执行动画时禁用视差
 
-      const duration = 0.5;
+      const duration = 0.1;
       const ease = "power2.out";
 
       if (cloudRef.current) gsap.to(cloudRef.current, { x: x * 25, y: y * 25, duration, ease });
@@ -155,38 +189,44 @@ export default function Page() {
 
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
-      <header className="fixed top-0 left-0 w-full h-14 z-50 text-white ">
+      <header className="fixed top-0  w-full h-14 z-50  rounded-2xl  items-center  text-white ">
+        <div className="flex  flex-col items-start  pt-10  pl-10 ">
+          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Playground)}>
+            Playground
+          </Button>
+          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.MappingEditor)}>
+            Mapping Editor
+          </Button>
+
+          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Gallery)}>
+            Gallery
+          </Button>
+          <Button variant="outline" className={topbutton} onClick={() => window.open('https://goodcase-v3-383688111435.europe-west1.run.app/', '_blank')}>
+            Goodcase
+          </Button>
+          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Settings)}>
+            Settings
+          </Button>
+          <Link href="https://bytedance.larkoffice.com/wiki/M0hxw9xARiigSTkq2iJcQUrOn3e" target="_blank" rel="noopener noreferrer" >
+            <Button variant="outline" className={topbutton}>
+
+              Lemon8 AI 文档
+            </Button>
+          </Link>
+        </div>
 
 
         <div className="flex items-center h-full px-4 gap-3">
 
-          <h1 className="text-[1.5rem] text-white text-center">Lemon8 AI Studio</h1>
-
-          <div className="flex items-center gap-2 ml-auto">
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Playground)}>
-              Playground
-            </Button>
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.MappingEditor)}>
-              Mapping Editor
-            </Button>
-
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Gallery)}>
-              Gallery
-            </Button>
-            <Button variant="outline" className={topbutton} onClick={() => window.open('https://goodcase-v3-383688111435.europe-west1.run.app/', '_blank')}>
-              Goodcase
-            </Button>
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Settings)}>
-              Settings
-            </Button>
-            <Link href="https://bytedance.larkoffice.com/wiki/M0hxw9xARiigSTkq2iJcQUrOn3e" target="_blank" rel="noopener noreferrer" className="ml-2">
-              <Button variant="outline" className={topbutton}>
-
-                Lemon8 AI 文档
-              </Button>
-            </Link>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <h1 className="text-[2rem] text-white text-center font-[family-name:var(--font-instrument)]  font-bold mt-20  ">
+              Lemon8 AI Studio
+            </h1>
           </div>
+
         </div>
+
+
         {/* <div className="absolute inset-0 -z-10">
           <ProgressiveBlur className='pointer-events-none absolute top-0 left-0 h-full w-full'
             blurIntensity={2}
@@ -204,7 +244,9 @@ export default function Page() {
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
           {/* Beams Background */}
           <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden scale-[1.1]">
-            <Silk color="#4c4a46ff" />
+            <Canvas className="w-full h-full  scale-y-[1.5]">
+              <GradientShaderCard />
+            </Canvas>
 
           </div>
 

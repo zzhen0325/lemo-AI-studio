@@ -1,9 +1,5 @@
 import React from 'react';
-import Image from 'next/image';
-
-import { Textarea } from "@/components/ui/textarea";
-import { X } from "lucide-react";
-
+import { AutosizeTextarea } from "@/components/ui/autosize-text-area";
 import { AIModel } from "@/hooks/features/PlaygroundV2/usePromptOptimization";
 import { UploadedImage } from '@/components/features/playground-v2/types';
 
@@ -27,44 +23,26 @@ export default function PromptInput({
 
 }: PromptInputProps) {
 
-
+  const [isFocused, setIsFocused] = React.useState(false);
 
   return (
-    <div className="w-full space-y-2 ">
+    <div className="w-full relative">
+      <AutosizeTextarea
+        placeholder="请描述您想要生成的图像，例如：黄色的lemo圣诞老人，淡蓝色的背景"
+        value={prompt}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        minHeight={86}
+        maxHeight={isFocused ? undefined : 86}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onPromptChange(e.target.value)}
+        className="w-full placeholder:text-white/40 bg-black/90 shadow-none rounded-3xl text-white leading-relaxed tracking-wide p-2 px-4 pt-3 border border-white/20 focus:border-white/20 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none resize-none transition-all duration-200"
+      />
 
-
-      <div className="relative w-full ">
-
-        <Textarea
-          placeholder="请描述您想要生成的图像，例如：黄色的lemo圣诞老人，淡蓝色的背景"
-          value={prompt}
-          onChange={(e) => onPromptChange(e.target.value)}
-          className="h-36 w-full placeholder:text-white/40 resize-none bg-black/80 backdrop-blur-xl  inset-[-1px] shadow-none rounded-3xl text-white leading-relaxed tracking-wide p-4 border border-white/20"
-        />
-
-
-        {uploadedImages.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {uploadedImages.map((image, index) => (
-              <div key={index} className="relative">
-                <Image
-                  src={image.previewUrl}
-                  alt={`上传的图片 ${index + 1}`}
-                  width={64}
-                  height={64}
-                  className="w-16 h-16 object-cover rounded-lg border"
-                />
-                <button
-                  onClick={() => onRemoveImage(index)}
-                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* 底部模糊遮罩 - 仅在非 Focus 状态且有内容时显示，用于优雅处理文字溢出 */}
+      <div
+        className={`absolute bottom-1 left-1 right-1 h-10 pointer-events-none bg-gradient-to-t from-black/95 via-black/50 to-transparent transition-opacity duration-300 rounded-b-3xl z-10 ${!isFocused && prompt.length > 0 ? 'opacity-80' : 'opacity-0'
+          }`}
+      />
     </div>
   );
 }

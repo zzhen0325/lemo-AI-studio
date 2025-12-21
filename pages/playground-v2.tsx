@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/common/use-toast";
 
 import { useImageGeneration } from "@/hooks/features/PlaygroundV2/useImageGeneration";
@@ -30,6 +30,8 @@ import type { CozeWorkflowParams } from "@/types/coze-workflow";
 import { usePostPlayground } from "@/hooks/features/playground/use-post-playground";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { X, Plus } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 
 import { RefObject } from "react";
@@ -55,6 +57,9 @@ export function PlaygroundV2Page({
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isMockMode, setIsMockMode] = useState(false);
   const [isSelectorExpanded, setIsSelectorExpanded] = useState(false);
+
+  const [isInputHovered, setIsInputHovered] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isElevated = hasGenerated || isSelectorExpanded;
 
@@ -194,7 +199,7 @@ export function PlaygroundV2Page({
 
   const { generateImage, isGenerating: isGeneratingNano } = useImageGeneration();
   const { editImage, isEditing: isEditingNano } = useImageEditing();
-  const { optimizePrompt, isOptimizing } = usePromptOptimization({ systemInstruction: `# 角色\n你是备受赞誉的提示词大师Lemo-prompt，专为AI绘图工具flux打造提示词。\n\n## 技能\n### 技能1: 理解用户意图\n利用先进的自然语言处理技术，准确剖析用户输入自然语言背后的真实意图，精准定位用户对于图像生成的核心需求。在描述物品时，避免使用"各种""各类"等概称，要详细列出具体物品。若用户提供图片，你会精准描述图片中的内容信息与构图，并按照图片信息完善提示词。\n\n### 2: 优化构图与细节\n运用专业的构图知识和美学原理，自动为场景增添丰富且合理的细节，精心调整构图，显著提升生成图像的构图完整性、故事性和视觉吸引力。\n\n### 技能3: 概念转化\n熟练运用丰富的视觉语言库，将用户提出的抽象概念快速且准确地转化为可执行的视觉描述，让抽象想法能通过图像生动、直观地呈现。\n\n### 技能4: 描述纬度\n1. **版式分析**：能准确判断版面率（高版面率：留白少、信息密集，适合促销、营销场景；低版面率：留白多、气质高级，适合文艺、静态设计）；识别构图方式（上下构图、左右构图、中心构图、对角线构图、四角构图、曲线（S线）构图、散点式构图、包围式构图）；分辨网格系统（通栏网格、分栏网格、模块网格、基线网格、层级网格）。\n2. **层级关系**：清晰区分主标题、副标题、正文、辅助文字，通过强调层级信息的大小、颜色、字重，使用不同字号、字重、灰度制造视觉主次。\n3. **字体搭配**：根据字体气质分类进行搭配，如轻盈现代（细、无衬线）、厚重力量（黑体、笔画重）、文艺清新（舒展、居中）、柔和可爱（曲线笔画）、古典沉稳（仿宋、书法感）、现代简洁（极简无装饰）。\n4. **色彩搭配**：准确识别并运用单色（一个色相展开，简洁高级）、相似色（色环上相邻色，柔和统一）、互补色（色环对向色，强对比）、Duotone双色调（叠加两种对比色调，印刷感或冲击力）。\n6.**画面内容**：准确描述画面中的主体和辅助元素的主要内容和详细细节。\n\n## 限制\n1. 严禁生成涉及暴力、色情、恐怖等不良内容的描述，确保内容积极健康。\n2. 不提供技术参数相关内容，专注于图像内容和风格的描述。\n3. 不提供与图像生成无关的建议，保持回答的针对性。\n4. 描述必须客观、准确，符合实际情况和大众审美标准。\n\n## 输出格式\n1. 输出完整提示词中文版本\n2. 使用精炼且生动的语言表达\n3. 文字控制在500字以内\n4. lemo是一个卡通角色的名字，不要描述lemo的角色特质，可以描述lemo的穿搭动作表情等！！！` });
+  const { optimizePrompt, isOptimizing } = usePromptOptimization({ systemInstruction: `# 角色\n你是备受赞誉的提示词大师Lemo-prompt，专为AI绘图工具flux打造提示词。\n\n## 技能\n### 技能1: 理解用户意图\n利用先进的自然语言处理技术，准确剖析用户输入自然语言背后的真实意图，精准定位用户对于图像生成的核心需求。在描述物品时，避免使用"各种""各类"等概称，要详细列出具体物品。若用户提供图片，你会精准描述图片中的内容信息与构图，并按照图片信息完善提示词。\n\n### 2: 优化构图与细节\n运用专业的构图知识和美学原理，自动为场景增添丰富且合理的细节，精心调整构图，显著提升生成图像的构图完整性、故事性和视觉吸引力。\n\n### 技能3: 概念转化\n熟练运用丰富的视觉语言库，将用户提出的抽象概念快速且准确地转化为可执行的视觉描述，让抽象想法能通过图像生动、直观地呈现。\n\n### 技能4: 描述纬度\n1. **版式分析**：能准确判断版面率（高版面率：留白少、信息密集，适合促销、营销场景；低版面率：留白多、气质高级，适合文艺、静态设计）；识别构图方式（上下构图、左右构图、中心构图、对角线构图、四角构图、曲线（S线）构图、散点式构图、包围式构图）；分辨网格系统（通栏网格、分栏网格、模块网格、基线网格、层级网格）。\n2. **层级关系**：清晰区分主标题、副标题、正文、辅助文字，通过强调层级信息的大小、颜色、字重，使用不同字号、字重、灰度制造视觉主次。\n3. **字体搭配**：根据字体气质分类进行搭配，如轻盈现代（细、无衬线）、厚重力量（黑体、笔画重）、文艺清新（舒展、居中）、柔和可爱（曲线笔画）、古典沉稳（仿宋、书法感）、现代简洁（极简无装饰）。\n4. **色彩搭配**：准确识别并运用单色（一个色相展开，简洁高级）、相似色（色环上相邻色，柔和统一）、互补色（色环对向色，强对比）、Duotone双色调（叠加两种对比色调，印刷感或冲击力）。\n6.**画面内容**：准确描述画面中的主体 and 辅助元素的主要内容和详细细节。\n\n## 限制\n1. 严禁生成涉及暴力、色情、恐怖等不良内容的描述，确保内容积极健康。\n2. 不提供技术参数相关内容，专注于图像内容和风格的描述。\n3. 不提供与图像生成无关的建议，保持回答的针对性。\n4. 描述必须客观、准确，符合实际情况和大众审美标准。\n\n## 输出格式\n1. 输出完整提示词中文版本\n2. 使用精炼且生动的语言表达\n3. 文字控制在500字以内\n4. lemo是一个卡通角色的名字，不要描述lemo的角色特质，可以描述lemo的穿搭动作表情等！！！` });
   const { runWorkflow, loading: isGeneratingCoze, uploadFile } = useCozeWorkflow({ retryCount: 3, retryDelay: 2000, onSuccess: (result) => { console.log('🎉 Coze Workflow 生成成功:', result); toast({ title: "生成成功", description: "Seed 4.0 图像已成功生成！" }); }, onError: (error) => { console.error('💥 Coze Workflow 生成失败:', error); toast({ title: "生成失败", description: error.message || "Seed 4.0 生成失败", variant: "destructive" }); } });
   const { doPost: runComfyWorkflow, loading: isRunningComfy } = usePostPlayground();
   const isLoading = isGeneratingNano || isEditingNano || isGeneratingCoze || isRunningComfy;
@@ -262,7 +267,7 @@ export function PlaygroundV2Page({
     return "16:9";
   };
   const handleWidthChange = (newWidth: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newHeight = Math.round(newWidth / ratio); setConfig(prev => ({ ...prev, img_width: newWidth, image_height: newHeight })); } else { setConfig(prev => ({ ...prev, img_width: newWidth })); } };
-  const handleHeightChange = (newHeight: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newWidth = Math.round(newHeight * ratio); setConfig(prev => ({ ...prev, img_width: newWidth, image_height: newHeight })); } else { setConfig(prev => ({ ...prev, image_height: newHeight })); } };
+  const handleHeightChange = (newHeight: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newWidth = Math.round(newHeight * ratio); setConfig(prev => ({ ...prev, image_height: newHeight })); } else { setConfig(prev => ({ ...prev, image_height: newHeight })); } };
   const handleOptimizePrompt = async () => { const optimizedText = await optimizePrompt(config.prompt, selectedAIModel); if (optimizedText) setConfig(prev => ({ ...prev, prompt: optimizedText })); };
 
   const handleGenerate = async () => {
@@ -284,7 +289,7 @@ export function PlaygroundV2Page({
       isLoading: true
     };
 
-    setGenerationHistory(prev => [loadingResult, ...prev.slice(0, 9)]);
+    setGenerationHistory(prev => [loadingResult, ...prev]);
 
     // 启动后台生成任务 (不等待)
     executeBackgroundGeneration(taskId, { ...config }, [...uploadedImages], selectedModel, selectedWorkflowConfig, isMockMode);
@@ -502,60 +507,184 @@ export function PlaygroundV2Page({
   };
 
   const handleDownload = (imageUrl: string) => { const link = document.createElement("a"); link.href = imageUrl; link.download = `PlaygroundV2-${Date.now()}.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
+
+  const handleUsePrompt = (prompt: string) => {
+    setConfig(prev => ({ ...prev, prompt }));
+    toast({ title: "已应用提示词" });
+  };
+
+  const handleUseModel = (model: string, configData?: GenerationConfig) => {
+    setSelectedModel(model);
+    if (configData) {
+      setConfig(prev => ({ ...prev, ...configData, base_model: model }));
+    }
+    toast({ title: `已切换至模型: ${model}` });
+  };
+
+  const handleUseImage = async (imageUrl: string) => {
+    try {
+      const resp = await fetch(imageUrl);
+      const blob = await resp.blob();
+      const file = new File([blob], `image-${Date.now()}.png`, { type: 'image/png' });
+      const dataUrl = await blobToDataURL(blob);
+      const base64Data = (dataUrl as string).split(',')[1];
+
+      setUploadedImages(prev => [...prev, {
+        file,
+        base64: base64Data,
+        previewUrl: dataUrl as string
+      }]);
+      toast({ title: "图片已添加为参考图" });
+    } catch (error) {
+      console.error("Failed to use image", error);
+      toast({ title: "添加图片失败", variant: "destructive" });
+    }
+  };
+
   const [initialRect, setInitialRect] = useState<DOMRect | undefined>(undefined);
   const openImageModal = (result: GenerationResult, rect?: DOMRect) => { setSelectedResult(result); setInitialRect(rect); setIsImageModalOpen(true); };
-  const closeImageModal = () => { setIsImageModalOpen(false); setSelectedResult(undefined); };
+  const closeImageModal = () => {
+    setIsImageModalOpen(false);
+    // Don't clear selectedResult here to allow exit animation to use the data
+  };
 
 
   // 样式定义
 
-  const Inputbg = "flexitems-center justify-center w-full text-black flex-col rounded-[30px]  my-auto   bg-gradient-to-b  from-[rgba(0, 0, 0, 0.85)] to-[rgba(151, 94, 29, 0.69)]  backdrop-blur-md border border-white/20 p-2 mx-auto";
+  const Inputbg = "relative z-10 flex items-center justify-center w-full text-black flex-col rounded-[30px] bg-black/50  backdrop-blur-xl border border-white/20 p-2 mx-auto";
+
+  const renderThumbnails = () => {
+    const showUploadButton = isInputHovered || uploadedImages.length > 0;
+    if (uploadedImages.length === 0 && !showUploadButton) return null;
+
+    return (
+      <div className="absolute -top-16 left-10 flex gap-1 z-0 pointer-events-none">
+        <AnimatePresence>
+          {uploadedImages.map((image, index) => {
+            const rotations = [-8, 6, -4, 5, -3];
+            const rotation = rotations[index % rotations.length];
+            return (
+              <motion.div
+                key={index}
+                initial={{ y: 20, rotate: rotation }}
+                animate={{ y: 0, rotate: rotation }}
+                exit={{ y: 20, rotate: rotation }}
+                transition={{ duration: 0.1, ease: "easeOut" }}
+                className="relative group pointer-events-auto hover:z-50"
+              >
+                <div className="relative transition-all duration-100 group-hover:-translate-y-5 group-hover:scale-110">
+                  <Image
+                    src={image.previewUrl}
+                    alt={`上传的图片 ${index + 1}`}
+                    width={80}
+                    height={80}
+                    className="w-20 h-20 object-cover rounded-2xl border-2 border-white/60 bg-black shadow-xl transition-all duration-300 group-hover:border-white group-hover:shadow-2xl"
+                  />
+                  <button
+                    onClick={() => removeImage(index)}
+                    className="absolute -top-2 -right-2 bg-black/60 backdrop-blur-md text-white border border-white/20 rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black hover:scale-110 z-10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
+
+          {showUploadButton && (
+            <motion.div
+              key="upload-button"
+              initial={{ y: 20, rotate: ([-8, 6, -4, 5, -3][uploadedImages.length % 5]) }}
+              animate={{ y: 0, rotate: ([-8, 6, -4, 5, -3][uploadedImages.length % 5]) }}
+              exit={{ scale: 0.8 }}
+              transition={{ duration: 0.1, ease: "easeOut" }}
+              className="relative group pointer-events-auto hover:z-50"
+            >
+              <div className="relative transition-all duration-300 group-hover:-translate-y-5 group-hover:scale-110">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-20 h-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-white/40 bg-white/5 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-white/80 hover:bg-white/10 group-hover:shadow-2xl"
+                >
+                  <Plus className="w-8 h-8 text-white/40 group-hover:text-white/80 transition-colors" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
 
   return (
-    <main className="h-screen flex flex-col bg-transparent overflow-hidden">
-      {/* <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
-        <Image alt="" src="/images/333.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+    <main className="relative h-screen flex flex-col bg-transparent overflow-hidden">
+      {/* 核心历史与预览区域 - 在输入区域下方（或背景中） */}
+      <div className="flex-1 overflow-hidden relative z-0">
+        <HistoryList
+          history={generationHistory}
+          onRegenerate={handleRegenerate}
+          onDownload={handleDownload}
+          onImageClick={openImageModal}
+          isGenerating={isLoading}
+          onUsePrompt={handleUsePrompt}
+          onUseModel={handleUseModel}
+          onUseImage={handleUseImage}
+        />
+      </div>
 
-      </div> */}
-      {/* 固定居中的输入区域 */}
+      {/* 动态输入区域 - 初始居中，生成后固定在底部 */}
       <div className={cn(
-        "flex-none flex flex-col items-center justify-center transition-all duration-700 ease-in-out z-50",
-        isElevated ? "fixed top-20 left-0 right-0 pt-4 pb-0 bg-transparent" : "mt-40 pt-8 pb-12"
+        "w-full transition-all duration-700 ease-in-out z-50",
+        hasGenerated
+          ? "fixed bottom-0 left-0 right-0 pt-10 pb-8 px-4 "
+          : "absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
       )}>
         <div className={cn(
-          "flex flex-col items-center space-y-4 w-full transition-all duration-700 ease-in-out px-4",
-          hasGenerated ? "max-w-[60vw] " : "max-w-4xl "
+          "flex flex-col items-center -mt-80 w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
+          hasGenerated ? "max-w-[50vw]  mx-auto" : "max-w-4xl"
         )}>
 
-
+          {/* 
           <h1
             className={cn(
               "text-[40px] text-white text-center transition-all duration-500 overflow-hidden",
               isElevated ? "h-0 opacity-0 mb-0" : "h-auto opacity-100 mb-4"
             )}
-
-
           >
             Let Your Imagination Soar
-          </h1>
+          </h1> */}
 
+          <div
+            className={cn(
+              "relative w-full rounded-[10px] transition-all duration-300",
+              isInputHovered ? "mt-0" : "mt-0"
+            )}
+            onMouseEnter={() => setIsInputHovered(true)}
+            onMouseLeave={() => setIsInputHovered(false)}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              multiple
+              onChange={handleImageUpload}
+            />
+            {renderThumbnails()}
 
-
-          <div className="relative w-full rounded-[10px]">
-
-            <MagicCard className={Inputbg} gradientColor="rgba(255, 117, 31, 0.82)" gradientOpacity={1} gradientSize={200}>
-
-              <PromptInput
-                prompt={config.prompt}
-                onPromptChange={(val) => setConfig(prev => ({ ...prev, prompt: val }))}
-                uploadedImages={uploadedImages}
-                onRemoveImage={removeImage}
-                isOptimizing={isOptimizing}
-                onOptimize={handleOptimizePrompt}
-                selectedAIModel={selectedAIModel}
-                onAIModelChange={setSelectedAIModel}
-              />
+            <div className={Inputbg}>
+              <div className="flex items-start gap-4 w-full">
+                <PromptInput
+                  prompt={config.prompt}
+                  onPromptChange={(val) => setConfig(prev => ({ ...prev, prompt: val }))}
+                  uploadedImages={uploadedImages}
+                  onRemoveImage={removeImage}
+                  isOptimizing={isOptimizing}
+                  onOptimize={handleOptimizePrompt}
+                  selectedAIModel={selectedAIModel}
+                  onAIModelChange={setSelectedAIModel}
+                />
+              </div>
               <ControlToolbar
                 selectedModel={selectedModel}
                 onModelChange={setSelectedModel}
@@ -602,36 +731,16 @@ export function PlaygroundV2Page({
                 isSelectorExpanded={isSelectorExpanded}
                 onSelectorExpandedChange={setIsSelectorExpanded}
               />
-            </MagicCard>
+            </div>
           </div>
           <GoogleApiStatus className="fixed bottom-4 right-4" />
         </div>
       </div>
 
-      {/* 可滚动的历史列表 */}
-      <div className={cn(
-        "flex-1 overflow-y-auto px-4 pb-8 transition-all duration-300",
-        isElevated ? "pt-80" : ""
-      )}>
-        <div className="flex items-center justify-center text-white/40  font-family: 'InstrumentSerif', sans-serif border-b border-white/20 mb-4">
-          <h1>History</h1>
-        </div>
-
-        <HistoryList
-          history={generationHistory}
-          onRegenerate={handleRegenerate}
-          onDownload={handleDownload}
-          onImageClick={openImageModal}
-          isGenerating={isLoading}
-        />
-      </div>
-
       <ImagePreviewModal
         isOpen={isImageModalOpen}
         onClose={closeImageModal}
-        imageUrl={selectedResult?.imageUrl || ""}
-        config={selectedResult?.config}
-        initialRect={initialRect}
+        result={selectedResult}
       />
       <WorkflowSelectorDialog open={isWorkflowDialogOpen} onOpenChange={setIsWorkflowDialogOpen} onSelect={(wf) => setSelectedWorkflowConfig(wf)} onEdit={onEditMapping} />
       <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={selectedBaseModel} onConfirm={(m) => setSelectedBaseModel(m)} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,22 @@ export default function ControlToolbar({
     }
     setSelectValue(v);
   }, [selectedModel, selectedWorkflowName, workflows]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isSelectorExpanded && containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        onSelectorExpandedChange?.(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSelectorExpanded, onSelectorExpandedChange]);
+
   const handleUnifiedSelectChange = (val: string) => {
     setSelectValue(val);
     if (val === 'seed3') onModelChange('3D Lemo seed3');
@@ -125,6 +141,7 @@ export default function ControlToolbar({
         onWorkflowSelect?.(wf);
       }
     }
+    onSelectorExpandedChange?.(false);
   };
 
   const Inputbutton2 = "h-10 w-auto text-white rounded-2xl bg-black/10 border border-white/20";
@@ -140,7 +157,7 @@ export default function ControlToolbar({
   const itemLable = "px-2 py-2 text-sm text-white/30    ";
   const itemClassName = "px-2 py-2 text-md text-white/70 rounded-xl bg-black/20 hover:bg-white/20  flex items-center gap-2";
   return (
-    <div className="w-full flex-col space-y-2">
+    <div ref={containerRef} className="w-full flex-col space-y-2">
 
 
 
@@ -303,6 +320,7 @@ export default function ControlToolbar({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 400, opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             className="w-full overflow-hidden"
           >
             <div className="relative w-full h-[400px] border-t border-white/10  p-4 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

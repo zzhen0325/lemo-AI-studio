@@ -78,58 +78,80 @@ export default function HistoryPage() {
                         </Link>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {history.map((item) => (
-                            <Card key={item.id} className="group relative bg-[#121212] border-white/5 overflow-hidden rounded-2xl hover:border-emerald-500/50 transition-all duration-500">
-                                <CardContent className="p-0">
-                                    <div className="relative aspect-square overflow-hidden">
-                                        <img
-                                            src={item.url}
-                                            alt="Generated image"
-                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                        />
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                className="rounded-full"
-                                                onClick={() => handleDownload(item.url, item.id)}
-                                            >
-                                                <Download className="w-4 h-4 mr-2" /> Download
-                                            </Button>
-                                        </div>
+                    <div className="space-y-12">
+                        {Object.entries(
+                            history.reduce((acc, item) => {
+                                const date = new Date(item.timestamp);
+                                const key = date.toLocaleString('zh-CN', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                });
+                                if (!acc[key]) acc[key] = [];
+                                acc[key].push(item);
+                                return acc;
+                            }, {} as Record<string, HistoryItem[]>)
+                        ).sort((a, b) => new Date(b[1][0].timestamp).getTime() - new Date(a[1][0].timestamp).getTime())
+                            .map(([time, items]) => (
+                                <div key={time}>
+                                    <h2 className="text-xl font-medium text-white/50 mb-4 pl-1 border-l-2 border-emerald-500/50">{time}</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                        {items.map((item) => (
+                                            <Card key={item.id} className="group relative bg-[#121212] border-white/5 overflow-hidden rounded-2xl hover:border-emerald-500/50 transition-all duration-500">
+                                                <CardContent className="p-0">
+                                                    <div className="relative aspect-square overflow-hidden">
+                                                        <img
+                                                            src={item.url}
+                                                            alt="Generated image"
+                                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                                            <Button
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                className="rounded-full"
+                                                                onClick={() => handleDownload(item.url, item.id)}
+                                                            >
+                                                                <Download className="w-4 h-4 mr-2" /> Download
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="p-4 space-y-3">
+                                                        <div className="flex items-center justify-between text-xs text-white/40 border-b border-white/5 pb-2">
+                                                            <span className="flex items-center gap-1">
+                                                                <Hash className="w-3 h-3 text-emerald-500" /> {item.id.substring(0, 8)}
+                                                            </span>
+                                                            <span>{new Date(item.timestamp).toLocaleTimeString()}</span>
+                                                        </div>
+
+                                                        {!!item.metadata?.prompt && (
+                                                            <div className="text-sm text-white/80 line-clamp-2 italic font-light">
+                                                                &ldquo;{item.metadata.prompt as string}&rdquo;
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex flex-wrap gap-2 pt-1">
+                                                            {!!item.metadata?.base_model && (
+                                                                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] rounded-full border border-emerald-500/20 uppercase tracking-widest">
+                                                                    {item.metadata.base_model as string}
+                                                                </span>
+                                                            )}
+                                                            {!!item.metadata?.img_width && (
+                                                                <span className="px-2 py-0.5 bg-white/5 text-white/50 text-[10px] rounded-full border border-white/5">
+                                                                    {item.metadata.img_width as number}x{item.metadata.image_height as number}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
                                     </div>
-
-                                    <div className="p-4 space-y-3">
-                                        <div className="flex items-center justify-between text-xs text-white/40 border-b border-white/5 pb-2">
-                                            <span className="flex items-center gap-1">
-                                                <Hash className="w-3 h-3 text-emerald-500" /> {item.id.substring(0, 8)}
-                                            </span>
-                                            <span>{new Date(item.timestamp).toLocaleString()}</span>
-                                        </div>
-
-                                        {item.metadata?.prompt && (
-                                            <div className="text-sm text-white/80 line-clamp-2 italic font-light">
-                                                &ldquo;{item.metadata.prompt as string}&rdquo;
-                                            </div>
-                                        )}
-
-                                        <div className="flex flex-wrap gap-2 pt-1">
-                                            {item.metadata?.base_model && (
-                                                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] rounded-full border border-emerald-500/20 uppercase tracking-widest">
-                                                    {item.metadata.base_model as string}
-                                                </span>
-                                            )}
-                                            {item.metadata?.img_width && (
-                                                <span className="px-2 py-0.5 bg-white/5 text-white/50 text-[10px] rounded-full border border-white/5">
-                                                    {item.metadata.img_width as number}x{item.metadata.image_height as number}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                </div>
+                            ))}
                     </div>
                 )}
             </div>

@@ -1,9 +1,12 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { Loader2, RefreshCw, Download } from "lucide-react";
+import { Loader2, RefreshCw, Download, Type, Image as ImageIcon, Box } from "lucide-react";
 import { GenerationResult, GenerationConfig } from '@/components/features/playground-v2/types';
 import { ProgressiveBlur } from "@/components/motion-primitives/progressive-blur";
+import { TooltipButton } from "@/components/ui/tooltip-button";
+import { UploadedImage } from "./types";
 
 
 interface HistoryListProps {
@@ -12,6 +15,9 @@ interface HistoryListProps {
   onDownload: (imageUrl: string) => void;
   onImageClick: (result: GenerationResult, initialRect?: DOMRect) => void;
   isGenerating: boolean;
+  onUsePrompt?: (prompt: string) => void;
+  onUseModel?: (model: string, config: GenerationConfig) => void;
+  onUseImage?: (imageUrl: string) => void;
 }
 
 export default function HistoryList({
@@ -19,22 +25,52 @@ export default function HistoryList({
   onRegenerate,
   onDownload,
   onImageClick,
-  isGenerating
+  isGenerating,
+  onUsePrompt,
+  onUseModel,
+  onUseImage
 }: HistoryListProps) {
   if (history.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols- xl:grid-cols-6 gap-1 justify-center w-full max-w-[90vw] h-auto mx-auto  overflow-y-auto">
-      {history.map((result) => (
-        <HistoryCard
-          key={result.id}
-          result={result}
-          onRegenerate={onRegenerate}
-          onDownload={onDownload}
-          onImageClick={onImageClick}
-          isGenerating={isGenerating}
+    <div className="relative flex flex-col w-full h-full overflow-y-auto custom-scrollbar">
+      {/* 顶部或内容容器 */}
+      <div className="flex flex-wrap justify-center   max-w-[1500px] mx-auto overflow-y-auto h-full rounded-lg px-4 pb-72  pt-32">
+        {history.map((result) => {
+          // Dynamic card width logic based on history count
+          let widthClass = "w-[280px]";
+          if (history.length === 5) widthClass = "w-[280px]";
+          else if (history.length === 4) widthClass = "w-[360px]";
+          else if (history.length === 3) widthClass = "w-[420px]";
+          else if (history.length === 2) widthClass = "w-[520px]";
+          else if (history.length === 1) widthClass = "w-[520px]";
+
+          return (
+            <div key={result.id} className={`${widthClass} rounded-lg shrink-0`}>
+              <HistoryCard
+                result={result}
+                onRegenerate={onRegenerate}
+                onDownload={onDownload}
+                onImageClick={onImageClick}
+                isGenerating={isGenerating}
+                onUsePrompt={onUsePrompt}
+                onUseModel={onUseModel}
+                onUseImage={onUseImage}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 底部渐进模糊遮罩 */}
+      <div className="fixed bottom-0 left-0 right-0 h-60 pointer-events-none z-10">
+        <ProgressiveBlur
+          direction="bottom"
+          blurIntensity={2}
+          blurLayers={8}
+          className="w-full h-full"
         />
-      ))}
+      </div>
     </div>
   );
 }
@@ -44,113 +80,100 @@ function HistoryCard({
   onRegenerate,
   onDownload,
   onImageClick,
-  isGenerating
+  isGenerating,
+  onUsePrompt,
+  onUseModel,
+  onUseImage
 }: {
   result: GenerationResult;
   onRegenerate: (config: GenerationConfig) => void;
   onDownload: (imageUrl: string) => void;
   onImageClick: (result: GenerationResult, initialRect?: DOMRect) => void;
   isGenerating: boolean;
+  onUsePrompt?: (prompt: string) => void;
+  onUseModel?: (model: string, config: GenerationConfig) => void;
+  onUseImage?: (imageUrl: string) => void;
 }) {
   const [isHover, setIsHover] = React.useState(false);
   const mainImage = result.imageUrl || (result.imageUrls && result.imageUrls[0]);
 
   return (
+    // 整体卡片 - 全图背景结构
     <div
-      className="flex flex-col w-full h-auto gap-2  rounded-[10px]  transition-all duration-300 "
+      className="group relative aspect-[3/4] w-full  overflow-hidden bg-black/15  rounded-lg border border-white/10 transition-all duration-300 hover:border-white/30"
       onMouseEnter={() => setIsHover(true)}
       onMouseLeave={() => setIsHover(false)}
     >
-      {/* 上方：展示单张图片 */}
-      <div className="relative h-auto w-full rounded-[10px] overflow-hidden bg-white/5 border border-white/10 transition-all duration-100 hover:border-white/20">
+      {/* 1. 背景图片 */}
+      <motion.div
+        layoutId={`image-${result.id}`}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="absolute inset-0 z-0"
+      >
         {result.isLoading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="w-full h-full flex flex-col items-center justify-center bg-black/20">
             <Loader2 className="w-8 h-8 animate-spin text-white/20" />
           </div>
         ) : mainImage ? (
           <Image
             src={mainImage}
             alt="Generated image"
-            width={result.config.img_width || 1024}
-            height={result.config.image_height || 1024}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="w-full h-auto object-cover cursor-pointer transition-transform duration-500 scale-100 hover:scale-105"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
+            className="object-cover cursor-pointer transition-transform duration-700 scale-100 group-hover:scale-105"
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               onImageClick(result, rect);
             }}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-white/5" />
+          <div className="w-full h-full bg-black/20 flex items-center justify-center">
+            {/* Empty state */}
           </div>
         )}
-        <ProgressiveBlur
-          className="absolute bottom-0 left-0 w-full h-[30%] pointer-events-none z-10"
-          blurIntensity={1}
-          visible={isHover}
-          revealTransition={{ duration: 0.2, ease: 'easeOut' }}
+      </motion.div>
+
+
+
+      {/* 3. 悬浮操作面板 - Tooltip 风格 floating bar */}
+      <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-300 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`}>
+        <TooltipButton
+          icon={<Type className="w-4 h-4" />}
+          label="Use Prompt"
+          tooltipContent="Use Prompt"
+          className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
+          onClick={() => onUsePrompt?.(result.config.prompt)}
         />
-        <div className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 w-[90%] flex gap-2 justify-center transition-all duration-300 ${isHover ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <Button
-            onClick={() => onRegenerate(result.config)}
-            className="flex-1 h-8 rounded-full bg-black/20 hover:bg-black/40 text-white/90   transition-all text-[12px] font-medium "
-            disabled={isGenerating}
-          >
-            <RefreshCw className="w-3 h-3 " />
-            Remix
-          </Button>
-
-          {result.imageUrl && (
-            <Button
-              onClick={() => onDownload(result.imageUrl!)}
-              className="flex-1 h-8 rounded-full bg-black/20 hover:bg-black/40 text-white/90   transition-all text-[12px] font-medium "
-            >
-              <Download className="w-3 h-3 " />
-              Save
-            </Button>
-          )}
-        </div>
+        <TooltipButton
+          icon={<ImageIcon className="w-4 h-4" />}
+          label="Use Image"
+          tooltipContent="Use Image"
+          className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
+          onClick={() => mainImage && onUseImage?.(mainImage)}
+        />
+        <TooltipButton
+          icon={<Box className="w-4 h-4" />}
+          label="Use Model"
+          tooltipContent="Use Model"
+          className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
+          onClick={() => onUseModel?.(result.config.base_model, result.config)}
+        />
+        <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+        <TooltipButton
+          icon={<RefreshCw className="w-4 h-4" />}
+          label="Remix"
+          tooltipContent="Remix"
+          className="w-8 h-8 rounded-xl text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+          onClick={() => onRegenerate(result.config)}
+        />
+        <TooltipButton
+          icon={<Download className="w-4 h-4" />}
+          label="Download"
+          tooltipContent="Download"
+          className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
+          onClick={() => mainImage && onDownload(mainImage)}
+        />
       </div>
-
-
-      {/* 下方：展示生成参数信息 */}
-      <div className="flex flex-col space-y-4 pt-4 border-t border-white/10">
-        {/* Prompt */}
-        <div className="col-span-2 space-y-2">
-          <div className="text-[10px] uppercase tracking-widest text-white/30 font-bold">Prompt</div>
-          <div className="text-[13px] leading-relaxed text-white/80 font-light line-clamp-2  transition-all duration-300">
-            {result.config.prompt}
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-6 items-start">
-
-          {/* 模型与分辨率 */}
-          <div className="flex flex-col gap-4">
-            <div className="space-y-1">
-              <div className="text-[10px] uppercase tracking-widest text-white/30 font-bold">Model</div>
-              <div className="text-sm text-emerald-400 font-medium truncate">{result.config.base_model}</div>
-            </div>
-            <div className="space-y-1">
-              <div className="text-[10px] uppercase tracking-widest text-white/30 font-bold">Size</div>
-              <div className="text-xs text-white/60 font-medium">{result.config.img_width} × {result.config.image_height}</div>
-            </div>
-          </div>
-          {result.config.lora && (
-            <div className="space-y-1">
-              <div className="text-[10px] uppercase tracking-widest text-white/30 font-bold">LoRA</div>
-              <div className="text-xs text-white/50 truncate italic">{result.config.lora}</div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-between items-center text-[9px] text-zinc-500 uppercase tracking-tighter italic opacity-50">
-          <span>Entry ID: {result.id}</span>
-          <span>Created at {new Date(result.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-        </div>
-      </div>
-
     </div>
   );
 }
-

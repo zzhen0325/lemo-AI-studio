@@ -27,6 +27,11 @@ const rany = localFont({
   variable: "--font-rany",
 });
 
+const instrument = localFont({
+  src: "../public/Font/InstrumentSerif-Regular.ttf",
+  variable: "--font-instrument",
+});
+
 export const metadata: Metadata = {
   title: "Lemostudio",
   description: "PlaygroundV2 & Mapping Editor",
@@ -34,7 +39,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={rany.variable}>
+    <html lang="en" suppressHydrationWarning className={`${rany.variable} ${instrument.variable}`}>
       <head />
       <body className={cn("min-h-screen font-sans antialiased")}>
 
