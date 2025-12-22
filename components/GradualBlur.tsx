@@ -24,19 +24,19 @@ type GradualBlurProps = {
   tabletWidth?: string;
   desktopWidth?: string;
   preset?:
-    | 'top'
-    | 'bottom'
-    | 'left'
-    | 'right'
-    | 'subtle'
-    | 'intense'
-    | 'smooth'
-    | 'sharp'
-    | 'header'
-    | 'footer'
-    | 'sidebar'
-    | 'page-header'
-    | 'page-footer';
+  | 'top'
+  | 'bottom'
+  | 'left'
+  | 'right'
+  | 'subtle'
+  | 'intense'
+  | 'smooth'
+  | 'sharp'
+  | 'header'
+  | 'footer'
+  | 'sidebar'
+  | 'page-header'
+  | 'page-footer';
   gpuOptimized?: boolean;
   hoverIntensity?: number;
   target?: 'parent' | 'page';
@@ -113,7 +113,7 @@ const getGradientDirection = (position: string): string => {
   return directions[position] || 'to bottom';
 };
 
-const debounce = <T extends (...a: any[]) => void>(fn: T, wait: number) => {
+const debounce = <T extends (...a: unknown[]) => void>(fn: T, wait: number) => {
   let t: ReturnType<typeof setTimeout>;
   return (...a: Parameters<T>) => {
     clearTimeout(t);
@@ -134,9 +134,14 @@ const useResponsiveDimension = (
       let v: any = config[key];
       const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
       const k = cap(key as string);
-      if (w <= 480 && (config as any)['mobile' + k]) v = (config as any)['mobile' + k];
-      else if (w <= 768 && (config as any)['tablet' + k]) v = (config as any)['tablet' + k];
-      else if (w <= 1024 && (config as any)['desktop' + k]) v = (config as any)['desktop' + k];
+
+      const mobileKey = ('mobile' + k) as keyof GradualBlurProps;
+      const tabletKey = ('tablet' + k) as keyof GradualBlurProps;
+      const desktopKey = ('desktop' + k) as keyof GradualBlurProps;
+
+      if (w <= 480 && config[mobileKey] !== undefined) v = config[mobileKey];
+      else if (w <= 768 && config[tabletKey] !== undefined) v = config[tabletKey];
+      else if (w <= 1024 && config[desktopKey] !== undefined) v = config[desktopKey];
       setVal(v);
     };
     const deb = debounce(calc, 100);
@@ -258,7 +263,7 @@ const GradualBlur: React.FC<PropsWithChildren<GradualBlurProps>> = props => {
     return baseStyle;
   }, [config, responsiveHeight, responsiveWidth, isVisible]);
 
-  const { hoverIntensity, animated, onAnimationComplete, duration } = config as any;
+  const { hoverIntensity, animated, onAnimationComplete, duration } = config as Required<GradualBlurProps>;
   useEffect(() => {
     if (isVisible && animated === 'scroll' && onAnimationComplete) {
       const t = setTimeout(() => onAnimationComplete(), parseFloat(duration) * 1000);
@@ -288,10 +293,13 @@ const GradualBlur: React.FC<PropsWithChildren<GradualBlurProps>> = props => {
   );
 };
 
-const GradualBlurMemo = React.memo(GradualBlur);
+const GradualBlurMemo = React.memo(GradualBlur) as React.NamedExoticComponent<GradualBlurProps> & {
+  PRESETS: typeof PRESETS;
+  CURVE_FUNCTIONS: typeof CURVE_FUNCTIONS;
+};
 GradualBlurMemo.displayName = 'GradualBlur';
-(GradualBlurMemo as any).PRESETS = PRESETS;
-(GradualBlurMemo as any).CURVE_FUNCTIONS = CURVE_FUNCTIONS;
+GradualBlurMemo.PRESETS = PRESETS;
+GradualBlurMemo.CURVE_FUNCTIONS = CURVE_FUNCTIONS;
 export default GradualBlurMemo;
 
 const injectStyles = () => {

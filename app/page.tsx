@@ -14,8 +14,9 @@ import { MappingEditorPage } from "@/pages/mapping-editor-page";
 import { Toaster } from "@/components/ui/toaster";
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import Image from "next/image";
-import Link from "next/link";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
+import ToolsView from "@/components/features/tools/ToolsView";
+import DatasetManagerView from "@/components/features/dataset/DatasetManagerView";
 
 
 import GradientShaderCard from "@/components/ui/gradient-shader-card";
@@ -59,10 +60,8 @@ export default function Page() {
     if (typeof window !== 'undefined') {
       window.location.hash = tab as string;
     }
-    // 切换 Tab 时如果背景在外面，自动收回 -> 用户要求执行一次就行，不要收回
-    // if (isBackgroundOut) {
-    //   handleBackgroundAnimate('in');
-    // }
+    // Ensures state is reset when component is remounted/tab changes
+    setIsBackgroundOut(false);
   };
 
   const handleBackgroundAnimate = (direction: 'in' | 'out') => {
@@ -190,7 +189,7 @@ export default function Page() {
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
       <header className="fixed top-0  w-full h-14 z-50  rounded-2xl  items-center  text-white ">
-        <div className="flex  flex-col items-start  pt-10  pl-10 ">
+        <div className="flex   items-start  pt-10  pl-10 ">
           <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Playground)}>
             Playground
           </Button>
@@ -201,18 +200,19 @@ export default function Page() {
           <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Gallery)}>
             Gallery
           </Button>
-          <Button variant="outline" className={topbutton} onClick={() => window.open('https://goodcase-v3-383688111435.europe-west1.run.app/', '_blank')}>
-            Goodcase
+
+          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Tools)}>
+            Tools
           </Button>
+
           <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Settings)}>
             Settings
           </Button>
-          <Link href="https://bytedance.larkoffice.com/wiki/M0hxw9xARiigSTkq2iJcQUrOn3e" target="_blank" rel="noopener noreferrer" >
-            <Button variant="outline" className={topbutton}>
 
-              Lemon8 AI 文档
-            </Button>
-          </Link>
+          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.DatasetManager)}>
+            Dataset
+          </Button>
+
         </div>
 
 
@@ -241,56 +241,62 @@ export default function Page() {
         {/* 视差动画背景 */}
 
 
-        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
-          {/* Beams Background */}
-          <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden scale-[1.1]">
-            <Canvas className="w-full h-full  scale-y-[1.5]">
-              <GradientShaderCard />
-            </Canvas>
+        {/* 视差动画背景 - Logically render only for Playground/Gallery */}
+        {([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? (
+          <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
+            {/* Beams Background */}
+            <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden scale-[1.1]">
+              <Canvas className="w-full h-full  scale-y-[1.5]">
+                <GradientShaderCard />
+              </Canvas>
 
-          </div>
+            </div>
 
-          <div ref={bgRef} className="absolute inset-0 bg-[#142856] -z-10" />
+            <div ref={bgRef} className="absolute inset-0 bg-[#142856] -z-10" />
 
-          <div
-            ref={cloudRef}
-            className="absolute flex h-[739.543px] items-center justify-center left-[853.01px] top-[31.43px] w-[1189.462px]"
-          >
-            <div className="flex-none rotate-[346.65deg]">
-              <div className="h-[498.023px] relative w-[1104.312px]">
-                <Image alt="" src="/images/parallax/cloud.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+            <div
+              ref={cloudRef}
+              className="absolute flex h-[739.543px] items-center justify-center left-[853.01px] top-[31.43px] w-[1189.462px]"
+            >
+              <div className="flex-none rotate-[346.65deg]">
+                <div className="h-[498.023px] relative w-[1104.312px]">
+                  <Image alt="" src="/images/parallax/cloud.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+                </div>
               </div>
             </div>
-          </div>
-          <div
-            ref={treeRef}
-            className="absolute bottom-0  h-full w-full"
-          >
-            <Image alt="" src="/images/parallax/tree.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
-          </div>
-          <div
-            ref={dogRef}
-            className="absolute flex h-[248.291px] items-center justify-center left-[821.49px] top-[723.27px] w-[216.026px]"
-          >
-            <div className="flex-none rotate-[355.014deg]">
-              <div className="h-[232.084px] relative w-[196.601px]">
-                <Image alt="" src="/images/parallax/dog.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
+            <div
+              ref={treeRef}
+              className="absolute bottom-0  h-full w-full"
+            >
+              <Image alt="" src="/images/parallax/tree.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+            </div>
+            <div
+              ref={dogRef}
+              className="absolute flex h-[248.291px] items-center justify-center left-[821.49px] top-[723.27px] w-[216.026px]"
+            >
+              <div className="flex-none rotate-[355.014deg]">
+                <div className="h-[232.084px] relative w-[196.601px]">
+                  <Image alt="" src="/images/parallax/dog.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
+                </div>
               </div>
             </div>
+            <div
+              ref={manRef}
+              className="absolute h-[324.406px] left-[676.57px] top-[569.17px] w-[83.815px]"
+            >
+              <Image alt="" src="/images/parallax/man.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
+            </div>
+            <div
+              ref={frontRef}
+              className="absolute h-[500px] left-[7.22px] top-[606.53px] w-[1600px]"
+            >
+              <Image alt="" src="/images/parallax/front.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
+            </div>
           </div>
-          <div
-            ref={manRef}
-            className="absolute h-[324.406px] left-[676.57px] top-[569.17px] w-[83.815px]"
-          >
-            <Image alt="" src="/images/parallax/man.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
-          </div>
-          <div
-            ref={frontRef}
-            className="absolute h-[500px] left-[7.22px] top-[606.53px] w-[1600px]"
-          >
-            <Image alt="" src="/images/parallax/front.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
-          </div>
-        </div>
+        ) : (
+          /* Simple solid background for other tabs */
+          <div className="fixed inset-0 z-0 bg-[#060010]" />
+        )}
 
 
 
@@ -330,6 +336,13 @@ export default function Page() {
               </div>
             )}
 
+            {/* Tools Tab */}
+            {currentTab === TabValue.Tools && (
+              <div className="flex flex-col flex-1 h-screen overflow-hidden animate-in fade-in duration-500">
+                <ToolsView />
+              </div>
+            )}
+
             {/* Settings Tab */}
             {currentTab === TabValue.Settings && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="p-6">
@@ -354,6 +367,13 @@ export default function Page() {
                   </CardContent>
                 </Card>
               </motion.div>
+            )}
+
+            {/* Dataset Manager Tab */}
+            {currentTab === TabValue.DatasetManager && (
+              <div className="flex flex-col flex-1 h-screen overflow-hidden animate-in fade-in duration-500">
+                <DatasetManagerView />
+              </div>
             )}
           </div>
           <Toaster />

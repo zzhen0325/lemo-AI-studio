@@ -19,7 +19,9 @@ export enum TabValue {
     WorkflowApi = 'workflow_api',
     ByteArtist = 'byte_artist',
     MappingEditor = 'mapping_editor',
-    Gallery = 'gallery'
+    Gallery = 'gallery',
+    Tools = 'tools',
+    DatasetManager = 'dataset_manager'
 }
 
 export type TabContextValue = {
@@ -168,6 +170,13 @@ export function Sidebar({ currentTab, onTabChange }: SidebarProps) {
                                 label="Settings"
                                 isActive={currentTab === TabValue.Settings}
                                 onClick={() => onTabChange(TabValue.Settings)}
+                                isSmallScreen={isCondensed}
+                            />
+                            <SidebarButton
+                                icon={<Layers className="size-5" />}
+                                label="Dataset"
+                                isActive={currentTab === TabValue.DatasetManager}
+                                onClick={() => onTabChange(TabValue.DatasetManager)}
                                 isSmallScreen={isCondensed}
                             />
                         </>

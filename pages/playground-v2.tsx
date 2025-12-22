@@ -11,7 +11,6 @@ import { useCozeWorkflow } from "@/hooks/features/useCozeWorkflow";
 import { fetchByteArtistImage } from "@/lib/api/PlaygroundV2";
 import type { ByteArtistResponse } from "@/lib/api/PlaygroundV2";
 
-import { MagicCard } from "@/components/ui/MagicCard";
 
 import { GoogleApiStatus } from "@/components/features/playground-v2/GoogleApiStatus";
 import PromptInput from "@/components/features/playground-v2/PromptInput";
@@ -61,7 +60,6 @@ export function PlaygroundV2Page({
   const [isInputHovered, setIsInputHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isElevated = hasGenerated || isSelectorExpanded;
 
   const [config, setConfig] = useState<GenerationConfig>({
     prompt: '',
@@ -267,7 +265,7 @@ export function PlaygroundV2Page({
     return "16:9";
   };
   const handleWidthChange = (newWidth: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newHeight = Math.round(newWidth / ratio); setConfig(prev => ({ ...prev, img_width: newWidth, image_height: newHeight })); } else { setConfig(prev => ({ ...prev, img_width: newWidth })); } };
-  const handleHeightChange = (newHeight: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newWidth = Math.round(newHeight * ratio); setConfig(prev => ({ ...prev, image_height: newHeight })); } else { setConfig(prev => ({ ...prev, image_height: newHeight })); } };
+  const handleHeightChange = (newHeight: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newWidth = Math.round(newHeight * ratio); setConfig(prev => ({ ...prev, image_height: newHeight, img_width: newWidth })); } else { setConfig(prev => ({ ...prev, image_height: newHeight })); } };
   const handleOptimizePrompt = async () => { const optimizedText = await optimizePrompt(config.prompt, selectedAIModel); if (optimizedText) setConfig(prev => ({ ...prev, prompt: optimizedText })); };
 
   const handleGenerate = async () => {
@@ -541,8 +539,7 @@ export function PlaygroundV2Page({
     }
   };
 
-  const [initialRect, setInitialRect] = useState<DOMRect | undefined>(undefined);
-  const openImageModal = (result: GenerationResult, rect?: DOMRect) => { setSelectedResult(result); setInitialRect(rect); setIsImageModalOpen(true); };
+  const openImageModal = (result: GenerationResult) => { setSelectedResult(result); setIsImageModalOpen(true); };
   const closeImageModal = () => {
     setIsImageModalOpen(false);
     // Don't clear selectedResult here to allow exit animation to use the data
@@ -640,7 +637,7 @@ export function PlaygroundV2Page({
           : "absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
       )}>
         <div className={cn(
-          "flex flex-col items-center -mt-80 w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
+          "flex flex-col items-center -mt-20 w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
           hasGenerated ? "max-w-[50vw]  mx-auto" : "max-w-4xl"
         )}>
 
@@ -657,7 +654,7 @@ export function PlaygroundV2Page({
           <div
             className={cn(
               "relative w-full rounded-[10px] transition-all duration-300",
-              isInputHovered ? "mt-0" : "mt-0"
+              isInputHovered ? "mt-4" : "mt-0"
             )}
             onMouseEnter={() => setIsInputHovered(true)}
             onMouseLeave={() => setIsInputHovered(false)}

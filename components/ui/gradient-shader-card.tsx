@@ -4,17 +4,27 @@ import { useRef, useMemo, useImperativeHandle, forwardRef, useEffect } from "rea
 import * as THREE from "three"
 
 interface Ripple {
-    id: number;
-    x: number;
-    y: number;
-    startTime: number;
+  id: number;
+  x: number;
+  y: number;
+  startTime: number;
 }
 
 interface GrainyGradientProps {
-    ripples?: Ripple[];
-    onTimeUpdate?: (time: number) => void;
-    colors?: string[];
-    speed?: number;
+  ripples?: Ripple[];
+  onTimeUpdate?: (time: number) => void;
+  colors?: string[];
+  speed?: number;
+}
+
+const defaultColors = [
+  "#FAD4FB", "#FAB615", "#4ea3e9", "#4ea3e9", "#4ea3e9", "#FAD4FB", "#170E07"
+];
+
+export interface GrainyGradientRef {
+  material: THREE.ShaderMaterial;
+  uniforms: { [uniform: string]: THREE.IUniform };
+  getCurrentTime: () => number;
 }
 
 const vertexShader = `
@@ -338,100 +348,98 @@ const fragmentShader = `
   }
 `
 
-const GrainyGradient = forwardRef<any, GrainyGradientProps>(({ ripples = [], onTimeUpdate, colors, speed = 2.0 }, ref) => {
-    const mesh = useRef<THREE.Mesh>(null)
-    const { viewport } = useThree()
+const GrainyGradient = forwardRef<GrainyGradientRef, GrainyGradientProps>(({ ripples = [], onTimeUpdate, colors, speed = 2.0 }, ref) => {
+  const mesh = useRef<THREE.Mesh>(null)
+  const { viewport } = useThree()
 
-    const defaultColors = [
-        "#FAD4FB", "#FAB615", "#4ea3e9", "#4ea3e9", "#4ea3e9", "#FAD4FB", "#170E07"
-    ];
+  const uniforms = useMemo(
+    () => ({
+      iTime: { value: 0.0 },
+      iResolution: { value: new THREE.Vector3() },
+      // Appearance uniforms - Initialize with default colors
+      uColors: { value: defaultColors.map(c => new THREE.Color(c)) },
+      uSpeed: { value: 0 },
+      // Simplex noise uniforms
+      noiseIntensity: { value: 1 },
+      noiseScale: { value: 4 },
+      noiseSpeed: { value: 0.01 },
+      // Wave/domain warping noise uniforms
+      waveNoiseIntensity: { value: 0.1 },
+      waveNoiseScale1: { value: 0.3 },
+      waveNoiseScale2: { value: 0.8 },
+      waveNoiseScale3: { value: 0.3 },
+      waveNoiseSpeed1: { value: 0.24 },
+      waveNoiseSpeed2: { value: 0.2 },
+      waveNoiseSpeed3: { value: 0.1 },
+      // Ripple uniforms
+      ripplePositions: { value: new Float32Array(20) },
+      rippleTimes: { value: new Float32Array(10) },
+      rippleCount: { value: 0 },
+    }),
+    [],
+  )
 
-    const activeColors = (colors && colors.length === 7) ? colors : defaultColors;
+  useEffect(() => {
+    uniforms.uSpeed.value = speed;
+    const currentColors = (colors && colors.length === 7) ? colors : defaultColors;
+    uniforms.uColors.value = currentColors.map(c => new THREE.Color(c));
+  }, [speed, colors, uniforms])
 
-    const uniforms = useMemo(
-        () => ({
-            iTime: { value: 0.0 },
-            iResolution: { value: new THREE.Vector3() },
-            // Appearance uniforms
-            uColors: { value: activeColors.map(c => new THREE.Color(c)) },
-            uSpeed: { value: speed },
-            // Simplex noise uniforms
-            noiseIntensity: { value: 1 },
-            noiseScale: { value: 4 },
-            noiseSpeed: { value: 0.01 },
-            // Wave/domain warping noise uniforms
-            waveNoiseIntensity: { value: 0.1 },
-            waveNoiseScale1: { value: 0.3 },
-            waveNoiseScale2: { value: 0.8 },
-            waveNoiseScale3: { value: 0.3 },
-            waveNoiseSpeed1: { value: 0.24 },
-            waveNoiseSpeed2: { value: 0.2 },
-            waveNoiseSpeed3: { value: 0.1 },
-            // Ripple uniforms
-            ripplePositions: { value: [] as number[] },
-            rippleTimes: { value: [] as number[] },
-            rippleCount: { value: 0 },
-        }),
-        [],
-    )
+  useFrame((state) => {
+    if (mesh.current) {
+      const currentTime = state.clock.getElapsedTime()
+      uniforms.iTime.value = currentTime
+      uniforms.iResolution.value.set(window.innerWidth, window.innerHeight, 1)
 
-    useEffect(() => {
-        uniforms.uSpeed.value = speed;
-        const currentColors = (colors && colors.length === 7) ? colors : defaultColors;
-        uniforms.uColors.value = currentColors.map(c => new THREE.Color(c));
-    }, [speed, colors, uniforms, defaultColors])
+      // Call the time update callback
+      if (onTimeUpdate) {
+        onTimeUpdate(currentTime)
+      }
 
-    useFrame((state) => {
-        if (mesh.current) {
-            const currentTime = state.clock.getElapsedTime()
-            uniforms.iTime.value = currentTime
-            uniforms.iResolution.value.set(window.innerWidth, window.innerHeight, 1)
+      // Update ripple uniforms
+      const activeRipples = ripples.filter(ripple => currentTime - ripple.startTime < 2.0) // 2 second duration
 
-            // Call the time update callback
-            if (onTimeUpdate) {
-                onTimeUpdate(currentTime)
-            }
+      // Use typed arrays for uniforms
+      const positions = new Float32Array(20).fill(0);
+      const times = new Float32Array(10).fill(0);
 
-            // Update ripple uniforms
-            const activeRipples = ripples.filter(ripple => currentTime - ripple.startTime < 2.0) // 2 second duration
-            const positions: number[] = []
-            const times: number[] = []
+      for (let i = 0; i < Math.min(activeRipples.length, 10); i++) { // Max 10 ripples
+        const ripple = activeRipples[i]
+        // Convert to normalized coordinates (-1 to 1)
+        const normalizedX = (ripple.x / window.innerWidth) * 2 - 1
+        const normalizedY = 1 - (ripple.y / window.innerHeight) * 2
 
-            for (let i = 0; i < Math.min(activeRipples.length, 10); i++) { // Max 10 ripples
-                const ripple = activeRipples[i]
-                // Convert to normalized coordinates (-1 to 1)
-                const normalizedX = (ripple.x / 800) * 2 - 1 // 800 is card width
-                const normalizedY = 1 - (ripple.y / 600) * 2 // 600 is card height, flip Y
-                positions.push(normalizedX, normalizedY)
-                times.push(currentTime - ripple.startTime)
-            }
+        positions[i * 2] = normalizedX;
+        positions[i * 2 + 1] = normalizedY;
+        times[i] = currentTime - ripple.startTime;
+      }
 
-            uniforms.ripplePositions.value = positions
-            uniforms.rippleTimes.value = times
-            uniforms.rippleCount.value = activeRipples.length
-        }
+      uniforms.ripplePositions.value = positions
+      uniforms.rippleTimes.value = times
+      uniforms.rippleCount.value = activeRipples.length
+    }
+  })
+
+  const material = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      fragmentShader,
+      vertexShader,
+      uniforms,
     })
+  }, [uniforms])
 
-    const material = useMemo(() => {
-        return new THREE.ShaderMaterial({
-            fragmentShader,
-            vertexShader,
-            uniforms,
-        })
-    }, [uniforms])
+  useImperativeHandle(ref, () => ({
+    material,
+    uniforms,
+    getCurrentTime: () => uniforms.iTime.value
+  }))
 
-    useImperativeHandle(ref, () => ({
-        material,
-        uniforms,
-        getCurrentTime: () => uniforms.iTime.value
-    }))
-
-    return (
-        <mesh ref={mesh} scale={[viewport.width, viewport.height, 1]}>
-            <planeGeometry args={[1, 1]} />
-            {material && <primitive object={material} attach="material" />}
-        </mesh>
-    )
+  return (
+    <mesh ref={mesh} scale={[viewport.width, viewport.height, 1]}>
+      <planeGeometry args={[1, 1]} />
+      {material && <primitive object={material} attach="material" />}
+    </mesh>
+  )
 })
 
 GrainyGradient.displayName = "GrainyGradient"
