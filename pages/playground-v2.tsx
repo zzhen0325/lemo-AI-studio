@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/common/use-toast";
 
 import { useImageGeneration } from "@/hooks/features/PlaygroundV2/useImageGeneration";
@@ -202,7 +202,7 @@ export function PlaygroundV2Page({
   const { doPost: runComfyWorkflow, loading: isRunningComfy } = usePostPlayground();
   const isLoading = isGeneratingNano || isEditingNano || isGeneratingCoze || isRunningComfy;
 
-  const blobToDataURL = (blob: Blob) => new Promise<string>((resolve) => { const r = new FileReader(); r.onloadend = () => resolve(String(r.result)); r.readAsDataURL(blob); });
+  const blobToDataURL = useCallback((blob: Blob) => new Promise<string>((resolve) => { const r = new FileReader(); r.onloadend = () => resolve(String(r.result)); r.readAsDataURL(blob); }), []);
   const urlToDataURL = async (url: string) => { if (url.startsWith('data:')) return url; const res = await fetch(url); const blob = await res.blob(); return blobToDataURL(blob); };
   const saveImageToOutputs = async (dataUrl: string, metadata?: Record<string, unknown>) => {
     const resp = await fetch('/api/save-image', {
@@ -214,8 +214,7 @@ export function PlaygroundV2Page({
     return resp.ok && json?.path ? String(json.path) : dataUrl;
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files; if (!files) return;
+  const handleFilesUpload = async (files: File[] | FileList) => {
     const uploads = Array.from(files).filter(f => f.type.startsWith('image/'));
     for (const file of uploads) {
       const reader = new FileReader();
@@ -233,6 +232,10 @@ export function PlaygroundV2Page({
         setUploadedImages(prev => [...prev, { file, base64: base64Data, previewUrl: dataUrl }]);
       }
     }
+  };
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files; if (!files) return;
+    await handleFilesUpload(files);
   };
   const removeImage = (index: number) => { setUploadedImages(prev => prev.filter((_, i) => i !== index)); };
 
@@ -506,20 +509,20 @@ export function PlaygroundV2Page({
 
   const handleDownload = (imageUrl: string) => { const link = document.createElement("a"); link.href = imageUrl; link.download = `PlaygroundV2-${Date.now()}.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
 
-  const handleUsePrompt = (prompt: string) => {
+  const handleUsePrompt = useCallback((prompt: string) => {
     setConfig(prev => ({ ...prev, prompt }));
     toast({ title: "已应用提示词" });
-  };
+  }, [toast]);
 
-  const handleUseModel = (model: string, configData?: GenerationConfig) => {
+  const handleUseModel = useCallback((model: string, configData?: GenerationConfig) => {
     setSelectedModel(model);
     if (configData) {
       setConfig(prev => ({ ...prev, ...configData, base_model: model }));
     }
     toast({ title: `已切换至模型: ${model}` });
-  };
+  }, [toast]);
 
-  const handleUseImage = async (imageUrl: string) => {
+  const handleUseImage = useCallback(async (imageUrl: string) => {
     try {
       const resp = await fetch(imageUrl);
       const blob = await resp.blob();
@@ -537,7 +540,60 @@ export function PlaygroundV2Page({
       console.error("Failed to use image", error);
       toast({ title: "添加图片失败", variant: "destructive" });
     }
-  };
+  }, [blobToDataURL, toast]);
+  useEffect(() => {
+    const onUsePrompt = (e: Event) => {
+      const d = (e as CustomEvent<string | undefined>).detail;
+      if (typeof d === 'string' && d.length > 0) {
+        handleUsePrompt(d);
+      }
+    };
+    const onUseImage = (e: Event) => {
+      const d = (e as CustomEvent<string | undefined>).detail;
+      if (typeof d === 'string' && d.length > 0) {
+        handleUseImage(d);
+      }
+    };
+    const onUseModel = (e: Event) => {
+      const d = (e as CustomEvent<string | undefined>).detail;
+      if (typeof d === 'string' && d.length > 0) {
+        handleUseModel(d);
+      }
+    };
+    const onRemix = (e: Event) => {
+      type GH = { id: string; url: string; timestamp: string; metadata: { prompt?: string; base_model?: string; img_width: number; img_height: number; lora?: string } | null };
+      const d = (e as CustomEvent<GH | undefined>).detail;
+      if (d && d.metadata) {
+        const m = d.metadata;
+        const newConf: GenerationConfig = {
+          ...config, // 保留现有配置作为基础
+          prompt: m.prompt || '',
+          base_model: m.base_model || selectedModel,
+          lora: m.lora || '',
+          img_width: m.img_width || config.img_width,
+          image_height: m.img_height || config.image_height,
+        };
+
+        // 如果有模型，同时也更新选中的模型状态
+        if (m.base_model) {
+          setSelectedModel(m.base_model);
+        }
+
+        setConfig(newConf);
+        toast({ title: "已恢复所有参数 (Remix)" });
+      }
+    };
+    window.addEventListener('gallery-use-prompt', onUsePrompt as EventListener);
+    window.addEventListener('gallery-use-image', onUseImage as EventListener);
+    window.addEventListener('gallery-use-model', onUseModel as EventListener);
+    window.addEventListener('gallery-remix', onRemix as EventListener);
+    return () => {
+      window.removeEventListener('gallery-use-prompt', onUsePrompt as EventListener);
+      window.removeEventListener('gallery-use-image', onUseImage as EventListener);
+      window.removeEventListener('gallery-use-model', onUseModel as EventListener);
+      window.removeEventListener('gallery-remix', onRemix as EventListener);
+    };
+  }, [selectedModel, config.img_width, config.image_height, config.gen_num, config.image_size, handleUsePrompt, handleUseImage, handleUseModel]);
 
   const openImageModal = (result: GenerationResult) => { setSelectedResult(result); setIsImageModalOpen(true); };
   const closeImageModal = () => {
@@ -567,9 +623,9 @@ export function PlaygroundV2Page({
                 animate={{ y: 0, rotate: rotation }}
                 exit={{ y: 20, rotate: rotation }}
                 transition={{ duration: 0.1, ease: "easeOut" }}
-                className="relative group pointer-events-auto hover:z-50"
+                className="relative group pointer-events-auto hover:z-50 p-1 -m-1"
               >
-                <div className="relative transition-all duration-100 group-hover:-translate-y-5 group-hover:scale-110">
+                <div className="relative p-2 transition-all duration-100 group-hover:-translate-y-5 group-hover:scale-110">
                   <Image
                     src={image.previewUrl}
                     alt={`上传的图片 ${index + 1}`}
@@ -579,7 +635,7 @@ export function PlaygroundV2Page({
                   />
                   <button
                     onClick={() => removeImage(index)}
-                    className="absolute -top-2 -right-2 bg-black/60 backdrop-blur-md text-white border border-white/20 rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black hover:scale-110 z-10"
+                    className="absolute top-1 right-1 bg-black/60 backdrop-blur-md text-white border border-white/20 rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black hover:scale-110 z-10"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -641,7 +697,7 @@ export function PlaygroundV2Page({
           hasGenerated ? "max-w-[50vw]  mx-auto mt-20" : "max-w-4xl"
         )}>
 
-          
+
           <h1
             className={cn(
               "text-[40px] text-white text-center transition-all duration-500 overflow-hidden",
@@ -649,7 +705,7 @@ export function PlaygroundV2Page({
             )}
           >
             Let Your Imagination Soar
-          </h1> 
+          </h1>
           <div
             className={cn(
               "relative w-full rounded-[10px] transition-all duration-300",
@@ -679,6 +735,7 @@ export function PlaygroundV2Page({
                   onOptimize={handleOptimizePrompt}
                   selectedAIModel={selectedAIModel}
                   onAIModelChange={setSelectedAIModel}
+                  onAddImages={handleFilesUpload}
                 />
               </div>
               <ControlToolbar

@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { motion } from "framer-motion";
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
-import { Download, Hash, Search, Calendar } from "lucide-react";
+import { Download, Hash, Search, Calendar, Image as ImageIcon, Type, Box, RefreshCw } from "lucide-react";
 import ImagePreviewModal from './ImagePreviewModal';
 import { ProgressiveBlur } from "@/components/motion-primitives/progressive-blur";
+import { TooltipButton } from "@/components/ui/tooltip-button";
 
 interface HistoryItem {
     id: string;
@@ -53,9 +54,9 @@ export default function GalleryView() {
     };
 
     return (
-        <div className="flex-1 overflow-y-auto custom-scrollbar bg-transparent p-8">
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-transparent p-2">
             <div className="max-w-7xl mx-auto space-y-10 mt-14">
-                <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <header className="flex flex-col md:flex-row md:items-end justify-between gap-1">
                     <div className="space-y-2">
                         <h1 className="text-5xl font-bold tracking-tight text-white/90">Gallery Archive</h1>
                         <p className="text-white/40 text-lg">Explore your creative journey through generated history.</p>
@@ -77,7 +78,7 @@ export default function GalleryView() {
                         <p className="text-white/40 font-medium animate-pulse tracking-wide">Syncing Archive...</p>
                     </div>
                 ) : history.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-32 bg-white/5 rounded-[3rem] border border-white/10 border-dashed space-y-6">
+                    <div className="flex flex-col items-center justify-center py-32 bg-white/5 rounded-[10px] border border-white/10 border-dashed space-y-6">
                         <div className="p-6 bg-white/5 rounded-full">
                             <Search className="w-12 h-12 text-white/20" />
                         </div>
@@ -87,7 +88,7 @@ export default function GalleryView() {
                         </div>
                     </div>
                 ) : (
-                    <div className="columns-1 sm:columns-2 lg:columns-4 xl:columns-6 gap-4 space-y-4">
+                    <div className="columns-1 sm:columns-2 lg:columns-4 xl:columns-6 gap-2 space-y-2">
                         {history.map((item) => (
                             <GalleryCard
                                 key={item.id}
@@ -103,14 +104,18 @@ export default function GalleryView() {
             <ImagePreviewModal
                 isOpen={!!selectedItem}
                 onClose={() => setSelectedItem(null)}
-                imageUrl={selectedItem?.url || ''}
-                config={selectedItem ? {
-                    prompt: selectedItem.metadata?.prompt || '',
-                    base_model: selectedItem.metadata?.base_model || 'Standard',
-                    lora: selectedItem.metadata?.lora || '',
-                    img_width: selectedItem.metadata?.img_width || 1200,
-                    image_height: selectedItem.metadata?.img_height || 1200,
-                    gen_num: 1
+                result={selectedItem ? {
+                    id: selectedItem.id,
+                    imageUrl: selectedItem.url,
+                    config: {
+                        prompt: selectedItem.metadata?.prompt || '',
+                        base_model: selectedItem.metadata?.base_model || 'Standard',
+                        lora: selectedItem.metadata?.lora || '',
+                        img_width: selectedItem.metadata?.img_width || 1200,
+                        image_height: selectedItem.metadata?.img_height || 1200,
+                        gen_num: 1
+                    },
+                    timestamp: selectedItem.timestamp
                 } : undefined}
             />
         </div>
@@ -119,6 +124,10 @@ export default function GalleryView() {
 
 function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick: () => void, onDownload: (e: React.MouseEvent, url: string, filename: string) => void }) {
     const [isHover, setIsHover] = useState(false);
+    const performDownload = () => {
+        const fakeEvent = { stopPropagation: () => void 0 } as unknown as React.MouseEvent;
+        onDownload(fakeEvent, item.url, item.id);
+    };
 
     return (
         <div
@@ -136,7 +145,7 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                     height={item.metadata?.img_height || 1024}
                     className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-
+{/* 
                 <ProgressiveBlur
                     className='pointer-events-none absolute bottom-0 left-0 h-[75%] w-full'
                     blurIntensity={0.5}
@@ -147,48 +156,53 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         visible: { opacity: 1 },
                     }}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
-                />
+                /> */}
 
-                {/* Overlay Content */}
-                <motion.div
-                    className="absolute inset-0 flex flex-col justify-end p-4"
-                    animate={isHover ? 'visible' : 'hidden'}
-                    variants={{
-                        hidden: { opacity: 0, y: 10 },
-                        visible: { opacity: 1, y: 0 },
-                    }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                >
-                    <div className="space-y-3">
-                        {item.metadata?.prompt && (
-                            <div className="text-xs text-white/90 line-clamp-3 leading-relaxed font-light drop-shadow-md">
-                                {item.metadata.prompt}
-                            </div>
-                        )}
-
-                        <div className="flex items-center justify-between text-[10px] font-medium tracking-wider text-white/60 uppercase">
-                            <span className="flex items-center gap-1.5">
-                                <Hash className="w-3 h-3 text-emerald-400" /> {item.id.substring(0, 4)}
-                            </span>
-                            {item.metadata?.img_width && (
-                                <span className="px-2 py-0.5 bg-white/10 rounded-full backdrop-blur-sm">
-                                    {item.metadata.img_width} × {item.metadata.img_height}
-                                </span>
-                            )}
-                        </div>
-
-                        <div className="pt-2">
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                className="w-full h-8 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black backdrop-blur-md border border-white/10 transition-all duration-300"
-                                onClick={(e) => onDownload(e, item.url, item.id)}
-                            >
-                                <Download className="w-3 h-3 mr-2" /> Download
-                            </Button>
-                        </div>
-                    </div>
-                </motion.div>
+              
+                {/* Floating Actions - consistent with HistoryList */}
+                <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-50 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`} onClickCapture={(e) => e.stopPropagation()}>
+                    <TooltipButton
+                        icon={<Type className="w-4 h-4" />}
+                        label="Use Prompt"
+                        tooltipContent="Use Prompt"
+                        tooltipSide="top"
+                        className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
+                        onClick={() => { window.dispatchEvent(new CustomEvent('gallery-use-prompt', { detail: item.metadata?.prompt })); }}
+                    />
+                    <TooltipButton
+                        icon={<ImageIcon className="w-4 h-4" />}
+                        label="Use Image"
+                        tooltipContent="Use Image"
+                        tooltipSide="top"
+                        className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
+                        onClick={() => { window.dispatchEvent(new CustomEvent('gallery-use-image', { detail: item.url })); }}
+                    />
+                    <TooltipButton
+                        icon={<Box className="w-4 h-4" />}
+                        label="Use Model"
+                        tooltipContent="Use Model"
+                        tooltipSide="top"
+                        className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
+                        onClick={() => { window.dispatchEvent(new CustomEvent('gallery-use-model', { detail: item.metadata?.base_model })); }}
+                    />
+                    <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+                    <TooltipButton
+                        icon={<RefreshCw className="w-4 h-4" />}
+                        label="Remix"
+                        tooltipContent="Recreate"
+                        tooltipSide="top"
+                        className="w-8 h-8 rounded-xl text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                        onClick={() => { window.dispatchEvent(new CustomEvent('gallery-remix', { detail: item })); }}
+                    />
+                    <TooltipButton
+                        icon={<Download className="w-4 h-4" />}
+                        label="Download"
+                        tooltipContent="Download"
+                        tooltipSide="top"
+                        className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
+                        onClick={performDownload}
+                    />
+                </div>
             </div>
         </div>
     );

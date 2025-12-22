@@ -13,20 +13,27 @@ interface PromptInputProps {
   onOptimize: () => void;
   selectedAIModel: AIModel;
   onAIModelChange: (model: AIModel) => void;
+  onAddImages: (files: File[] | FileList) => void;
 }
 
 export default function PromptInput({
   prompt,
   onPromptChange,
-  uploadedImages,
-  onRemoveImage,
-
+  onAddImages,
 }: PromptInputProps) {
 
   const [isFocused, setIsFocused] = React.useState(false);
 
   return (
-    <div className="w-full relative">
+    <div
+      className="w-full relative"
+      onDragOver={(e) => { e.preventDefault(); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) onAddImages(files);
+      }}
+    >
       <AutosizeTextarea
         placeholder="请描述您想要生成的图像，例如：黄色的lemo圣诞老人，淡蓝色的背景"
         value={prompt}
@@ -35,6 +42,22 @@ export default function PromptInput({
         minHeight={86}
         maxHeight={isFocused ? undefined : 86}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onPromptChange(e.target.value)}
+        onPaste={(e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+          const items = e.clipboardData?.items;
+          if (!items) return;
+          const files: File[] = [];
+          for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            if (it.kind === 'file' && it.type.startsWith('image/')) {
+              const f = it.getAsFile();
+              if (f) files.push(f);
+            }
+          }
+          if (files.length > 0) {
+            e.preventDefault();
+            onAddImages(files);
+          }
+        }}
         className="w-full placeholder:text-white/40 bg-black/90 shadow-none rounded-3xl text-white leading-relaxed tracking-wide p-2 px-4 pt-3 border border-white/20 focus:border-white/20 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none resize-none transition-all duration-200"
       />
 

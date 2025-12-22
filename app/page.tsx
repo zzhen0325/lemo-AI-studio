@@ -296,19 +296,11 @@ export default function Page() {
 
 
 
-        <div className="relative z-10 flex-1 overflow-hidden " key={currentTab}>
+        <div className="relative z-10 flex-1 overflow-hidden ">
           <div className={`flex flex-col flex-1 h-screen overflow-hidden transition-all duration-500 ${currentTab === TabValue.Gallery ? 'bg-[#050505]' : 'bg-transparent'}`}>
 
-            {/* Gallery Tab */}
-            {currentTab === TabValue.Gallery && (
-              <div className="flex flex-col flex-1 h-screen overflow-hidden animate-in fade-in duration-500">
-                <GalleryView />
-              </div>
-            )}
-
-            {/* Playground Tabs (Hidden logic to preserve state) */}
-            <div className={`flex flex-col flex-1 h-screen overflow-hidden ${(currentTab !== TabValue.Playground && currentTab !== TabValue.ByteArtist) ? 'hidden' : ''
-              }`}>
+            {/* Playground Header (also visible in Gallery to preserve prompt) */}
+            <div className={`flex flex-col flex-1 ${currentTab === TabValue.Gallery ? 'max-h-[240px] mt-40' : 'h-screen'} overflow-hidden ${([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? '' : 'hidden'}`}>
               <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Playground...</div>}>
                 <PlaygroundV2Page
                   onEditMapping={handleEditMapping}
@@ -324,6 +316,13 @@ export default function Page() {
                 />
               </Suspense>
             </div>
+
+            {/* Gallery Tab (rendered under the prompt input when active) */}
+            {currentTab === TabValue.Gallery && (
+              <div className="flex flex-col flex-1 h-screen overflow-hidden animate-in fade-in duration-500">
+                <GalleryView />
+              </div>
+            )}
 
             {/* Mapping Editor Tab */}
             {currentTab === TabValue.MappingEditor && (
