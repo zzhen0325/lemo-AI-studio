@@ -62,12 +62,12 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
       },
     ];
 
-    const generationConfig: Record<string, unknown> = {
+    const configParams: Record<string, unknown> = {
       responseModalities: ["IMAGE"],
     };
 
     if (config.aspectRatio || config.imageSize) {
-      generationConfig.imageConfig = {
+      configParams.imageConfig = {
         ...(config.aspectRatio ? { aspectRatio: config.aspectRatio } : {}),
         ...(config.imageSize ? { imageSize: config.imageSize } : {})
       };
@@ -76,7 +76,7 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
     const requestConfig = {
       model: "gemini-3-pro-image-preview",
       contents,
-      generationConfig,
+      config: configParams,
     };
 
 

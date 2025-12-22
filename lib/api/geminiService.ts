@@ -87,11 +87,7 @@ export class GeminiService {
 
 
   private buildEditPrompt(request: EditRequest): string {
-    return `Edit this image according to the following instruction: ${request.instruction}
-
-Maintain the original image's lighting, perspective, and overall composition. Make the changes look natural and seamlessly integrated.
-
-Preserve image quality and ensure the edit looks professional and realistic.`;
+    return `Edit this image according to the following instruction: ${request.instruction}`;
   }
 }
 

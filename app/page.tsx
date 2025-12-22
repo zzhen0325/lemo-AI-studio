@@ -19,10 +19,6 @@ import ToolsView from "@/components/features/tools/ToolsView";
 import DatasetManagerView from "@/components/features/dataset/DatasetManagerView";
 
 
-import GradientShaderCard from "@/components/ui/gradient-shader-card";
-import WarpFlowCard from "@/components/ui/warp-flow-card";
-import { Canvas } from "@react-three/fiber";
-
 
 
 
@@ -41,6 +37,7 @@ export default function Page() {
   const bgRef = useRef<HTMLDivElement>(null);
   const beamsRef = useRef<HTMLDivElement>(null);
   const [isBackgroundOut, setIsBackgroundOut] = useState(false);
+  const [renderBeams, setRenderBeams] = useState(false);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
 
   useEffect(() => {
@@ -63,6 +60,7 @@ export default function Page() {
     }
     // Ensures state is reset when component is remounted/tab changes
     setIsBackgroundOut(false);
+    setRenderBeams(false);
   };
 
   const handleBackgroundAnimate = (direction: 'in' | 'out') => {
@@ -80,60 +78,49 @@ export default function Page() {
     const tl = gsap.timeline();
     timelineRef.current = tl;
 
-    // 参考 codepen 弹性效果 (Elastic Slide Up)
-    const slideDuration = 1.4;
-    const slideEase = "elastic.out(1, 0.75)";
+    const fadeDuration = 0.1;
 
     if (isOut) {
-      // 1. 准备: Shader 置于顶层，初始位置在屏幕下方 (y: 100%)，完全不透明
-      tl.set(beamsRef.current, { zIndex: 50, opacity: 1, y: '100%' })
+      setRenderBeams(true);
+      // 直接显示，初始位置 y 改为 0
+      tl.set(beamsRef.current, { zIndex: 50, opacity: 0, y: '0%' })
 
-        // 2. 只有 Shader 向上弹性滑入
-        // "Reference this elastic effect" -> 主要是指这种有弹性的位移/出现
+        // 核心渐入
         .to(beamsRef.current, {
-          y: '0%',
-          duration: slideDuration,
-          ease: slideEase
+          opacity: 1,
+          duration: fadeDuration,
+          ease: "power2.inOut"
         }, 0)
 
-        // 3. Parallax 视差背景处理
-        // "then parallax animation background direct disappear"
-        // 在滑入覆盖的过程中(或者覆盖后)，让视差元素消失
-        // 为了防止弹性回弹时露出底部，可以在动画开始一小段时间后就开始淡出背景，或者等完全覆盖。
-        // 由于是 elastic 效果，可能会弹过头再回来，最好且简单的做法是让它们保留一会，直到动画稳定，或者快速淡出。
-        // 这里选择在动画中段快速消失，造成"被覆盖"的错觉
+        // 视差背景元素快速消失
         .to([cloudRef.current, treeRef.current, dogRef.current, manRef.current, frontRef.current], {
           opacity: 0,
-          duration: 0.3,
-          ease: "power1.out"
-        }, 0.2)
+          duration: fadeDuration,
+          ease: "none"
+        }, 0)
 
-        // 4. 背景色过渡
-        .to(bgRef.current, { backgroundColor: '#ffffffff', duration: 1.0, ease: 'power2.inOut' }, 0);
+        // 背景色过渡
+        .to(bgRef.current, { backgroundColor: '#0c3562', duration: fadeDuration, ease: 'power2.inOut' }, 0);
 
     } else {
-      // Return: Shader 滑下去 Or 淡出? 
-      // 既然进入是滑上来，出去可以是滑下去或者反向弹性
-      // 这里保持逻辑一致，反向滑出
+      // 退出动画
       tl.to(beamsRef.current, {
-        y: '100%',
-        duration: 1.0,
-        ease: "power2.inOut", // 回去的时候不需要太夸张的弹性，显得干脆点
+        opacity: 0,
+        duration: fadeDuration,
+        ease: "power2.inOut",
         onComplete: () => {
-          if (beamsRef.current) gsap.set(beamsRef.current, { zIndex: 0, opacity: 0 });
+          if (beamsRef.current) gsap.set(beamsRef.current, { zIndex: 0, y: '100%' }); // 恢复位置预备下次（如果需要）
+          setRenderBeams(false);
         }
       }, 0)
 
         // Parallax 恢复
         .to([cloudRef.current, treeRef.current, dogRef.current, manRef.current, frontRef.current], {
-          x: 0,
-          y: 0,
           opacity: 1,
-          duration: 1.2,
-          ease: "elastic.out(1, 0.8)",
-          stagger: 0.05
-        }, 0.1)
-        .to(bgRef.current, { backgroundColor: '#142856', duration: 1.2, ease: 'power2.inOut' }, 0);
+          duration: 0.3, // 恢复给一点视觉缓冲
+          ease: "power2.out",
+        }, 0)
+        .to(bgRef.current, { backgroundColor: '#0c3562', duration: 0.3, ease: 'power2.inOut' }, 0);
     }
   };
 
@@ -249,13 +236,16 @@ export default function Page() {
           <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
             {/* Beams Background */}
             <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden ">
-              <Canvas className="w-full h-full]"
-                onCreated={(state) => {
-                  const gl = state.gl;
-                }}
-              >
-                <WarpFlowCard />
-              </Canvas>
+              {renderBeams && (
+                <Image alt="" src="/images/5.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+                // <Canvas className="w-full h-full]"
+                //   onCreated={(state) => {
+                //     const gl = state.gl;
+                //   }}
+                // >
+                //   <WarpFlowCard />
+                // </Canvas>
+              )}
             </div>
 
             <div ref={bgRef} className="absolute inset-0 bg-[#142856] -z-10" />
@@ -306,7 +296,7 @@ export default function Page() {
 
 
 
-        <div className="relative z-10 flex-1 overflow-hidden pt-20" key={currentTab}>
+        <div className="relative z-10 flex-1 overflow-hidden " key={currentTab}>
           <div className={`flex flex-col flex-1 h-screen overflow-hidden transition-all duration-500 ${currentTab === TabValue.Gallery ? 'bg-[#050505]' : 'bg-transparent'}`}>
 
             {/* Gallery Tab */}
@@ -377,7 +367,7 @@ export default function Page() {
 
             {/* Dataset Manager Tab */}
             {currentTab === TabValue.DatasetManager && (
-              <div className="flex flex-col flex-1 h-screen overflow-hidden animate-in fade-in duration-500">
+              <div className="flex flex-col flex-1 h-screen w-[80vw] mx-auto overflow-hidden animate-in fade-in duration-500 ">
                 <DatasetManagerView />
               </div>
             )}

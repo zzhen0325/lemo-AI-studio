@@ -11,9 +11,18 @@ interface CollectionListProps {
     onSelect: (id: string) => void;
     isLoading?: boolean;
     onRefresh?: () => void;
+    onCreate?: (name: string) => void;
+    className?: string;
 }
 
-export default function CollectionList({ collections, onSelect, isLoading, onRefresh }: CollectionListProps) {
+export default function CollectionList({
+    collections,
+    onSelect,
+    isLoading,
+    onRefresh,
+    onCreate,
+    className
+}: CollectionListProps) {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -22,16 +31,24 @@ export default function CollectionList({ collections, onSelect, isLoading, onRef
         );
     }
     return (
-        <div className="space-y-6">
+        <div className={`space-y-6 w-full max-w-8xl ${className || ''}`}>
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold">Datasets</h1>
                 <div className="flex gap-2">
                     <Button variant="ghost" size="icon" onClick={onRefresh} className="text-white/50 hover:text-white">
                         <RefreshCw className="w-4 h-4" />
                     </Button>
-                    {/* <Button className="bg-white/10 hover:bg-white/20 text-white rounded-xl">
+                    <Button
+                        className="bg-white/10 hover:bg-white/20 text-white rounded-xl"
+                        onClick={() => {
+                            const name = window.prompt("Enter new collection name:");
+                            if (name && name.trim()) {
+                                onCreate?.(name.trim());
+                            }
+                        }}
+                    >
                         Create New Collection
-                    </Button> */}
+                    </Button>
                 </div>
             </div>
 

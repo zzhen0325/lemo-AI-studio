@@ -33,7 +33,7 @@ export default function HistoryList({
   if (history.length === 0) return null;
 
   return (
-    <div className="relative flex flex-col w-full h-full overflow-y-auto custom-scrollbar">
+    <div className="relative flex flex-col w-full h-full overflow-y-auto custom-scrollbar  ">
       {/* 顶部或内容容器 */}
       <div className="flex flex-wrap justify-center   max-w-[1500px] mx-auto overflow-y-auto h-full rounded-lg px-4 pb-32  pt-72">
         {history.map((result) => {
@@ -136,11 +136,12 @@ function HistoryCard({
 
 
       {/* 3. 悬浮操作面板 - Tooltip 风格 floating bar */}
-      <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-300 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`}>
+      <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-50 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`}>
         <TooltipButton
           icon={<Type className="w-4 h-4" />}
           label="Use Prompt"
           tooltipContent="Use Prompt"
+          tooltipSide="top"
           className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
           onClick={() => onUsePrompt?.(result.config.prompt)}
         />
@@ -148,6 +149,7 @@ function HistoryCard({
           icon={<ImageIcon className="w-4 h-4" />}
           label="Use Image"
           tooltipContent="Use Image"
+          tooltipSide="top"
           className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
           onClick={() => mainImage && onUseImage?.(mainImage)}
         />
@@ -155,6 +157,7 @@ function HistoryCard({
           icon={<Box className="w-4 h-4" />}
           label="Use Model"
           tooltipContent="Use Model"
+          tooltipSide="top"
           className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
           onClick={() => onUseModel?.(result.config.base_model, result.config)}
         />
@@ -162,7 +165,8 @@ function HistoryCard({
         <TooltipButton
           icon={<RefreshCw className="w-4 h-4" />}
           label="Remix"
-          tooltipContent="Remix"
+          tooltipContent="Recreate"
+          tooltipSide="top"
           className="w-8 h-8 rounded-xl text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
           onClick={() => onRegenerate(result.config)}
         />
@@ -170,6 +174,7 @@ function HistoryCard({
           icon={<Download className="w-4 h-4" />}
           label="Download"
           tooltipContent="Download"
+          tooltipSide="top"
           className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
           onClick={() => mainImage && onDownload(mainImage)}
         />

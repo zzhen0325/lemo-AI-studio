@@ -98,16 +98,20 @@ export async function POST(request: Request) {
         const formData = await request.formData();
         const file = formData.get('file') as File;
         const collectionName = formData.get('collection') as string;
-        const isText = formData.get('isText') === 'true'; // Flag for uploading pure text/prompt file directly?
-        // Actually the prompt is usually associated with an image name.
+        // The prompt is usually associated with an image name.
         // Let's stick to the plan: explicit upload.
 
-        if (!file || !collectionName) {
-            return NextResponse.json({ error: 'File and collection name are required' }, { status: 400 });
+        if (!collectionName) {
+            return NextResponse.json({ error: 'Collection name is required' }, { status: 400 });
         }
 
         const collectionPath = path.join(DATASET_DIR, collectionName);
         await ensureDir(collectionPath);
+
+        // If no file, we just created a collection (directory)
+        if (!file) {
+            return NextResponse.json({ success: true, message: 'Collection created', collectionPath });
+        }
 
         const buffer = Buffer.from(await file.arrayBuffer());
         // Safe filename
@@ -117,9 +121,44 @@ export async function POST(request: Request) {
         await fs.writeFile(filePath, buffer);
 
         return NextResponse.json({ success: true, path: `/dataset/${collectionName}/${safeName}` });
-
     } catch (error) {
         console.error('Dataset Upload Error:', error);
         return NextResponse.json({ error: 'Upload Failed', details: String(error) }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const collectionName = searchParams.get('collection');
+        const filename = searchParams.get('filename');
+
+        if (!collectionName || !filename) {
+            return NextResponse.json({ error: 'Collection and filename are required' }, { status: 400 });
+        }
+
+        const collectionPath = path.join(DATASET_DIR, collectionName);
+        const filePath = path.join(collectionPath, filename);
+        const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+        const txtPath = path.join(collectionPath, `${nameWithoutExt}.txt`);
+
+        // Delete image
+        try {
+            await fs.unlink(filePath);
+        } catch (e) {
+            console.warn(`Could not delete image file: ${filePath}`, e);
+        }
+
+        // Delete prompt file
+        try {
+            await fs.unlink(txtPath);
+        } catch (e) {
+            // It's okay if txt file doesn't exist
+        }
+
+        return NextResponse.json({ success: true, message: 'Deleted successfully' });
+    } catch (error) {
+        console.error('Dataset Delete Error:', error);
+        return NextResponse.json({ error: 'Delete Failed', details: String(error) }, { status: 500 });
     }
 }

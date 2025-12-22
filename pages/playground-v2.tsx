@@ -633,7 +633,7 @@ export function PlaygroundV2Page({
       <div className={cn(
         "w-full transition-all duration-700 ease-in-out z-50",
         hasGenerated
-          ? "fixed top-0 left-0 right-0 pt-10 pb-8 px-4 "
+          ? "fixed top-0 left-0 right-0 pt-10  pb-8 px-4 "
           : "absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
       )}>
         <div className={cn(
@@ -641,20 +641,19 @@ export function PlaygroundV2Page({
           hasGenerated ? "max-w-[50vw]  mx-auto mt-20" : "max-w-4xl"
         )}>
 
-          {/* 
+          
           <h1
             className={cn(
               "text-[40px] text-white text-center transition-all duration-500 overflow-hidden",
-              isElevated ? "h-0 opacity-0 mb-0" : "h-auto opacity-100 mb-4"
+              hasGenerated ? "h-0 opacity-0 mb-0" : "h-auto opacity-100 mb-4"
             )}
           >
             Let Your Imagination Soar
-          </h1> */}
-
+          </h1> 
           <div
             className={cn(
               "relative w-full rounded-[10px] transition-all duration-300",
-              isInputHovered ? "mt-4" : "mt-0"
+              isInputHovered ? "mt-0" : "mt-0"
             )}
             onMouseEnter={() => setIsInputHovered(true)}
             onMouseLeave={() => setIsInputHovered(false)}

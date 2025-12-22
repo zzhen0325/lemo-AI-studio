@@ -101,7 +101,8 @@
 
 @layer base {
   * {
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    scrollbar-color: transparent transparent;
+    scrollbar-width: thin;
   }
 
   *::-webkit-scrollbar {
@@ -111,13 +112,31 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: transparent;
     border-radius: 9999px;
     border: 2px solid transparent;
   }
 
   *::-webkit-scrollbar-track {
     background: transparent;
+  }
+
+  html.scrolling * {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  html.scrolling *::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+  }
+
+  html.scrolling *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar {
+    scrollbar-gutter: stable both-edges;
   }
 }
 

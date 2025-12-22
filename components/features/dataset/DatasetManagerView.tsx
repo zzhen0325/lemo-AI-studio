@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CollectionList from "./CollectionList";
 import CollectionDetail from "./CollectionDetail";
 
@@ -17,6 +17,25 @@ export default function DatasetManagerView() {
 
     const [collections, setCollections] = useState<DatasetCollection[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    const handleCreateCollection = async (name: string) => {
+        try {
+            const formData = new FormData();
+            formData.append('collection', name);
+            const res = await fetch('/api/dataset', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                fetchCollections();
+            } else {
+                console.error("Failed to create collection");
+            }
+        } catch (error) {
+            console.error("Create collection error", error);
+        }
+    };
 
     const fetchCollections = async () => {
         try {
@@ -39,30 +58,30 @@ export default function DatasetManagerView() {
 
     const selectedCollection = collections.find(c => c.id === selectedCollectionId);
 
-    const handleCreateCollection = async (name: string) => {
-        // Implementation for creating standard folder or handled via upload
-        // For now we just refresh as we might need upload to create it
-        fetchCollections();
-    };
+
 
     return (
-        <div className="flex flex-col h-full w-full text-white p-6 overflow-y-auto custom-scrollbar">
-            {!selectedCollectionId ? (
-                <CollectionList
-                    collections={collections}
-                    onSelect={setSelectedCollectionId}
-                    isLoading={isLoading}
-                    onRefresh={fetchCollections}
-                />
-            ) : (
-                <CollectionDetail
-                    collection={selectedCollection!}
-                    onBack={() => {
-                        setSelectedCollectionId(null);
-                        fetchCollections(); // Refresh on back to update counts/previews
-                    }}
-                />
-            )}
+        <div className="flex flex-col h-full w-full mx-auto text-white p-4 sm:p-6 overflow-hidden ">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                {!selectedCollectionId ? (
+                    <CollectionList
+                        collections={collections}
+                        onSelect={setSelectedCollectionId}
+                        isLoading={isLoading}
+                        onRefresh={fetchCollections}
+                        onCreate={handleCreateCollection}
+                        className="w-full mx-auto"
+                    />
+                ) : (
+                    <CollectionDetail
+                        collection={selectedCollection!}
+                        onBack={() => {
+                            setSelectedCollectionId(null);
+                            fetchCollections(); // Refresh on back to update counts/previews
+                        }}
+                    />
+                )}
+            </div>
         </div>
     );
 }

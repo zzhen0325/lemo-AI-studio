@@ -11,6 +11,8 @@ interface TooltipButtonProps {
     icon: React.ReactNode;
     label: string;
     tooltipContent: string;
+    tooltipSide?: "top" | "right" | "bottom" | "left";
+    tooltipDelay?: number;
     variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
     size?: "default" | "sm" | "lg" | "icon";
     className?: string;
@@ -21,13 +23,15 @@ export function TooltipButton({
     icon,
     label,
     tooltipContent,
+    tooltipSide = "right",
+    tooltipDelay = 100,
     variant = "ghost",
     size = "icon",
     className = "",
     onClick,
 }: TooltipButtonProps) {
     return (
-        <TooltipProvider>
+        <TooltipProvider delayDuration={tooltipDelay}>
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button
@@ -40,7 +44,7 @@ export function TooltipButton({
                         {icon}
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={5}>
+                <TooltipContent side={tooltipSide} sideOffset={5}>
                     {tooltipContent}
                 </TooltipContent>
             </Tooltip>
