@@ -62,6 +62,7 @@ export default function ControlToolbar({
   selectedModel,
   onModelChange,
   config,
+  onConfigChange,
   onWidthChange,
 
   onHeightChange,
@@ -128,9 +129,18 @@ export default function ControlToolbar({
 
   const handleUnifiedSelectChange = (val: string) => {
     setSelectValue(val);
-    if (val === 'seed3') onModelChange('3D Lemo seed3');
-    else if (val === 'seed4') onModelChange('Seed 4.0');
-    else if (val === 'nano_banana') onModelChange('Nano banana');
+    if (val === 'seed3') {
+      onModelChange('3D Lemo seed3');
+      onConfigChange?.({ base_model: '3D Lemo seed3' });
+    }
+    else if (val === 'seed4') {
+      onModelChange('Seed 4.0');
+      onConfigChange?.({ base_model: 'Seed 4.0' });
+    }
+    else if (val === 'nano_banana') {
+      onModelChange('Nano banana');
+      onConfigChange?.({ base_model: 'Nano banana' });
+    }
     else if (val.startsWith('wf:')) {
       const id = val.slice(3);
       const wf = (Array.isArray(workflows) ? workflows : []).find(
@@ -138,6 +148,7 @@ export default function ControlToolbar({
       );
       if (wf) {
         onModelChange('Workflow');
+        onConfigChange?.({ base_model: 'Workflow' });
         onWorkflowSelect?.(wf);
       }
     }
@@ -170,7 +181,7 @@ export default function ControlToolbar({
             {triggerLabel}
             <ChevronDown className={cn("ml-2 h-4 w-4 opacity-50 transition-transform duration-200", isSelectorExpanded && "rotate-180")} />
           </Button>
-          {selectedModel === 'Workflow' && (
+          {(selectedModel === 'Workflow' || !!selectedWorkflowName) && (
             <>
               <Button variant="outline" className={Inputbutton2} onClick={() => onOpenBaseModelSelector?.()}>
                 {selectedBaseModelName || "基础模型"}

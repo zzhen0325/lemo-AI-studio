@@ -90,18 +90,22 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
             const newConfig = configData ? { ...state.config, ...configData, base_model: model } : { ...state.config, base_model: model };
             return {
                 selectedModel: model,
-                config: newConfig
+                config: newConfig,
+                // 如果切换到通用模型，清理掉选中的工作流配置
+                selectedWorkflowConfig: model === 'Workflow' ? state.selectedWorkflowConfig : undefined
             };
         });
-        // toast({ title: `已切换至模型: ${model}` }); // Uncomment if toast is available
     },
 
     remix: (result) => {
-        set((state) => ({
-            selectedModel: result.config.base_model || state.selectedModel,
-            selectedWorkflowConfig: result.workflow || state.selectedWorkflowConfig,
-            selectedLoras: result.loras || state.selectedLoras,
-            config: { ...state.config, ...result.config }
-        }));
+        set((state) => {
+            const finalModel = result.config.base_model || state.selectedModel;
+            return {
+                selectedModel: finalModel,
+                selectedWorkflowConfig: result.workflow || (finalModel === 'Workflow' ? state.selectedWorkflowConfig : undefined),
+                selectedLoras: result.loras || state.selectedLoras,
+                config: { ...state.config, ...result.config, base_model: finalModel }
+            };
+        });
     }
 }));

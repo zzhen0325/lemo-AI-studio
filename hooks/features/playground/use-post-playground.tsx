@@ -1,5 +1,5 @@
 import { IViewComfy } from "@/types/comfy-input";
-import { ErrorTypes, ResponseError, ErrorResponseFactory } from "@/app/models/errors";
+import { ErrorTypes, ResponseError } from "@/app/models/errors";
 import { useSearchParams } from "next/navigation";
 import { useState, useCallback } from "react"
 import { SETTINGS_STORAGE_KEY } from "@/lib/constants";
@@ -13,7 +13,6 @@ export interface IUsePostPlayground {
     onError: (error: any) => void,
 }
 
-const viewcomfyCloud = process.env.VIEW_COMFY_CLOUD;
 
 export const usePostPlayground = () => {
     const [loading, setLoading] = useState(false);
@@ -24,8 +23,8 @@ export const usePostPlayground = () => {
         setLoading(true);
         try {
             let url = "/api/comfy";
-            if (viewcomfyEndpoint && !viewcomfyCloud) {
-                url = "/api/viewcomfy"
+            if (appId) {
+                url = "/api/byte-artist-comfy";
             }
 
             const formData = new FormData();
@@ -35,16 +34,21 @@ export const usePostPlayground = () => {
                 if (storedSettings) {
                     const settings = JSON.parse(storedSettings);
                     if (settings.apiKey) formData.append('apiKey', settings.apiKey);
-                    if (settings.comfyUrl) formData.append('comfyUrl', settings.comfyUrl);
+
+                    // 优先级: viewcomfyEndpoint > settings.comfyUrl
+                    const effectiveComfyUrl = viewcomfyEndpoint || settings.comfyUrl;
+                    if (effectiveComfyUrl) formData.append('comfyUrl', effectiveComfyUrl);
+                } else if (viewcomfyEndpoint) {
+                    formData.append('comfyUrl', viewcomfyEndpoint);
                 }
             } catch (e) {
                 console.error("Failed to load settings", e);
             }
 
-            const viewComfyJSON: IViewComfy = { 
-                    inputs:[],
-                    textOutputEnabled: viewComfy.textOutputEnabled ?? false
-                };
+            const viewComfyJSON: IViewComfy = {
+                inputs: [],
+                textOutputEnabled: viewComfy.textOutputEnabled ?? false
+            };
             for (const { key, value } of viewComfy.inputs) {
                 if (value instanceof File) {
                     formData.append(key, value);
@@ -52,7 +56,7 @@ export const usePostPlayground = () => {
                     viewComfyJSON.inputs.push({ key, value });
                 }
             }
-            console.log(workflow,'--workflow')
+            console.log(workflow, '--workflow')
             formData.append('workflow', JSON.stringify(workflow));
             formData.append('viewComfy', JSON.stringify(viewComfyJSON));
             formData.append('viewcomfyEndpoint', viewcomfyEndpoint ?? "");
@@ -65,7 +69,7 @@ export const usePostPlayground = () => {
                 method: 'POST',
                 body: formData,
             });
-            
+
             if (!response.ok) {
                 if (response.status === 504) {
                     const error = new ResponseError({
@@ -113,12 +117,12 @@ export const usePostPlayground = () => {
                     onSuccess(output);
                 }
             }
-            
+
         } catch (error) {
             onError(error);
         }
         setLoading(false);
-    }, []);
+    }, [appId]);
 
     return { doPost, loading };
 }

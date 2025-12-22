@@ -1,9 +1,9 @@
 import { infer, inferWithLogsStream, PromptResult } from "@/lib/api/viewcomfy-api-services";
-import { UIConfig } from "@/types/mapping-editor";
+import { UIConfig } from "@/types/features/mapping-editor";
 
 export interface ViewComfyGenerationOptions {
   config: UIConfig;
-  userInputs: Record<string, any>;
+  userInputs: Record<string, unknown>;
   apiUrl: string;
   clientId: string;
   clientSecret: string;
@@ -17,26 +17,26 @@ export interface GenerationResult {
   url?: string;
   blob?: Blob;
   filename?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
  * ViewComfy集成类，用于处理工作流执行和结果转换
  */
 export class ViewComfyIntegration {
-  
+
   /**
    * 将用户输入转换为ViewComfy API参数格式
    */
-  static convertUserInputsToParams(config: UIConfig, userInputs: Record<string, any>): Record<string, any> {
-    const params: Record<string, any> = {};
-    
+  static convertUserInputsToParams(config: UIConfig, userInputs: Record<string, unknown>): Record<string, unknown> {
+    const params: Record<string, unknown> = {};
+
     config.components.forEach(component => {
       const value = userInputs[component.id];
       if (value !== undefined) {
         // 使用组件的参数名称作为API参数键
         const paramName = component.properties.paramName || component.id;
-        
+
         // 根据组件类型进行值转换
         switch (component.type) {
           case "number":
@@ -57,21 +57,21 @@ export class ViewComfyIntegration {
         }
       }
     });
-    
+
     return params;
   }
 
   /**
    * 构建工作流覆盖数据
    */
-  static buildWorkflowOverride(config: UIConfig, userInputs: Record<string, any>): Record<string, any> | undefined {
+  static buildWorkflowOverride(config: UIConfig, userInputs: Record<string, unknown>): Record<string, unknown> | undefined {
     if (!config.workflowTemplate) {
       return undefined;
     }
-    
+
     // 深拷贝工作流模板
     const workflowData = JSON.parse(JSON.stringify(config.workflowTemplate));
-    
+
     // 应用用户输入到工作流
     config.components.forEach(component => {
       const value = userInputs[component.id];
@@ -79,14 +79,15 @@ export class ViewComfyIntegration {
         // 根据映射路径设置工作流数据
         const path = component.properties.mappingPath.split('.');
         let current = workflowData;
-        
+
         for (let i = 0; i < path.length - 1; i++) {
-          if (!current[path[i]]) {
-            current[path[i]] = {};
+          const key = path[i];
+          if (!(current as Record<string, unknown>)[key]) {
+            (current as Record<string, unknown>)[key] = {};
           }
-          current = current[path[i]];
+          current = (current as Record<string, unknown>)[key] as Record<string, unknown>;
         }
-        
+
         // 应用值转换
         let finalValue = value;
         if (component.properties.valueTransform) {
@@ -98,12 +99,12 @@ export class ViewComfyIntegration {
             console.warn(`值转换失败 (${component.id}):`, error);
           }
         }
-        
-        current[path[path.length - 1]] = finalValue;
+
+        (current as Record<string, unknown>)[path[path.length - 1]] = finalValue;
       }
     });
-    
-    return workflowData;
+
+    return workflowData as Record<string, unknown>;
   }
 
   /**
@@ -123,12 +124,12 @@ export class ViewComfyIntegration {
     try {
       // 转换用户输入为API参数
       const params = this.convertUserInputsToParams(config, userInputs);
-      
+
       // 构建工作流覆盖数据
       const overrideWorkflowApi = this.buildWorkflowOverride(config, userInputs);
-      
+
       let promptResult: PromptResult | null = null;
-      
+
       if (withLogs && onProgress) {
         // 使用带日志的流式API
         promptResult = await inferWithLogsStream({
@@ -148,22 +149,22 @@ export class ViewComfyIntegration {
           clientId,
           clientSecret
         });
-        
+
         // 处理流式响应
         if (stream) {
           // 这里需要处理ReadableStream，暂时跳过
           console.log("收到流式响应，需要进一步处理");
         }
       }
-      
+
       if (!promptResult) {
         throw new Error("未收到生成结果");
       }
-      
+
       // 转换结果为统一格式
       const results: GenerationResult[] = promptResult.outputs.map((blob, index) => {
         const url = URL.createObjectURL(blob);
-        
+
         // 根据MIME类型确定结果类型
         let type: GenerationResult["type"] = "image";
         if (blob.type.startsWith("image/")) {
@@ -175,7 +176,7 @@ export class ViewComfyIntegration {
         } else if (blob.type.startsWith("text/")) {
           type = "text";
         }
-        
+
         return {
           id: `result_${promptResult.prompt_id}_${index}`,
           type,
@@ -190,9 +191,9 @@ export class ViewComfyIntegration {
           }
         };
       });
-      
+
       return results;
-      
+
     } catch (error) {
       console.error("ViewComfy生成失败:", error);
       throw error;
@@ -215,7 +216,7 @@ export class ViewComfyIntegration {
       "text/plain": "txt",
       "application/json": "json"
     };
-    
+
     return mimeToExt[mimeType] || "bin";
   }
 
@@ -224,19 +225,19 @@ export class ViewComfyIntegration {
    */
   static validateViewComfyConfig(config: UIConfig): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
-    
+
     // 检查必要的配置
     if (!config.viewComfyEndpoint) {
       errors.push("缺少ViewComfy API端点配置");
     }
-    
+
     // 检查组件映射
     config.components.forEach(component => {
       if (!component.properties.paramName && !component.properties.mappingPath) {
         errors.push(`组件 "${component.label}" 缺少参数映射配置`);
       }
     });
-    
+
     return {
       valid: errors.length === 0,
       errors

@@ -5,10 +5,10 @@ import { IViewComfy } from '@/types/comfy-input';
 
 // 简单的日志工具类
 const logger = {
-    log: (message: any, ...args: any[]) => console.log(message, ...args),
-    info: (message: any, ...args: any[]) => console.info(message, ...args),
-    error: (message: any, ...args: any[]) => console.error(message, ...args),
-    warn: (message: any, ...args: any[]) => console.warn(message, ...args),
+    log: (message: unknown, ...args: unknown[]) => console.log(message, ...args),
+    info: (message: unknown, ...args: unknown[]) => console.info(message, ...args),
+    error: (message: unknown, ...args: unknown[]) => console.error(message, ...args),
+    warn: (message: unknown, ...args: unknown[]) => console.warn(message, ...args),
 };
 
 const errorResponseFactory = new ErrorResponseFactory();
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const logid = request.headers.get('x-tt-logid');
     // console.log('logid:', request.headers.get('x-tt-logid'));
     // console.log('所有请求头:', JSON.stringify(headersObj, null, 2));
-    
+
     // logger.info('============ req ==============', {
     //     referer: request.headers.get('referer'),
     //     headers: headersObj
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
         logId: logid ?? '',
         message: '============ logid ==============',
     });
-    let viewComfy: IViewComfy = {inputs: [], textOutputEnabled: false};
+    let viewComfy: IViewComfy = { inputs: [], textOutputEnabled: false };
     if (formData.get('viewComfy') && formData.get('viewComfy') !== 'undefined') {
         viewComfy = JSON.parse(formData.get('viewComfy') as string);
     }

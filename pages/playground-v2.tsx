@@ -115,7 +115,6 @@ export function PlaygroundV2Page({
   const applyWorkflowDefaults = (workflow: IViewComfy) => {
     const mappingConfig = workflow.viewComfyJSON.mappingConfig as { components: UIComponent[] } | undefined;
     const newConfig = { ...config };
-    let newBaseModel = selectedModel;
     const newLoras: SelectedLora[] = [];
 
     if (mappingConfig?.components && Array.isArray(mappingConfig.components) && mappingConfig.components.length > 0) {
@@ -149,8 +148,8 @@ export function PlaygroundV2Page({
           if (actualValue && (typeof actualValue === 'number' || typeof actualValue === 'string')) newConfig.gen_num = Number(actualValue);
           else if (defaultValue) newConfig.gen_num = Number(defaultValue);
         } else if (paramName === 'base_model' || paramName === 'model') {
-          if (actualValue && typeof actualValue === 'string') newBaseModel = actualValue;
-          else if (defaultValue) newBaseModel = defaultValue;
+          if (actualValue && typeof actualValue === 'string') newConfig.base_model = actualValue;
+          else if (defaultValue) newConfig.base_model = defaultValue;
         } else if (['lora', 'lora1', 'lora2', 'lora3'].includes(paramName)) {
           const val = (actualValue && typeof actualValue === 'string') ? actualValue : defaultValue;
           if (val && typeof val === 'string') {
@@ -176,7 +175,7 @@ export function PlaygroundV2Page({
           if (typeof val === "number" || typeof val === "string") newConfig.gen_num = Number(val);
         } else if (title.includes("model") || title.includes("模型")) {
           if (!title.includes("lora")) {
-            if (typeof val === "string") newBaseModel = val;
+            if (typeof val === "string") newConfig.base_model = val;
           }
         }
         if (title.includes("lora")) {
@@ -187,7 +186,7 @@ export function PlaygroundV2Page({
       });
     }
     setConfig(newConfig);
-    if (newBaseModel !== selectedModel) setSelectedModel(newBaseModel);
+    if (selectedModel !== 'Workflow') setSelectedModel('Workflow');
     if (newLoras.length > 0) setSelectedLoras(newLoras);
   };
 
@@ -281,10 +280,15 @@ export function PlaygroundV2Page({
     setHasGenerated(true);
 
     const taskId = Date.now().toString() + Math.random().toString(36).substring(2, 7);
+
+    // 显式解构当前最新的状态值，防止 executeBackgroundGeneration 内部捕获闭包中的旧值
+    const { selectedModel: latestModel, selectedWorkflowConfig: latestWorkflow } = usePlaygroundStore.getState();
+
     const loadingResult: GenerationResult = {
       id: taskId,
       imageUrl: "",
-      config: { ...config, base_model: selectedModel },
+      // 这里应该使用 config.base_model (真实的路径)，而不是 UI 状态名 latestModel ("Workflow")
+      config: { ...config, base_model: config.base_model || latestModel },
       timestamp: new Date().toISOString(),
       isLoading: true
     };
@@ -292,7 +296,8 @@ export function PlaygroundV2Page({
     setGenerationHistory(prev => [loadingResult, ...prev]);
 
     // 启动后台生成任务 (不等待)
-    executeBackgroundGeneration(taskId, { ...config }, [...uploadedImages], selectedModel, isMockMode, selectedWorkflowConfig);
+    // 确保传递的是 config.base_model，而不是覆盖掉它的 latestModel ("Workflow")
+    executeBackgroundGeneration(taskId, { ...config }, [...uploadedImages], latestModel, isMockMode, latestWorkflow);
   };
 
   const executeBackgroundGeneration = async (
@@ -413,7 +418,7 @@ export function PlaygroundV2Page({
             else if (pName === 'width') paramMap.set(key, currentConfig.img_width);
             else if (pName === 'height') paramMap.set(key, currentConfig.image_height);
             else if (pName === 'batch_size') paramMap.set(key, currentConfig.gen_num);
-            else if (pName === 'base_model' && selectedModel) paramMap.set(key, selectedModel);
+            else if (pName === 'base_model') paramMap.set(key, currentConfig.base_model || selectedModel);
             else if (['lora', 'lora1', 'lora2', 'lora3'].includes(pName)) {
               let idx = 0; if (pName === 'lora2') idx = 1; else if (pName === 'lora3') idx = 2;
               if (selectedLoras.length > idx) {
@@ -434,7 +439,7 @@ export function PlaygroundV2Page({
             if (/width/i.test(item.title || "")) return { key: item.key, value: currentConfig.img_width };
             if (/height/i.test(item.title || "")) return { key: item.key, value: currentConfig.image_height };
             if (/batch|数量|batch_size/i.test(item.title || "")) return { key: item.key, value: currentConfig.gen_num };
-            if (selectedModel && /model|模型|path/i.test(item.title || "") && !/lora/i.test(item.title || "")) return { key: item.key, value: selectedModel };
+            if (/model|模型|path|unet/i.test(item.title || "") && !/lora/i.test(item.title || "")) return { key: item.key, value: currentConfig.base_model || selectedModel };
             if (selectedLoras.length > 0 && /lora/i.test(item.title || "")) {
               if (/strength|weight|强度/i.test(item.title || "")) return { key: item.key, value: selectedLoras[0].strength };
               return { key: item.key, value: selectedLoras[0].model_name };
@@ -683,7 +688,7 @@ export function PlaygroundV2Page({
                 onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)}
                 onOpenLoraSelector={() => setIsLoraDialogOpen(true)}
                 selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title}
-                selectedBaseModelName={selectedModel}
+                selectedBaseModelName={config.base_model}
                 selectedLoraNames={selectedLoras.map(l => l.model_name)}
                 workflows={workflows}
                 onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
@@ -706,7 +711,7 @@ export function PlaygroundV2Page({
         result={selectedResult}
       />
       <WorkflowSelectorDialog open={isWorkflowDialogOpen} onOpenChange={setIsWorkflowDialogOpen} onSelect={(wf) => setSelectedWorkflowConfig(wf)} onEdit={onEditMapping} />
-      <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={selectedModel} onConfirm={(m) => setSelectedModel(m)} />
+      <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={config.base_model || selectedModel} onConfirm={(m) => updateConfig({ base_model: m })} />
       <LoraSelectorDialog open={isLoraDialogOpen} onOpenChange={setIsLoraDialogOpen} value={selectedLoras} onConfirm={(list) => setSelectedLoras(list)} />
     </main>
   );
