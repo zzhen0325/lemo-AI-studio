@@ -17,6 +17,14 @@ import Image from "next/image";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
 import ToolsView from "@/components/features/tools/ToolsView";
 import DatasetManagerView from "@/components/features/dataset/DatasetManagerView";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+import { cn } from "@/lib/utils";
 
 
 
@@ -172,57 +180,41 @@ export default function Page() {
     }
   };
 
-  const topbutton = "w-auto text-white text-md border-none rounded-2xl bg-transparent hover:bg-white/10 hover:text-white";
 
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
-      <header className="fixed top-2  w-full h-14 z-50  rounded-2xl  items-center  text-white ">
-
-
-
-        <div className="flex justify-between h-full px-8 gap-3">
-
-
-          <h1 className="text-[2rem] text-white text-center font-[family-name:var(--font-instrument)] pr-4  mt-4  ">
+      <header className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-7xl h-16 z-50 rounded-2xl border border-white/10 bg-black/20 backdrop-blur-xl transition-all duration-300">
+        <div className="flex justify-between items-center h-full px-6">
+          <h1 className="text-xl md:text-2xl text-white font-semibold tracking-tight font-[family-name:var(--font-instrument)]">
             Lemon8 AI Studio
           </h1>
 
-          <div className="flex   items-end right-2 pt-10  pl-10 ">
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Playground)}>
-              Playground
-            </Button>
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.MappingEditor)}>
-              Mapping Editor
-            </Button>
-
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Gallery)}>
-              Gallery
-            </Button>
-
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Tools)}>
-              Tools
-            </Button>
-
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Settings)}>
-              Settings
-            </Button>
-
-            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.DatasetManager)}>
-              Dataset
-            </Button>
-
-          </div>
-
+          <NavigationMenu>
+            <NavigationMenuList className="gap-1">
+              {[
+                { label: "Playground", value: TabValue.Playground },
+                { label: "Mapping Editor", value: TabValue.MappingEditor },
+                { label: "Gallery", value: TabValue.Gallery },
+                { label: "Tools", value: TabValue.Tools },
+                { label: "Dataset", value: TabValue.DatasetManager },
+                { label: "Settings", value: TabValue.Settings },
+              ].map((item) => (
+                <NavigationMenuItem key={item.value}>
+                  <NavigationMenuLink
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      "bg-transparent text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer rounded-xl h-10 px-4",
+                      currentTab === item.value && "bg-white/10 text-white font-medium"
+                    )}
+                    onClick={() => handleTabChange(item.value)}
+                  >
+                    {item.label}
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              ))}
+            </NavigationMenuList>
+          </NavigationMenu>
         </div>
-
-
-        {/* <div className="absolute inset-0 -z-10">
-          <ProgressiveBlur className='pointer-events-none absolute top-0 left-0 h-full w-full'
-            blurIntensity={2}
-            direction='top'
-          />
-        </div> */}
-
       </header>
 
       <div className="relative flex h-screen justify-center z-10">
@@ -300,7 +292,7 @@ export default function Page() {
           <div className={`flex flex-col flex-1 h-screen overflow-hidden transition-all duration-500 ${currentTab === TabValue.Gallery ? 'bg-[#050505]' : 'bg-transparent'}`}>
 
             {/* Playground Header (also visible in Gallery to preserve prompt) */}
-            <div className={`flex flex-col flex-1 ${currentTab === TabValue.Gallery ? 'max-h-[240px] mt-40' : 'h-screen'} overflow-hidden ${([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? '' : 'hidden'}`}>
+            <div className={`flex flex-col flex-1 ${currentTab === TabValue.Gallery ? 'max-h-[240px] mt-24' : 'h-screen pt-16'} overflow-hidden ${([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? '' : 'hidden'}`}>
               <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Playground...</div>}>
                 <PlaygroundV2Page
                   onEditMapping={handleEditMapping}
@@ -326,7 +318,7 @@ export default function Page() {
 
             {/* Mapping Editor Tab */}
             {currentTab === TabValue.MappingEditor && (
-              <div className="flex flex-col flex-1 h-screen overflow-hidden">
+              <div className="flex flex-col flex-1 h-screen overflow-hidden pt-24">
                 <MappingEditorPage onNavigate={() => handleTabChange(TabValue.Playground)} />
               </div>
             )}
@@ -340,8 +332,8 @@ export default function Page() {
 
             {/* Settings Tab */}
             {currentTab === TabValue.Settings && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="p-6">
-                <Card className="max-w-2xl mx-auto backdrop-blur-xl bg-black/40 border-white/10">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="p-6 pt-24">
+                <Card className="max-w-2xl mx-auto backdrop-blur-xl bg-black/40 border-white/10 shadow-2xl rounded-2xl">
                   <CardHeader>
                     <CardTitle className="text-white">Settings</CardTitle>
                   </CardHeader>
@@ -366,7 +358,7 @@ export default function Page() {
 
             {/* Dataset Manager Tab */}
             {currentTab === TabValue.DatasetManager && (
-              <div className="flex flex-col flex-1 h-screen w-[80vw] mx-auto overflow-hidden animate-in fade-in duration-500 ">
+              <div className="flex flex-col flex-1 h-screen w-[80vw] mx-auto overflow-hidden animate-in fade-in duration-500 pt-24">
                 <DatasetManagerView />
               </div>
             )}

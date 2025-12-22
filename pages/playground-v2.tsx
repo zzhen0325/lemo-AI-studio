@@ -705,11 +705,16 @@ export function PlaygroundV2Page({
         </div>
       </div>
 
-      <ImagePreviewModal
-        isOpen={isImageModalOpen}
-        onClose={closeImageModal}
-        result={selectedResult}
-      />
+      <div className="absolute top-0 left-0 right-0 pt-24 z-80">
+        <ImagePreviewModal
+          isOpen={isImageModalOpen}
+          onClose={closeImageModal}
+          result={selectedResult}
+        />
+
+      </div>
+
+
       <WorkflowSelectorDialog open={isWorkflowDialogOpen} onOpenChange={setIsWorkflowDialogOpen} onSelect={(wf) => setSelectedWorkflowConfig(wf)} onEdit={onEditMapping} />
       <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={config.base_model || selectedModel} onConfirm={(m) => updateConfig({ base_model: m })} />
       <LoraSelectorDialog open={isLoraDialogOpen} onOpenChange={setIsLoraDialogOpen} value={selectedLoras} onConfirm={(list) => setSelectedLoras(list)} />
