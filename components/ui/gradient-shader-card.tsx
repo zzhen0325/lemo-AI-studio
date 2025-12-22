@@ -399,9 +399,20 @@ const GrainyGradient = forwardRef<GrainyGradientRef, GrainyGradientProps>(({ rip
       // Update ripple uniforms
       const activeRipples = ripples.filter(ripple => currentTime - ripple.startTime < 2.0) // 2 second duration
 
-      // Use typed arrays for uniforms
-      const positions = new Float32Array(20).fill(0);
-      const times = new Float32Array(10).fill(0);
+      // Use typed arrays for uniforms - Reuse existing arrays if possible or create once
+      // NOTE: In this specific case, three.js Uniforms utils often expect the same array reference or a fresh one if the length changes.
+      // However, for fixed size shader arrays (ripplePositions[20]), we should maintain a persistent buffer.
+
+      // Ideally we should use a ref to hold these buffers to avoid allocation every frame
+      // optimizing by mutating the existing array values if the prop hasn't caused a re-creation of the uniform value container,
+      // but purely for safety and "react-way", let's use a cached Float32Array ref.
+
+      const positions = uniforms.ripplePositions.value as Float32Array;
+      const times = uniforms.rippleTimes.value as Float32Array;
+
+      // Reset
+      positions.fill(0);
+      times.fill(0);
 
       for (let i = 0; i < Math.min(activeRipples.length, 10); i++) { // Max 10 ripples
         const ripple = activeRipples[i]
@@ -414,8 +425,10 @@ const GrainyGradient = forwardRef<GrainyGradientRef, GrainyGradientProps>(({ rip
         times[i] = currentTime - ripple.startTime;
       }
 
-      uniforms.ripplePositions.value = positions
-      uniforms.rippleTimes.value = times
+      // In Three.js, if we just mutate the array content, we often need to tell the system it needs nested update if it was a simpler object,
+      // but for Uniforms value being a typed array, it usually reads it every frame if it's referenced.
+      // However, to be safe with React Three Fiber's reactive nature, ensuring the uniform value *reference* is stable while content updates is good.
+
       uniforms.rippleCount.value = activeRipples.length
     }
   })

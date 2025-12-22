@@ -633,12 +633,12 @@ export function PlaygroundV2Page({
       <div className={cn(
         "w-full transition-all duration-700 ease-in-out z-50",
         hasGenerated
-          ? "fixed bottom-0 left-0 right-0 pt-10 pb-8 px-4 "
+          ? "fixed top-0 left-0 right-0 pt-10 pb-8 px-4 "
           : "absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
       )}>
         <div className={cn(
-          "flex flex-col items-center -mt-20 w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
-          hasGenerated ? "max-w-[50vw]  mx-auto" : "max-w-4xl"
+          "flex flex-col items-center  w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
+          hasGenerated ? "max-w-[50vw]  mx-auto mt-20" : "max-w-4xl"
         )}>
 
           {/* 

@@ -35,15 +35,15 @@ export default function HistoryList({
   return (
     <div className="relative flex flex-col w-full h-full overflow-y-auto custom-scrollbar">
       {/* 顶部或内容容器 */}
-      <div className="flex flex-wrap justify-center   max-w-[1500px] mx-auto overflow-y-auto h-full rounded-lg px-4 pb-72  pt-32">
+      <div className="flex flex-wrap justify-center   max-w-[1500px] mx-auto overflow-y-auto h-full rounded-lg px-4 pb-32  pt-72">
         {history.map((result) => {
           // Dynamic card width logic based on history count
           let widthClass = "w-[280px]";
           if (history.length === 5) widthClass = "w-[280px]";
-          else if (history.length === 4) widthClass = "w-[360px]";
-          else if (history.length === 3) widthClass = "w-[420px]";
-          else if (history.length === 2) widthClass = "w-[520px]";
-          else if (history.length === 1) widthClass = "w-[520px]";
+          else if (history.length === 4) widthClass = "w-[300px]";
+          else if (history.length === 3) widthClass = "w-[320px]";
+          else if (history.length === 2) widthClass = "w-[320px]";
+          else if (history.length === 1) widthClass = "w-[320px]";
 
           return (
             <div key={result.id} className={`${widthClass} rounded-lg shrink-0`}>
@@ -63,14 +63,14 @@ export default function HistoryList({
       </div>
 
       {/* 底部渐进模糊遮罩 */}
-      <div className="fixed bottom-0 left-0 right-0 h-60 pointer-events-none z-10">
+      {/* <div className="fixed bottom-0 left-0 right-0 h-60 pointer-events-none z-10">
         <ProgressiveBlur
           direction="bottom"
           blurIntensity={2}
           blurLayers={8}
           className="w-full h-full"
         />
-      </div>
+      </div> */}
     </div>
   );
 }

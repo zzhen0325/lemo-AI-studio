@@ -20,6 +20,7 @@ import DatasetManagerView from "@/components/features/dataset/DatasetManagerView
 
 
 import GradientShaderCard from "@/components/ui/gradient-shader-card";
+import WarpFlowCard from "@/components/ui/warp-flow-card";
 import { Canvas } from "@react-three/fiber";
 
 
@@ -188,40 +189,41 @@ export default function Page() {
 
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
-      <header className="fixed top-0  w-full h-14 z-50  rounded-2xl  items-center  text-white ">
-        <div className="flex   items-start  pt-10  pl-10 ">
-          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Playground)}>
-            Playground
-          </Button>
-          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.MappingEditor)}>
-            Mapping Editor
-          </Button>
-
-          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Gallery)}>
-            Gallery
-          </Button>
-
-          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Tools)}>
-            Tools
-          </Button>
-
-          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Settings)}>
-            Settings
-          </Button>
-
-          <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.DatasetManager)}>
-            Dataset
-          </Button>
-
-        </div>
+      <header className="fixed top-2  w-full h-14 z-50  rounded-2xl  items-center  text-white ">
 
 
-        <div className="flex items-center h-full px-4 gap-3">
 
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <h1 className="text-[2rem] text-white text-center font-[family-name:var(--font-instrument)]  font-bold mt-20  ">
-              Lemon8 AI Studio
-            </h1>
+        <div className="flex justify-between h-full px-8 gap-3">
+
+
+          <h1 className="text-[2rem] text-white text-center font-[family-name:var(--font-instrument)] pr-4  mt-4  ">
+            Lemon8 AI Studio
+          </h1>
+
+          <div className="flex   items-end right-2 pt-10  pl-10 ">
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Playground)}>
+              Playground
+            </Button>
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.MappingEditor)}>
+              Mapping Editor
+            </Button>
+
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Gallery)}>
+              Gallery
+            </Button>
+
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Tools)}>
+              Tools
+            </Button>
+
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.Settings)}>
+              Settings
+            </Button>
+
+            <Button variant="outline" className={topbutton} onClick={() => handleTabChange(TabValue.DatasetManager)}>
+              Dataset
+            </Button>
+
           </div>
 
         </div>
@@ -233,6 +235,7 @@ export default function Page() {
             direction='top'
           />
         </div> */}
+
       </header>
 
       <div className="relative flex h-screen justify-center z-10">
@@ -245,11 +248,14 @@ export default function Page() {
         {([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? (
           <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
             {/* Beams Background */}
-            <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden scale-[1.1]">
-              <Canvas className="w-full h-full  scale-y-[1.5]">
-                <GradientShaderCard />
+            <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden ">
+              <Canvas className="w-full h-full]"
+                onCreated={(state) => {
+                  const gl = state.gl;
+                }}
+              >
+                <WarpFlowCard />
               </Canvas>
-
             </div>
 
             <div ref={bgRef} className="absolute inset-0 bg-[#142856] -z-10" />
