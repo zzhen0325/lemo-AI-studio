@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { X, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePlaygroundStore } from "@/lib/store/playground-store";
 
 
 import { RefObject } from "react";
@@ -53,6 +54,27 @@ export function PlaygroundV2Page({
 }) {
 
   const { toast } = useToast();
+  const {
+    config,
+    updateConfig,
+    uploadedImages,
+    setUploadedImages,
+    selectedModel,
+    setSelectedModel,
+    selectedWorkflowConfig,
+    setSelectedWorkflowConfig,
+    selectedLoras,
+    setSelectedLoras,
+  } = usePlaygroundStore();
+
+  const setConfig = (val: GenerationConfig | ((prev: GenerationConfig) => GenerationConfig)) => {
+    if (typeof val === 'function') {
+      updateConfig(val(config));
+    } else {
+      updateConfig(val);
+    }
+  };
+
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isMockMode, setIsMockMode] = useState(false);
   const [isSelectorExpanded, setIsSelectorExpanded] = useState(false);
@@ -60,29 +82,14 @@ export function PlaygroundV2Page({
   const [isInputHovered, setIsInputHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-
-  const [config, setConfig] = useState<GenerationConfig>({
-    prompt: '',
-    img_width: 1376,
-    image_height: 768,
-    gen_num: 1,
-    base_model: 'Nano banana',
-    image_size: '1K',
-    lora: ''
-  });
   const [selectedAIModel, setSelectedAIModel] = useState<AIModel>('gemini');
   const [algorithm] = useState("lemo_2dillustator");
   const [imageFormat] = useState("png");
   const [generationHistory, setGenerationHistory] = useState<GenerationResult[]>([]);
   const [isAspectRatioLocked, setIsAspectRatioLocked] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("Nano banana");
-  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isWorkflowDialogOpen, setIsWorkflowDialogOpen] = useState(false);
   const [isBaseModelDialogOpen, setIsBaseModelDialogOpen] = useState(false);
   const [isLoraDialogOpen, setIsLoraDialogOpen] = useState(false);
-  const [selectedWorkflowConfig, setSelectedWorkflowConfig] = useState<IViewComfy | undefined>(undefined);
-  const [selectedBaseModel, setSelectedBaseModel] = useState<string>("");
-  const [selectedLoras, setSelectedLoras] = useState<SelectedLora[]>([]);
   const [workflows, setWorkflows] = useState<IViewComfy[]>([]);
 
   useEffect(() => {
@@ -101,22 +108,14 @@ export function PlaygroundV2Page({
   }, []);
 
   useEffect(() => {
-    setConfig(prev => ({ ...prev, base_model: selectedBaseModel }));
-  }, [selectedBaseModel]);
-
-  useEffect(() => {
-    setConfig(prev => ({ ...prev, lora: selectedLoras.map(l => l.model_name).join(',') }));
-  }, [selectedLoras]);
-
-  useEffect(() => {
     const path = uploadedImages[0]?.path;
-    setConfig(prev => ({ ...prev, ref_image: path }));
-  }, [uploadedImages]);
+    updateConfig({ ref_image: path });
+  }, [uploadedImages, updateConfig]);
 
   const applyWorkflowDefaults = (workflow: IViewComfy) => {
     const mappingConfig = workflow.viewComfyJSON.mappingConfig as { components: UIComponent[] } | undefined;
     const newConfig = { ...config };
-    let newBaseModel = selectedBaseModel;
+    let newBaseModel = selectedModel;
     const newLoras: SelectedLora[] = [];
 
     if (mappingConfig?.components && Array.isArray(mappingConfig.components) && mappingConfig.components.length > 0) {
@@ -188,7 +187,7 @@ export function PlaygroundV2Page({
       });
     }
     setConfig(newConfig);
-    if (newBaseModel !== selectedBaseModel) setSelectedBaseModel(newBaseModel);
+    if (newBaseModel !== selectedModel) setSelectedModel(newBaseModel);
     if (newLoras.length > 0) setSelectedLoras(newLoras);
   };
 
@@ -293,7 +292,7 @@ export function PlaygroundV2Page({
     setGenerationHistory(prev => [loadingResult, ...prev]);
 
     // 启动后台生成任务 (不等待)
-    executeBackgroundGeneration(taskId, { ...config }, [...uploadedImages], selectedModel, selectedWorkflowConfig, isMockMode);
+    executeBackgroundGeneration(taskId, { ...config }, [...uploadedImages], selectedModel, isMockMode, selectedWorkflowConfig);
   };
 
   const executeBackgroundGeneration = async (
@@ -301,8 +300,8 @@ export function PlaygroundV2Page({
     currentConfig: GenerationConfig,
     currentUploadedImages: UploadedImage[],
     currentModel: string,
+    useMock?: boolean,
     currentWorkflowConfig?: IViewComfy,
-    useMock?: boolean
   ) => {
     try {
       if (useMock) {
@@ -414,7 +413,7 @@ export function PlaygroundV2Page({
             else if (pName === 'width') paramMap.set(key, currentConfig.img_width);
             else if (pName === 'height') paramMap.set(key, currentConfig.image_height);
             else if (pName === 'batch_size') paramMap.set(key, currentConfig.gen_num);
-            else if (pName === 'base_model' && selectedBaseModel) paramMap.set(key, selectedBaseModel);
+            else if (pName === 'base_model' && selectedModel) paramMap.set(key, selectedModel);
             else if (['lora', 'lora1', 'lora2', 'lora3'].includes(pName)) {
               let idx = 0; if (pName === 'lora2') idx = 1; else if (pName === 'lora3') idx = 2;
               if (selectedLoras.length > idx) {
@@ -435,7 +434,7 @@ export function PlaygroundV2Page({
             if (/width/i.test(item.title || "")) return { key: item.key, value: currentConfig.img_width };
             if (/height/i.test(item.title || "")) return { key: item.key, value: currentConfig.image_height };
             if (/batch|数量|batch_size/i.test(item.title || "")) return { key: item.key, value: currentConfig.gen_num };
-            if (selectedBaseModel && /model|模型|path/i.test(item.title || "") && !/lora/i.test(item.title || "")) return { key: item.key, value: selectedBaseModel };
+            if (selectedModel && /model|模型|path/i.test(item.title || "") && !/lora/i.test(item.title || "")) return { key: item.key, value: selectedModel };
             if (selectedLoras.length > 0 && /lora/i.test(item.title || "")) {
               if (/strength|weight|强度/i.test(item.title || "")) return { key: item.key, value: selectedLoras[0].strength };
               return { key: item.key, value: selectedLoras[0].model_name };
@@ -501,99 +500,14 @@ export function PlaygroundV2Page({
   };
 
   const handleRegenerate = async (resultConfig: GenerationConfig) => {
-    const originalConfig = { ...config };
-    const originalModel = selectedModel;
-    try { setConfig(resultConfig); setSelectedModel(resultConfig.base_model || "Seed 3.0"); setTimeout(() => { handleGenerate(); }, 100); }
-    catch { setConfig(originalConfig); setSelectedModel(originalModel); }
+    updateConfig(resultConfig);
+    // 等待状态同步（虽然 zustand 是同步的，但为了逻辑清晰）
+    setTimeout(() => {
+      handleGenerate();
+    }, 0);
   };
 
   const handleDownload = (imageUrl: string) => { const link = document.createElement("a"); link.href = imageUrl; link.download = `PlaygroundV2-${Date.now()}.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
-
-  const handleUsePrompt = useCallback((prompt: string) => {
-    setConfig(prev => ({ ...prev, prompt }));
-    toast({ title: "已应用提示词" });
-  }, [toast]);
-
-  const handleUseModel = useCallback((model: string, configData?: GenerationConfig) => {
-    setSelectedModel(model);
-    if (configData) {
-      setConfig(prev => ({ ...prev, ...configData, base_model: model }));
-    }
-    toast({ title: `已切换至模型: ${model}` });
-  }, [toast]);
-
-  const handleUseImage = useCallback(async (imageUrl: string) => {
-    try {
-      const resp = await fetch(imageUrl);
-      const blob = await resp.blob();
-      const file = new File([blob], `image-${Date.now()}.png`, { type: 'image/png' });
-      const dataUrl = await blobToDataURL(blob);
-      const base64Data = (dataUrl as string).split(',')[1];
-
-      setUploadedImages(prev => [...prev, {
-        file,
-        base64: base64Data,
-        previewUrl: dataUrl as string
-      }]);
-      toast({ title: "图片已添加为参考图" });
-    } catch (error) {
-      console.error("Failed to use image", error);
-      toast({ title: "添加图片失败", variant: "destructive" });
-    }
-  }, [blobToDataURL, toast]);
-  useEffect(() => {
-    const onUsePrompt = (e: Event) => {
-      const d = (e as CustomEvent<string | undefined>).detail;
-      if (typeof d === 'string' && d.length > 0) {
-        handleUsePrompt(d);
-      }
-    };
-    const onUseImage = (e: Event) => {
-      const d = (e as CustomEvent<string | undefined>).detail;
-      if (typeof d === 'string' && d.length > 0) {
-        handleUseImage(d);
-      }
-    };
-    const onUseModel = (e: Event) => {
-      const d = (e as CustomEvent<string | undefined>).detail;
-      if (typeof d === 'string' && d.length > 0) {
-        handleUseModel(d);
-      }
-    };
-    const onRemix = (e: Event) => {
-      type GH = { id: string; url: string; timestamp: string; metadata: { prompt?: string; base_model?: string; img_width: number; img_height: number; lora?: string } | null };
-      const d = (e as CustomEvent<GH | undefined>).detail;
-      if (d && d.metadata) {
-        const m = d.metadata;
-        const newConf: GenerationConfig = {
-          ...config, // 保留现有配置作为基础
-          prompt: m.prompt || '',
-          base_model: m.base_model || selectedModel,
-          lora: m.lora || '',
-          img_width: m.img_width || config.img_width,
-          image_height: m.img_height || config.image_height,
-        };
-
-        // 如果有模型，同时也更新选中的模型状态
-        if (m.base_model) {
-          setSelectedModel(m.base_model);
-        }
-
-        setConfig(newConf);
-        toast({ title: "已恢复所有参数 (Remix)" });
-      }
-    };
-    window.addEventListener('gallery-use-prompt', onUsePrompt as EventListener);
-    window.addEventListener('gallery-use-image', onUseImage as EventListener);
-    window.addEventListener('gallery-use-model', onUseModel as EventListener);
-    window.addEventListener('gallery-remix', onRemix as EventListener);
-    return () => {
-      window.removeEventListener('gallery-use-prompt', onUsePrompt as EventListener);
-      window.removeEventListener('gallery-use-image', onUseImage as EventListener);
-      window.removeEventListener('gallery-use-model', onUseModel as EventListener);
-      window.removeEventListener('gallery-remix', onRemix as EventListener);
-    };
-  }, [selectedModel, config.img_width, config.image_height, config.gen_num, config.image_size, handleUsePrompt, handleUseImage, handleUseModel]);
 
   const openImageModal = (result: GenerationResult) => { setSelectedResult(result); setIsImageModalOpen(true); };
   const closeImageModal = () => {
@@ -678,10 +592,6 @@ export function PlaygroundV2Page({
           onRegenerate={handleRegenerate}
           onDownload={handleDownload}
           onImageClick={openImageModal}
-          isGenerating={isLoading}
-          onUsePrompt={handleUsePrompt}
-          onUseModel={handleUseModel}
-          onUseImage={handleUseImage}
         />
       </div>
 
@@ -766,14 +676,14 @@ export function PlaygroundV2Page({
                 onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)}
                 onImageUpload={handleImageUpload}
                 onGenerate={handleGenerate}
-                isGenerating={false}
+                isGenerating={isLoading}
                 uploadedImagesCount={uploadedImages.length}
                 loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."}
                 onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)}
                 onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)}
                 onOpenLoraSelector={() => setIsLoraDialogOpen(true)}
                 selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title}
-                selectedBaseModelName={selectedBaseModel}
+                selectedBaseModelName={selectedModel}
                 selectedLoraNames={selectedLoras.map(l => l.model_name)}
                 workflows={workflows}
                 onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
@@ -796,7 +706,7 @@ export function PlaygroundV2Page({
         result={selectedResult}
       />
       <WorkflowSelectorDialog open={isWorkflowDialogOpen} onOpenChange={setIsWorkflowDialogOpen} onSelect={(wf) => setSelectedWorkflowConfig(wf)} onEdit={onEditMapping} />
-      <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={selectedBaseModel} onConfirm={(m) => setSelectedBaseModel(m)} />
+      <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={selectedModel} onConfirm={(m) => setSelectedModel(m)} />
       <LoraSelectorDialog open={isLoraDialogOpen} onOpenChange={setIsLoraDialogOpen} value={selectedLoras} onConfirm={(list) => setSelectedLoras(list)} />
     </main>
   );

@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from "framer-motion";
 import Image from 'next/image';
-import { Button } from "@/components/ui/button";
-import { Download, Hash, Search, Calendar, Image as ImageIcon, Type, Box, RefreshCw } from "lucide-react";
+import { Download, Search, Image as ImageIcon, Type, Box, RefreshCw } from "lucide-react";
 import ImagePreviewModal from './ImagePreviewModal';
-import { ProgressiveBlur } from "@/components/motion-primitives/progressive-blur";
 import { TooltipButton } from "@/components/ui/tooltip-button";
+import { usePlaygroundStore } from '@/lib/store/playground-store';
 
 interface HistoryItem {
     id: string;
@@ -24,6 +22,8 @@ export default function GalleryView() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+
+    // actions moved to child component or used directly for clarity
 
     useEffect(() => {
         fetchHistory();
@@ -124,6 +124,7 @@ export default function GalleryView() {
 
 function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick: () => void, onDownload: (e: React.MouseEvent, url: string, filename: string) => void }) {
     const [isHover, setIsHover] = useState(false);
+    const { applyPrompt, applyModel, remix, applyImage } = usePlaygroundStore();
     const performDownload = () => {
         const fakeEvent = { stopPropagation: () => void 0 } as unknown as React.MouseEvent;
         onDownload(fakeEvent, item.url, item.id);
@@ -145,7 +146,7 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                     height={item.metadata?.img_height || 1024}
                     className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-{/* 
+                {/* 
                 <ProgressiveBlur
                     className='pointer-events-none absolute bottom-0 left-0 h-[75%] w-full'
                     blurIntensity={0.5}
@@ -158,16 +159,18 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                 /> */}
 
-              
+
                 {/* Floating Actions - consistent with HistoryList */}
-                <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-50 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`} onClickCapture={(e) => e.stopPropagation()}>
+                <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-50 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`} onClick={(e) => e.stopPropagation()}>
                     <TooltipButton
                         icon={<Type className="w-4 h-4" />}
                         label="Use Prompt"
                         tooltipContent="Use Prompt"
                         tooltipSide="top"
                         className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
-                        onClick={() => { window.dispatchEvent(new CustomEvent('gallery-use-prompt', { detail: item.metadata?.prompt })); }}
+                        onClick={() => {
+                            if (item.metadata?.prompt) applyPrompt(item.metadata.prompt);
+                        }}
                     />
                     <TooltipButton
                         icon={<ImageIcon className="w-4 h-4" />}
@@ -175,7 +178,7 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         tooltipContent="Use Image"
                         tooltipSide="top"
                         className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
-                        onClick={() => { window.dispatchEvent(new CustomEvent('gallery-use-image', { detail: item.url })); }}
+                        onClick={() => applyImage(item.url)}
                     />
                     <TooltipButton
                         icon={<Box className="w-4 h-4" />}
@@ -183,7 +186,9 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         tooltipContent="Use Model"
                         tooltipSide="top"
                         className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
-                        onClick={() => { window.dispatchEvent(new CustomEvent('gallery-use-model', { detail: item.metadata?.base_model })); }}
+                        onClick={() => {
+                            if (item.metadata?.base_model) applyModel(item.metadata.base_model);
+                        }}
                     />
                     <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
                     <TooltipButton
@@ -192,7 +197,19 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         tooltipContent="Recreate"
                         tooltipSide="top"
                         className="w-8 h-8 rounded-xl text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                        onClick={() => { window.dispatchEvent(new CustomEvent('gallery-remix', { detail: item })); }}
+                        onClick={() => {
+                            remix({
+                                config: {
+                                    prompt: item.metadata?.prompt || '',
+                                    base_model: item.metadata?.base_model || 'Nano banana',
+                                    lora: item.metadata?.lora || '',
+                                    img_width: item.metadata?.img_width || 1376,
+                                    image_height: item.metadata?.img_height || 768,
+                                    gen_num: 1,
+                                    image_size: '1K'
+                                }
+                            });
+                        }}
                     />
                     <TooltipButton
                         icon={<Download className="w-4 h-4" />}

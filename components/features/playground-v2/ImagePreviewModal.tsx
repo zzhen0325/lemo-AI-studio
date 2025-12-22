@@ -3,7 +3,7 @@ import { X, ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { motion, AnimatePresence } from 'framer-motion';
-import { GenerationConfig, GenerationResult } from './types';
+import { GenerationResult } from './types';
 
 interface ImagePreviewModalProps {
   isOpen: boolean;

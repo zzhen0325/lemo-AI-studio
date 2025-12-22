@@ -1,12 +1,10 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 import Image from "next/image";
-import { Loader2, RefreshCw, Download, Type, Image as ImageIcon, Box } from "lucide-react";
+import { Download, Type, Image as ImageIcon, Box, RefreshCw, Loader2 } from "lucide-react";
 import { GenerationResult, GenerationConfig } from '@/components/features/playground-v2/types';
-import { ProgressiveBlur } from "@/components/motion-primitives/progressive-blur";
 import { TooltipButton } from "@/components/ui/tooltip-button";
-import { UploadedImage } from "./types";
+import { usePlaygroundStore } from '@/lib/store/playground-store';
 
 
 interface HistoryListProps {
@@ -14,10 +12,6 @@ interface HistoryListProps {
   onRegenerate: (config: GenerationConfig) => void;
   onDownload: (imageUrl: string) => void;
   onImageClick: (result: GenerationResult, initialRect?: DOMRect) => void;
-  isGenerating: boolean;
-  onUsePrompt?: (prompt: string) => void;
-  onUseModel?: (model: string, config: GenerationConfig) => void;
-  onUseImage?: (imageUrl: string) => void;
 }
 
 export default function HistoryList({
@@ -25,10 +19,6 @@ export default function HistoryList({
   onRegenerate,
   onDownload,
   onImageClick,
-  isGenerating,
-  onUsePrompt,
-  onUseModel,
-  onUseImage
 }: HistoryListProps) {
   if (history.length === 0) return null;
 
@@ -52,25 +42,11 @@ export default function HistoryList({
                 onRegenerate={onRegenerate}
                 onDownload={onDownload}
                 onImageClick={onImageClick}
-                isGenerating={isGenerating}
-                onUsePrompt={onUsePrompt}
-                onUseModel={onUseModel}
-                onUseImage={onUseImage}
               />
             </div>
           );
         })}
       </div>
-
-      {/* 底部渐进模糊遮罩 */}
-      {/* <div className="fixed bottom-0 left-0 right-0 h-60 pointer-events-none z-10">
-        <ProgressiveBlur
-          direction="bottom"
-          blurIntensity={2}
-          blurLayers={8}
-          className="w-full h-full"
-        />
-      </div> */}
     </div>
   );
 }
@@ -80,31 +56,22 @@ function HistoryCard({
   onRegenerate,
   onDownload,
   onImageClick,
-  isGenerating,
-  onUsePrompt,
-  onUseModel,
-  onUseImage
 }: {
   result: GenerationResult;
   onRegenerate: (config: GenerationConfig) => void;
   onDownload: (imageUrl: string) => void;
   onImageClick: (result: GenerationResult, initialRect?: DOMRect) => void;
-  isGenerating: boolean;
-  onUsePrompt?: (prompt: string) => void;
-  onUseModel?: (model: string, config: GenerationConfig) => void;
-  onUseImage?: (imageUrl: string) => void;
 }) {
   const [isHover, setIsHover] = React.useState(false);
+  const { applyPrompt, applyModel, applyImage } = usePlaygroundStore();
   const mainImage = result.imageUrl || (result.imageUrls && result.imageUrls[0]);
 
   return (
-    // 整体卡片 - 全图背景结构
     <div
       className="group relative aspect-[3/4] w-full  overflow-hidden bg-black/15  rounded-lg border border-white/10 transition-all duration-300 hover:border-white/30"
       onMouseEnter={() => setIsHover(true)}
       onMouseLeave={() => setIsHover(false)}
     >
-      {/* 1. 背景图片 */}
       <motion.div
         layoutId={`image-${result.id}`}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -127,23 +94,18 @@ function HistoryCard({
             }}
           />
         ) : (
-          <div className="w-full h-full bg-black/20 flex items-center justify-center">
-            {/* Empty state */}
-          </div>
+          <div className="w-full h-full bg-black/20 flex items-center justify-center" />
         )}
       </motion.div>
 
-
-
-      {/* 3. 悬浮操作面板 - Tooltip 风格 floating bar */}
-      <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-50 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`}>
+      <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-50 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`} onClick={(e) => e.stopPropagation()}>
         <TooltipButton
           icon={<Type className="w-4 h-4" />}
           label="Use Prompt"
           tooltipContent="Use Prompt"
           tooltipSide="top"
           className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
-          onClick={() => onUsePrompt?.(result.config.prompt)}
+          onClick={() => applyPrompt(result.config.prompt)}
         />
         <TooltipButton
           icon={<ImageIcon className="w-4 h-4" />}
@@ -151,7 +113,7 @@ function HistoryCard({
           tooltipContent="Use Image"
           tooltipSide="top"
           className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
-          onClick={() => mainImage && onUseImage?.(mainImage)}
+          onClick={() => mainImage && applyImage(mainImage)}
         />
         <TooltipButton
           icon={<Box className="w-4 h-4" />}
@@ -159,7 +121,7 @@ function HistoryCard({
           tooltipContent="Use Model"
           tooltipSide="top"
           className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
-          onClick={() => onUseModel?.(result.config.base_model, result.config)}
+          onClick={() => applyModel(result.config.base_model, result.config)}
         />
         <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
         <TooltipButton
