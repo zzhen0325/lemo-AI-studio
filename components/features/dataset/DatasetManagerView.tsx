@@ -5,6 +5,7 @@ import CollectionList from "./CollectionList";
 import CollectionDetail from "./CollectionDetail";
 
 
+
 export interface DatasetCollection {
     id: string;
     name: string;
@@ -61,26 +62,28 @@ export default function DatasetManagerView() {
 
 
     return (
-        <div className="flex flex-col h-full w-full mx-auto text-white p-4 sm:p-6 overflow-hidden ">
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                {!selectedCollectionId ? (
-                    <CollectionList
-                        collections={collections}
-                        onSelect={setSelectedCollectionId}
-                        isLoading={isLoading}
-                        onRefresh={fetchCollections}
-                        onCreate={handleCreateCollection}
-                        className="w-full mx-auto"
-                    />
-                ) : (
-                    <CollectionDetail
-                        collection={selectedCollection!}
-                        onBack={() => {
-                            setSelectedCollectionId(null);
-                            fetchCollections(); // Refresh on back to update counts/previews
-                        }}
-                    />
-                )}
+        <div className="bg-transparent">
+            <div className="relative z-10 flex flex-col h-full w-full mx-auto text-foreground">
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                    {!selectedCollectionId ? (
+                        <CollectionList
+                            collections={collections}
+                            onSelect={setSelectedCollectionId}
+                            isLoading={isLoading}
+                            onRefresh={fetchCollections}
+                            onCreate={handleCreateCollection}
+                            className="w-full mx-auto"
+                        />
+                    ) : (
+                        <CollectionDetail
+                            collection={selectedCollection!}
+                            onBack={() => {
+                                setSelectedCollectionId(null);
+                                fetchCollections(); // Refresh on back to update counts/previews
+                            }}
+                        />
+                    )}
+                </div>
             </div>
         </div>
     );

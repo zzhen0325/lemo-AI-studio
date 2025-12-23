@@ -4,7 +4,17 @@ import { useState, useEffect, useCallback } from "react";
 import { DatasetCollection } from "./DatasetManagerView";
 import { Button } from "@/components/ui/button";
 import { AutosizeTextarea } from "@/components/ui/autosize-text-area";
-import { ChevronLeft, Download, Scissors, Wand2, Plus, MoreVertical, Loader2, Upload, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { ChevronLeft, Download, Scissors, Wand2, Plus, MoreVertical, Loader2, Upload, Trash2, Save, Tag, Languages, X } from "lucide-react";
 import Image from "next/image";
 import JSZip from "jszip";
 import { useToast } from "@/hooks/common/use-toast";
@@ -19,189 +29,30 @@ interface DatasetImage {
     url: string;
     prompt: string;
     filename: string;
+    isOptimizing?: boolean;
+    isTranslating?: boolean;
 }
+
+
+
+
+const PROMPT_MODIFIERS = [
+    { id: "char_name", label: "角色名", text: "If there is a person/character in the image, they must be referred to as {name}." },
+    { id: "exclude_fixed", label: "固定角色特征", text: "Do not include information about the person/character that cannot be changed (e.g., race, gender, etc.), but still include attributes that can be changed (e.g., hairstyle)." },
+    { id: "light", label: "光照信息", text: "Include information about lighting." },
+    { id: "angle", label: "拍摄角度", text: "Please provide shooting angle information." },
+    { id: "comp", label: "构图风格", text: "Include information about the composition style of the image, such as leading lines, the rule of thirds, or symmetry." },
+    { id: "no_meta", label: "消除AI对话信息", text: "Your response will be used by text-to-image models, so please avoid using useless meta phrases like \"This image shows...\", \"You are viewing...\", etc." },
+];
 
 export default function CollectionDetail({ collection, onBack }: CollectionDetailProps) {
     const [images, setImages] = useState<DatasetImage[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+    const [systemPrompt, setSystemPrompt] = useState("");
+    const [isPromptPanelOpen, setIsPromptPanelOpen] = useState(false);
+    const [batchPrefix, setBatchPrefix] = useState("");
     const { toast } = useToast();
-
-    const fetchImages = useCallback(async () => {
-        try {
-            setIsProcessing(true);
-            const res = await fetch(`/api/dataset?collection=${encodeURIComponent(collection.name)}`);
-            if (!res.ok) {
-                let errMsg = "Failed to load collection images.";
-                try {
-                    const data = await res.json();
-                    errMsg = data?.error || errMsg;
-                } catch {
-                    // ignore
-                }
-                toast({ title: "加载失败", description: errMsg, variant: "destructive" });
-                setImages([]);
-                return;
-            }
-            const data = await res.json();
-            setImages(data.images || []);
-        } catch (error) {
-            console.error("Failed to fetch images", error);
-            toast({ title: "加载失败", description: "无法读取数据集图片", variant: "destructive" });
-        } finally {
-            setIsProcessing(false);
-        }
-    }, [collection, toast]);
-
-    useEffect(() => {
-        fetchImages();
-    }, [fetchImages]); // Refresh when fetchImages (or collection) changes
-
-    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (files.length === 0) return;
-
-        setIsProcessing(true);
-        let successCount = 0;
-
-        try {
-            // Process uploads
-            for (const file of files) {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('collection', collection.name); // Using name as folder name
-
-                // If it's a text file, we might handle it differently or just upload it nearby
-                // Our API handles file storage. 
-                // For this implementation, we just upload everything.
-
-                const res = await fetch('/api/dataset', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (res.ok) successCount++;
-            }
-
-            toast({ title: "Upload complete", description: `Uploaded ${successCount}/${files.length} files.` });
-            fetchImages(); // Refresh list
-
-        } catch (error) {
-            console.error('Upload failed', error);
-            toast({ title: "Upload failed", variant: "destructive" });
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    const handlePromptChange = (id: string, newPrompt: string) => {
-        setImages((prev: DatasetImage[]) => prev.map((img: DatasetImage) => img.id === id ? { ...img, prompt: newPrompt } : img));
-    };
-
-    const handleOptimizeAll = async () => {
-        if (images.length === 0) return;
-        const targets = images.filter((img: DatasetImage) => !img.prompt);
-        if (targets.length === 0) return;
-        setIsProcessing(true);
-        setProgress({ current: 0, total: targets.length });
-        toast({ title: "Optimizing...", description: "Queueing Google GenAI describe for each image." });
-
-        try {
-            let success = 0;
-            for (let idx = 0; idx < targets.length; idx++) {
-                const img = targets[idx];
-                try {
-                    const response = await fetch(img.url);
-                    const blob = await response.blob();
-                    const reader = new FileReader();
-                    const base64 = await new Promise<string>((resolve) => {
-                        reader.onloadend = () => resolve(reader.result as string);
-                        reader.readAsDataURL(blob);
-                    });
-
-                    const apiRes = await fetch("/api/google-genai-describe", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ imageBase64: base64 }),
-                    });
-
-                    if (apiRes.ok) {
-                        const data = await apiRes.json();
-                        setImages(prev => prev.map(i => i.id === img.id ? { ...i, prompt: data.text || i.prompt } : i));
-                        success++;
-                    }
-                } finally {
-                    setProgress({ current: idx + 1, total: targets.length });
-                }
-            }
-            toast({ title: "Success", description: `Described ${success}/${targets.length} images.` });
-        } catch {
-            toast({ title: "Optimization failed", variant: "destructive", description: "Could not connect to Google GenAI." });
-        } finally {
-            setIsProcessing(false);
-            setProgress(null);
-        }
-    };
-
-    const handleCropImage = async (img: DatasetImage) => {
-        setIsProcessing(true);
-        try {
-            const image = new window.Image();
-            image.src = img.url;
-            await new Promise((resolve) => (image.onload = resolve));
-
-            const canvas = document.createElement("canvas");
-            const size = Math.min(image.width, image.height);
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext("2d");
-
-            ctx?.drawImage(
-                image,
-                (image.width - size) / 2, (image.height - size) / 2, size, size,
-                0, 0, size, size
-            );
-
-            const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.95));
-            const newUrl = URL.createObjectURL(blob);
-
-            setImages(prev => prev.map(i => i.id === img.id ? { ...i, url: newUrl } : i));
-            toast({ title: "Crop complete", description: "Image cropped to 1:1 square." });
-        } catch {
-            toast({ title: "Crop failed", variant: "destructive" });
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    const handleOptimizePrompt = async (img: DatasetImage) => {
-        setIsProcessing(true);
-        try {
-            const response = await fetch(img.url);
-            const blob = await response.blob();
-            const reader = new FileReader();
-            const base64 = await new Promise<string>((resolve) => {
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.readAsDataURL(blob);
-            });
-
-            const apiRes = await fetch("/api/google-genai-describe", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ imageBase64: base64 }),
-            });
-
-            if (!apiRes.ok) throw new Error("API call failed");
-            const data = await apiRes.json();
-
-            setImages(prev => prev.map(i => i.id === img.id ? { ...i, prompt: data.text || i.prompt } : i));
-            toast({ title: "Success", description: "Image described by Google GenAI." });
-        } catch {
-            toast({ title: "Optimization failed", variant: "destructive" });
-        } finally {
-            setIsProcessing(false);
-        }
-    };
 
     const handleDeleteImage = async (img: DatasetImage) => {
         if (!window.confirm("Are you sure you want to delete this image?")) return;
@@ -220,6 +71,38 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
             }
         } catch {
             toast({ title: "Delete failed", variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleSaveAllData = async () => {
+        setIsProcessing(true);
+        try {
+            // Build map of all current prompts
+            const promptsMap: Record<string, string> = {};
+            images.forEach(img => {
+                promptsMap[img.filename] = img.prompt;
+            });
+
+            const res = await fetch('/api/dataset', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    collection: collection.name,
+                    prompts: promptsMap,
+                    systemPrompt: systemPrompt
+                })
+            });
+
+            if (!res.ok) throw new Error("Batch save failed");
+
+            setDirtyIds(new Set()); // Clear any dirty tracking
+            setIsSystemPromptDirty(false);
+            toast({ title: "Save Success", description: "All prompts and config saved." });
+        } catch (error) {
+            console.error("Save all failed", error);
+            toast({ title: "Save Failed", description: "Check network connection.", variant: "destructive" });
         } finally {
             setIsProcessing(false);
         }
@@ -293,29 +176,583 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         }
     };
 
+    const [activeTags, setActiveTags] = useState<string[]>([]);
+
+    const handleAddPrefix = () => {
+        if (!batchPrefix.trim()) return;
+        const prefix = batchPrefix.trim();
+
+        // Add to active tags if not present
+        if (!activeTags.includes(prefix)) {
+            setActiveTags([...activeTags, prefix]);
+        }
+
+        const newImages = images.map(img => {
+            let newPrompt = img.prompt || "";
+            // Check if prompt already starts with prefix (ignoring case or exact match? Let's do exact for now but handle comma)
+            const regex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(,\\s*)?`, 'i');
+            if (regex.test(newPrompt)) return img; // Already has prefix
+
+            if (newPrompt) {
+                newPrompt = `${prefix}, ${newPrompt}`;
+            } else {
+                newPrompt = prefix;
+            }
+
+            // Add to dirty list if changed
+            if (newPrompt !== img.prompt) {
+                setDirtyIds(prev => new Set(prev).add(img.id));
+            }
+            return { ...img, prompt: newPrompt };
+        });
+        setImages(newImages);
+        toast({
+            title: "Prefix Added",
+            description: `Added "${prefix}" to all images.`,
+        });
+        setBatchPrefix("");
+    };
+
+    const handleRemoveTag = (tag: string) => {
+        const prefix = tag.trim();
+        const newImages = images.map(img => {
+            let newPrompt = img.prompt || "";
+            // Escape special regex characters in the tag
+            const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`^${escapedPrefix}(,\\s*)?`, 'i'); // Match prefix at start, optional comma space
+
+            if (regex.test(newPrompt)) {
+                newPrompt = newPrompt.replace(regex, '');
+                // Add to dirty list if changed
+                setDirtyIds(prev => new Set(prev).add(img.id));
+                return { ...img, prompt: newPrompt };
+            }
+            return img;
+        });
+        setImages(newImages);
+        setActiveTags(prev => prev.filter(t => t !== tag));
+        toast({
+            title: "Prefix Removed",
+            description: `Removed "${prefix}" from matching images.`,
+        });
+    };
+    const fetchImages = useCallback(async () => {
+        try {
+            setIsProcessing(true);
+            const res = await fetch(`/api/dataset?collection=${encodeURIComponent(collection.name)}`);
+            if (!res.ok) {
+                let errMsg = "Failed to load collection images.";
+                try {
+                    const data = await res.json();
+                    errMsg = data?.error || errMsg;
+                } catch {
+                    // ignore
+                }
+                toast({ title: "加载失败", description: errMsg, variant: "destructive" });
+                setImages([]);
+                return;
+            }
+            const data = await res.json();
+            setImages(data.images || []);
+            setSystemPrompt(data.systemPrompt || "");
+        } catch (error) {
+            console.error("Failed to fetch images", error);
+            toast({ title: "加载失败", description: "无法读取数据集图片", variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [collection, toast]);
+
+    useEffect(() => {
+        fetchImages();
+    }, [fetchImages]); // Refresh when fetchImages (or collection) changes
+
+    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        setIsProcessing(true);
+        let successCount = 0;
+
+        try {
+            // Process uploads
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('collection', collection.name); // Using name as folder name
+
+                // If it's a text file, we might handle it differently or just upload it nearby
+                // Our API handles file storage. 
+                // For this implementation, we just upload everything.
+
+                const res = await fetch('/api/dataset', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) successCount++;
+            }
+
+            toast({ title: "Upload complete", description: `Uploaded ${successCount}/${files.length} files.` });
+            fetchImages(); // Refresh list
+
+        } catch (error) {
+            console.error('Upload failed', error);
+            toast({ title: "Upload failed", variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+
+    const handlePromptChange = (id: string, newPrompt: string) => {
+        setImages((prev: DatasetImage[]) => prev.map((img: DatasetImage) => img.id === id ? { ...img, prompt: newPrompt } : img));
+        setDirtyIds(prev => new Set(prev).add(id));
+    };
+
+    const savePrompt = useCallback(async (img: DatasetImage) => {
+        try {
+            const res = await fetch('/api/dataset', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    collection: collection.name,
+                    filename: img.filename,
+                    prompt: img.prompt
+                })
+            });
+            if (!res.ok) throw new Error("Save failed");
+        } catch (error) {
+            console.error("Failed to save prompt", error);
+        }
+    }, [collection.name]);
+
+    // Auto-save prompts with debounce
+    useEffect(() => {
+        if (dirtyIds.size === 0) return;
+
+        const timer = setTimeout(async () => {
+            const idsToSave = Array.from(dirtyIds);
+            setDirtyIds(new Set());
+
+            for (const id of idsToSave) {
+                const img = images.find(i => i.id === id);
+                if (img) {
+                    await savePrompt(img);
+                }
+            }
+            toast({ title: "已保存", description: "Prompt 已同步" });
+        }, 1200);
+
+        return () => clearTimeout(timer);
+    }, [dirtyIds, images, savePrompt, toast]);
+
+    // Handle System Prompt local change and auto-save
+    const [isSystemPromptDirty, setIsSystemPromptDirty] = useState(false);
+
+    const handleModifierChange = (modifierText: string, checked: boolean) => {
+        let newPrompt = systemPrompt.trim();
+        if (checked) {
+            if (!newPrompt.includes(modifierText)) {
+                newPrompt = newPrompt ? `${newPrompt}\n\n${modifierText}` : modifierText;
+            }
+        } else {
+            // Remove with possible extra newlines
+            newPrompt = newPrompt.replace(modifierText, "").replace(/\n\n+/g, "\n\n").trim();
+        }
+        setSystemPrompt(newPrompt);
+        setIsSystemPromptDirty(true);
+    };
+
+    useEffect(() => {
+        if (!isSystemPromptDirty) return;
+
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch('/api/dataset', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        collection: collection.name,
+                        systemPrompt: systemPrompt
+                    })
+                });
+                if (res.ok) {
+                    setIsSystemPromptDirty(false);
+                    toast({ title: "设置已更新", description: "集合 AI 提示词已保存" });
+                }
+            } catch (error) {
+                console.error("Failed to save system prompt", error);
+            }
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [systemPrompt, isSystemPromptDirty, collection.name, toast]);
+
+
+
+    const handleOptimizeAll = async () => {
+        if (images.length === 0) {
+            toast({ title: "No images", description: "This collection is empty." });
+            return;
+        }
+        // Optimize ALL images, effectively regenerating prompts for everything
+        const targets = images;
+        setIsProcessing(true);
+        setProgress({ current: 0, total: targets.length });
+        toast({ title: "Optimizing...", description: "Queueing Google GenAI describe for each image." });
+
+        try {
+            let success = 0;
+            for (let idx = 0; idx < targets.length; idx++) {
+                const img = targets[idx];
+                try {
+                    const response = await fetch(img.url);
+                    const blob = await response.blob();
+                    const reader = new FileReader();
+                    const base64 = await new Promise<string>((resolve) => {
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(blob);
+                    });
+
+                    const apiRes = await fetch("/api/google-genai-describe", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            imageBase64: base64,
+                            systemPrompt: systemPrompt // Pass system prompt
+                        }),
+                    });
+
+                    if (apiRes.ok) {
+                        const data = await apiRes.json();
+                        setImages(prev => prev.map(i => i.id === img.id ? { ...i, prompt: data.text || i.prompt, isOptimizing: false } : i));
+                        success++;
+                    } else {
+                        setImages(prev => prev.map(i => i.id === img.id ? { ...i, isOptimizing: false } : i));
+                    }
+                } catch {
+                    setImages(prev => prev.map(i => i.id === img.id ? { ...i, isOptimizing: false } : i));
+                } finally {
+                    setProgress({ current: idx + 1, total: targets.length });
+                }
+            }
+            toast({ title: "Success", description: `Described ${success}/${targets.length} images.` });
+        } catch {
+            toast({ title: "Optimization failed", variant: "destructive", description: "Could not connect to Google GenAI." });
+        } finally {
+            setIsProcessing(false);
+            setProgress(null);
+        }
+    };
+
+    const handleOptimizePrompt = async (img: DatasetImage) => {
+        // Set local loading
+        setImages(prev => prev.map(i => i.id === img.id ? { ...i, isOptimizing: true } : i));
+
+        try {
+            // Convert URL to Base64
+            const response = await fetch(img.url);
+            const blob = await response.blob();
+            const reader = new FileReader();
+            const base64 = await new Promise<string>((resolve) => {
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+            });
+
+            const res = await fetch('/api/google-genai-describe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    imageBase64: base64,
+                    systemPrompt: systemPrompt || undefined,
+                }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to optimize');
+            }
+
+            const data = await res.json();
+
+            // Add batch prefix if exists
+            let newPrompt = data.text;
+            if (batchPrefix?.trim()) {
+                const prefix = batchPrefix.trim();
+                if (!newPrompt.toLowerCase().startsWith(prefix.toLowerCase())) {
+                    newPrompt = `${prefix}, ${newPrompt}`;
+                }
+            }
+
+            handlePromptChange(img.id, newPrompt);
+            toast({
+                title: "Optimized successfully",
+                description: "Image prompt has been generated by AI."
+            });
+        } catch (error) {
+            console.error(error);
+            toast({
+                title: "Optimization failed",
+                description: error instanceof Error ? error.message : "Unknown error",
+                variant: "destructive"
+            });
+        } finally {
+            setImages(prev => prev.map(i => i.id === img.id ? { ...i, isOptimizing: false } : i));
+        }
+    };
+
+    const handleTranslatePrompt = async (image: DatasetImage, targetLang: 'en' | 'zh' = 'en') => {
+        if (!image.prompt) return;
+
+        setImages(prev => prev.map(img =>
+            img.id === image.id ? { ...img, isTranslating: true } : img
+        ));
+
+        try {
+            const response = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: image.prompt,
+                    target: targetLang
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Translation failed');
+            }
+
+            // Update prompt
+            handlePromptChange(image.id, data.translatedText);
+
+            toast({
+                title: "Translated successfully",
+                description: `The prompt has been translated to ${targetLang === 'zh' ? 'Chinese' : 'English'}.`,
+            });
+        } catch (error) {
+            console.error('Translation error:', error);
+            toast({
+                title: "Translation failed",
+                description: error instanceof Error ? error.message : "Unknown error",
+                variant: "destructive",
+            });
+        } finally {
+            setImages(prev => prev.map(img =>
+                img.id === image.id ? { ...img, isTranslating: false } : img
+            ));
+        }
+    };
+
+    const handleCropImage = async (img: DatasetImage) => {
+        setIsProcessing(true);
+        try {
+            const image = new window.Image();
+            image.src = img.url;
+            await new Promise((resolve) => (image.onload = resolve));
+
+            const canvas = document.createElement("canvas");
+            const size = Math.min(image.width, image.height);
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+
+            ctx?.drawImage(
+                image,
+                (image.width - size) / 2, (image.height - size) / 2, size, size,
+                0, 0, size, size
+            );
+
+            const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.95));
+            const newUrl = URL.createObjectURL(blob);
+
+            setImages(prev => prev.map(i => i.id === img.id ? { ...i, url: newUrl } : i));
+            toast({ title: "Crop complete", description: "Image cropped to 1:1 square." });
+        } catch {
+            toast({ title: "Crop failed", variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+
+    const handleBatchTranslate = async (targetLang: 'en' | 'zh') => {
+        if (images.length === 0) {
+            toast({ title: "No images", description: "This collection is empty." });
+            return;
+        }
+
+        // Filter images that have prompts
+        const targets = images.filter(img => img.prompt);
+        if (targets.length === 0) {
+            toast({ title: "No prompts", description: "No images have prompts to translate." });
+            return;
+        }
+
+        setIsProcessing(true);
+        setProgress({ current: 0, total: targets.length });
+        toast({ title: "Translating...", description: `Batch translating to ${targetLang === 'zh' ? 'Chinese' : 'English'}...` });
+
+        let successCount = 0;
+
+        try {
+            for (let idx = 0; idx < targets.length; idx++) {
+                const img = targets[idx];
+
+                // Set individual translating state (optional, reusing isProcessing primarily)
+                setImages(prev => prev.map(i => i.id === img.id ? { ...i, isTranslating: true } : i));
+
+                try {
+                    const response = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text: img.prompt,
+                            target: targetLang
+                        }),
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        handlePromptChange(img.id, data.translatedText);
+                        successCount++;
+                    }
+                } catch (error) {
+                    console.error(`Failed to translate image ${img.id}`, error);
+                } finally {
+                    setImages(prev => prev.map(i => i.id === img.id ? { ...i, isTranslating: false } : i));
+                    setProgress({ current: idx + 1, total: targets.length });
+                }
+            }
+            toast({
+                title: "Batch Translation Complete",
+                description: `Translated ${successCount}/${targets.length} prompts.`
+            });
+        } catch {
+            toast({ title: "Batch Translation Failed", variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+            setProgress(null);
+        }
+    };
+
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [newName, setNewName] = useState(collection.name);
+
+    // Sync newName if collection prop changes externally
+    useEffect(() => {
+        setNewName(collection.name);
+    }, [collection.name]);
+
+    const handleRenameCollection = async () => {
+        if (!newName.trim() || newName === collection.name) {
+            setIsEditingName(false);
+            setNewName(collection.name);
+            return;
+        }
+
+        setIsProcessing(true);
+        try {
+            const res = await fetch('/api/dataset', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    collection: collection.name,
+                    newCollectionName: newName.trim()
+                })
+            });
+
+            if (res.ok) {
+                toast({ title: "Renamed", description: "Collection renamed successfully." });
+                // We likely need to trigger a parent update or full reload because the URL or selected collection ID might need to change.
+                // Since this component is likely controlled by a parent that passed `collection`, and `onBack` exists...
+                // Ideally, we should notify the parent. But if the parent lists collections by re-fetching, maybe onBack() is the safest simple route,
+                // OR we just force a page reload if we can't update parent state easily from here without a new prop.
+                // Assuming simple app structure:
+                window.location.reload(); // Simplest way to ensure everything re-syncs if we don't have an onRename prop.
+            } else {
+                const data = await res.json();
+                throw new Error(data.error || "Rename failed");
+            }
+        } catch (error) {
+            toast({
+                title: "Rename Failed",
+                description: error instanceof Error ? error.message : "Could not rename collection",
+                variant: "destructive"
+            });
+            setNewName(collection.name); // Revert
+        } finally {
+            setIsProcessing(false);
+            setIsEditingName(false);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={onBack} className="text-white hover:bg-white/10">
+                    <Button variant="ghost" size="icon" onClick={onBack} className="text-foreground hover:bg-muted">
                         <ChevronLeft className="h-6 w-6" />
                     </Button>
+
                     <div>
-                        <h1 className="text-2xl font-bold">{collection.name}</h1>
-                        <p className="text-sm text-white/40">{images.length} images with prompts</p>
+                        <div className="flex items-center gap-2">
+                            {isEditingName ? (
+                                <Input
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    onBlur={handleRenameCollection}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleRenameCollection()}
+                                    autoFocus
+                                    className="h-8 py-1 text-xl font-bold w-[200px]"
+                                />
+                            ) : (
+                                <h1
+                                    className="text-2xl font-bold text-foreground cursor-pointer hover:bg-muted/50 px-2 rounded -ml-2 transition-colors select-none"
+                                    onDoubleClick={() => setIsEditingName(true)}
+                                    title="Double click to rename"
+                                >
+                                    {collection.name}
+                                </h1>
+                            )}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-primary hover:text-primary hover:bg-primary/10 rounded-lg text-xs"
+                                onClick={() => setIsPromptPanelOpen(!isPromptPanelOpen)}
+                            >
+                                AI Describe Settings
+                                <Wand2 className="ml-1.5 h-3 w-3" />
+                            </Button>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{images.length} images with prompts</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex  items-end gap-2">
+                    <Button
+                        variant="default"
+                        size="sm"
+                        disabled={isProcessing}
+                        onClick={handleSaveAllData}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl gap-2 h-10 px-4 shadow-lg shadow-primary/20"
+                    >
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        <span className="font-semibold">Save All</span>
+                    </Button>
+                    <div className="w-[1px] h-6 bg-border mx-1 mb-2" />
                     <label className="cursor-pointer">
                         <Button
                             variant="outline"
                             asChild
                             disabled={isProcessing}
-                            className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl gap-2 h-10 px-4"
+                            className="text-foreground"
                         >
                             <span>
-                                <Upload className="h-4 w-4" />
+                                <Upload className="h-4 w-4 mr-2" />
                                 <span>Upload</span>
                             </span>
                         </Button>
@@ -325,104 +762,264 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                         variant="outline"
                         disabled={isProcessing}
                         onClick={handleBatchCrop}
-                        className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl gap-2"
+                        className="text-foreground"
                     >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4 mr-2" />}
                         Batch Crop
                     </Button>
                     <Button
                         variant="outline"
                         disabled={isProcessing}
                         onClick={handleOptimizeAll}
-                        className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl gap-2"
+                        className="text-foreground"
                     >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
                         Optimize all prompts
                     </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                disabled={isProcessing}
+                                className="text-foreground"
+                            >
+                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4 mr-2" />}
+                                Translate All
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleBatchTranslate('en')}>
+                                Translate to English
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleBatchTranslate('zh')}>
+                                Translate to Chinese
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                         variant="outline"
                         disabled={isProcessing}
                         onClick={handleExport}
-                        className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl gap-2 text-primary border-primary/20 bg-primary/10"
+                        className="text-foreground"
                     >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
                         Export dataset
                     </Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 relative">
+            {
+                isPromptPanelOpen && (
+                    <div className="p-5 bg-card border border-border rounded-2xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                <Wand2 className="h-4 w-4 text-primary" />
+                                System prompt for this collection
+                            </h3>
+
+                        </div>
+                        <AutosizeTextarea
+                            value={systemPrompt}
+                            onChange={(e) => {
+                                setSystemPrompt(e.target.value);
+                                setIsSystemPromptDirty(true);
+                            }}
+                            className="w-full bg-background border-border text-foreground text-sm p-4 focus:border-primary/50 rounded-xl min-h-[80px]"
+                            placeholder="What is in this image? Describe the main objects and context."
+                        />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 pt-2">
+                            {PROMPT_MODIFIERS.map(m => (
+                                <div key={m.id} className="flex items-start gap-2.5 group cursor-pointer" onClick={() => handleModifierChange(m.text, !systemPrompt.includes(m.text))}>
+                                    <Checkbox
+                                        id={m.id}
+                                        checked={systemPrompt.includes(m.text)}
+                                        className="mt-0.5 border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                        onClick={(e) => e.stopPropagation()}
+                                        onCheckedChange={(checked) => handleModifierChange(m.text, !!checked)}
+                                    />
+                                    <Label
+                                        htmlFor={m.id}
+                                        className="text-[12px] text-muted-foreground group-hover:text-foreground leading-relaxed cursor-pointer transition-colors"
+
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {m.label}
+                                    </Label>
+                                </div>
+                            ))}
+                        </div>
+
+                        <p className="text-[11px] text-muted-foreground italic">
+                            * This prompt will be used for all images in this collection when clicking &quot;Optimize&quot;. Changes are auto-saved.
+                        </p>
+
+                        <div className="border-t border-border my-4"></div>
+
+                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                            <Tag className="h-4 w-4 text-primary" />
+                            Batch Prefix / Trigger Word
+                        </h3>
+                        <div className="flex flex-col gap-3">
+                            <div className="flex gap-2 flex-wrap min-h-[40px] p-2 border border-border rounded-xl bg-background">
+                                {activeTags.map((tag) => (
+                                    <div key={tag} className="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium animate-in fade-in zoom-in-95 duration-200">
+                                        {tag}
+                                        <button
+                                            onClick={() => handleRemoveTag(tag)}
+                                            className="ml-1 hover:text-red-500 focus:outline-none"
+                                            title="Remove prefix"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                                <Input
+                                    value={batchPrefix}
+                                    onChange={(e) => setBatchPrefix(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddPrefix();
+                                        }
+                                    }}
+                                    className="flex-1 bg-transparent border-none text-foreground text-sm focus-visible:ring-0 px-2 h-7"
+                                    placeholder={activeTags.length === 0 ? "Type prefix and press Enter..." : ""}
+                                />
+                            </div>
+                            <Button
+                                variant="secondary"
+                                onClick={handleAddPrefix}
+                                disabled={!batchPrefix.trim()}
+                                className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border"
+                            >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Prefix
+                            </Button>
+                        </div>
+                    </div>
+                )
+            }
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
                 {isProcessing && (
-                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px] rounded-2xl">
-                        <div className="bg-black/80 p-4 rounded-2xl border border-white/10 flex items-center gap-3">
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/20 backdrop-blur-[2px] rounded-2xl">
+                        <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3 shadow-xl">
                             <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                            <span className="text-sm font-medium">
+                            <span className="text-sm font-medium text-foreground">
                                 {progress ? `Processing... (${progress.current}/${progress.total})` : "Processing..."}
                             </span>
                         </div>
                     </div>
                 )}
-                {/* Upload Button Area */}
-                <label className="aspect-[4/5] border-2 border-dashed border-white/20 bg-white/5 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group">
-                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-primary/20 transition-all">
-                        <Plus className="h-6 w-6 text-white/60 group-hover:text-primary" />
+
+                {/* Add Image Button as a card */}
+                <label className="flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-border bg-card/40 rounded-2xl p-10 hover:border-primary/50 hover:bg-primary/5 transition-all group min-h-[300px]">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center group-hover:scale-110 group-hover:bg-primary/20 transition-all">
+                        <Plus className="h-8 w-8 text-muted-foreground group-hover:text-primary" />
                     </div>
-                    <span className="mt-4 text-sm font-medium text-white/60 group-hover:text-primary transition-colors">Add to Collection</span>
+                    <span className="mt-4 text-base font-medium text-muted-foreground group-hover:text-primary transition-colors">Add to Collection</span>
+                    <p className="mt-2 text-xs text-muted-foreground/70 text-center">Support multiple JPG, PNG, WEBP files</p>
                     <input type="file" multiple accept="image/*,.txt" className="hidden" onChange={handleUpload} />
                 </label>
 
                 {/* Image Grid Items */}
                 {images.map((img: DatasetImage) => (
-                    <div key={img.id} className="relative aspect-[4/5] bg-black/40 border border-white/10 rounded-2xl overflow-hidden group">
-                        <div className="h-2/3 relative">
-                            <Image src={img.url} alt="" fill className="object-cover" />
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-black/50">
-                                    <MoreVertical className="h-4 w-4" />
-                                </Button>
+                    <div key={img.id} className="flex flex-col sm:flex-row bg-card border border-border rounded-2xl overflow-hidden group hover:border-primary/30 transition-all duration-300">
+                        {/* Image Section */}
+                        <div className="w-full sm:w-2/5 relative bg-muted/30 min-h-[240px] max-h-[600px] border-b sm:border-b-0 sm:border-r border-border flex items-center justify-center p-4">
+                            <div className="relative w-full h-full min-h-[220px]  ">
+                                <Image
+                                    src={img.url}
+                                    alt=""
+                                    fill
+                                    className="object-contain "
+                                    sizes="(max-width: 768px) 100vw, 40vw "
+                                />
                             </div>
+
+                            {img.isOptimizing && (
+                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                </div>
+                            )}
+
+
                         </div>
-                        <div className="h-1/3 p-3 flex flex-col justify-between bg-black/40">
-                            <AutosizeTextarea
-                                value={img.prompt}
-                                onChange={(e) => handlePromptChange(img.id, e.target.value)}
-                                className="w-full placeholder:text-white/40 bg-white/5 border-white/10 text-white text-xs leading-relaxed p-2 px-3 focus:border-primary/50 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none resize-none transition-all duration-200 rounded-lg custom-scrollbar"
-                                placeholder="Image prompt..."
-                                minHeight={40}
-                            />
-                            <div className="flex items-center justify-between mt-2">
-                                <span className="text-[10px] text-white/30 truncate max-w-[80px]">{img.filename}</span>
-                                <div className="flex gap-1">
+
+                        {/* Content Section */}
+                        <div className="flex-1 p-5 flex flex-col space-y-4 bg-background/50">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                                    <span className="text-xs font-medium text-muted-foreground tracking-tight truncate max-w-[180px]" title={img.filename}>
+                                        {img.filename}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1">
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-6 w-6 text-white/30 hover:text-white hover:bg-white/10"
+                                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
                                         onClick={() => handleOptimizePrompt(img)}
+                                        disabled={img.isOptimizing}
+                                        title="Optimize with AI"
                                     >
-                                        <Wand2 className="h-3 w-3" />
+                                        <Wand2 className={`h-4 w-4 ${img.isOptimizing ? 'animate-pulse' : ''}`} />
                                     </Button>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                                disabled={img.isTranslating}
+                                                title="Translate"
+                                            >
+                                                <Languages className={`h-4 w-4 ${img.isTranslating ? 'animate-pulse' : ''}`} />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => handleTranslatePrompt(img, 'en')}>
+                                                Translate to English
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleTranslatePrompt(img, 'zh')}>
+                                                Translate to Chinese
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-6 w-6 text-white/30 hover:text-white hover:bg-white/10"
+                                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
                                         onClick={() => handleCropImage(img)}
+                                        title="Crop image"
                                     >
-                                        <Scissors className="h-3 w-3" />
+                                        <Scissors className="h-4 w-4" />
                                     </Button>
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-6 w-6 text-white/30 hover:text-destructive hover:bg-destructive/10"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                         onClick={() => handleDeleteImage(img)}
+                                        title="Delete"
                                     >
-                                        <Trash2 className="h-3 w-3" />
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </div>
+
+                            <Textarea
+                                value={img.prompt}
+                                onChange={(e) => handlePromptChange(img.id, e.target.value)}
+                                className="w-full placeholder:text-muted-foreground/50 bg-background border-border text-foreground text-sm leading-relaxed p-2 focus:border-primary/50 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none resize-none transition-all duration-200 rounded-xl custom-scrollbar h-[200px]"
+                                placeholder="Write image description here..."
+                                disabled={img.isOptimizing}
+                            />
                         </div>
                     </div>
                 ))}
             </div>
-        </div>
+        </div >
     );
 }

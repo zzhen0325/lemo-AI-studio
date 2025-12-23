@@ -2,11 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import type { ContentListUnion, PartMediaResolutionLevel } from "@google/genai";
 
+
+// AI反推图片API
+
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const imageBase64: string | undefined = body?.imageBase64;
+    const systemPrompt: string | undefined = body?.systemPrompt;
+
+    // Use systemPrompt if provided, otherwise fallback to promptText or default
     const promptText: string =
+      systemPrompt ||
       body?.promptText ||
       "What is in this image? Describe the main objects and context.";
 
@@ -15,7 +23,7 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey =
-      process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "";
+      process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY || "";
     if (!apiKey) {
       return NextResponse.json(
         { error: "缺少 Google API Key" },

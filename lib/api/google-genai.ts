@@ -23,7 +23,7 @@ export async function fetchGoogleGenAIImage(config: GoogleGenAIConfig): Promise<
 
   try {
     console.log("🔑 初始化 GoogleGenAI 客户端");
-    const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "";
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY || "";
     if (!apiKey) {
       console.error("❌ 缺少 Google API Key，请在环境变量中配置 GOOGLE_API_KEY 或 GOOGLE_GENAI_API_KEY");
       return { error: "缺少 Google API Key，请在环境变量中配置 GOOGLE_API_KEY 或 GOOGLE_GENAI_API_KEY" };

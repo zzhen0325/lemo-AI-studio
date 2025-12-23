@@ -15,6 +15,27 @@ async function ensureDir(dirPath: string) {
     }
 }
 
+// Helper to get collection metadata
+async function getMetadata(collectionPath: string): Promise<{ prompts: Record<string, string>, systemPrompt: string }> {
+    const metaPath = path.join(collectionPath, 'metadata.json');
+    try {
+        const content = await fs.readFile(metaPath, 'utf-8');
+        const data = JSON.parse(content);
+        return {
+            prompts: data.prompts || {},
+            systemPrompt: data.systemPrompt || ""
+        };
+    } catch {
+        return { prompts: {}, systemPrompt: "" };
+    }
+}
+
+// Helper to save collection metadata
+async function saveMetadata(collectionPath: string, data: { prompts: Record<string, string> }) {
+    const metaPath = path.join(collectionPath, 'metadata.json');
+    await fs.writeFile(metaPath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const collectionName = searchParams.get('collection');
@@ -32,32 +53,52 @@ export async function GET(request: Request) {
             }
 
             const files = await fs.readdir(collectionPath);
+            const metadata = await getMetadata(collectionPath);
 
             // Filter image files
             const imageFiles = files.filter(file => /\.(jpg|jpeg|png|webp|gif)$/i.test(file));
 
-            // Read prompts from corresponding .txt files
             const images = await Promise.all(imageFiles.map(async (file) => {
-                const nameWithoutExt = file.replace(/\.[^/.]+$/, "");
-                const txtFile = `${nameWithoutExt}.txt`;
-                let prompt = "";
+                let prompt = metadata.prompts[file] || "";
 
-                try {
-                    const txtContent = await fs.readFile(path.join(collectionPath, txtFile), 'utf-8');
-                    prompt = txtContent.trim();
-                } catch {
-                    // No prompt file found, ignore
+                // Backward compatibility: check for .txt file if not in metadata
+                if (!prompt) {
+                    const nameWithoutExt = file.replace(/\.[^/.]+$/, "");
+                    const txtFile = `${nameWithoutExt}.txt`;
+                    try {
+                        const txtContent = await fs.readFile(path.join(collectionPath, txtFile), 'utf-8');
+                        prompt = txtContent.trim();
+                        // Optional: Migrate to metadata if found
+                        if (prompt) {
+                            metadata.prompts[file] = prompt;
+                        }
+                    } catch {
+                        // No prompt found
+                    }
                 }
 
                 return {
-                    id: file, // Use filename as ID for simplicity
+                    id: file,
                     filename: file,
                     url: `/dataset/${collectionName}/${file}`,
                     prompt
                 };
             }));
 
-            return NextResponse.json({ images });
+            // If we migrated any prompts, save it back to metadata.json
+            // Check if metadata.prompts has new entries or if it was empty and now has entries
+            // A simple check for length > 0 might not be enough if it was already populated.
+            // A more robust check would be to compare before and after, but for this context,
+            // if any prompt was potentially migrated, we save.
+            // The instruction implies saving if there are any prompts, which is covered by the initial check.
+            if (Object.keys(metadata.prompts).length > 0) {
+                await saveMetadata(collectionPath, metadata);
+            }
+
+            return NextResponse.json({
+                images,
+                systemPrompt: metadata.systemPrompt || ""
+            });
 
         } else {
             // List all collections (subdirectories)
@@ -70,7 +111,6 @@ export async function GET(request: Request) {
                     const files = await fs.readdir(dirPath);
                     const imageCount = files.filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f)).length;
 
-                    // Get first 4 images for preview
                     const previews = files
                         .filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f))
                         .slice(0, 4)
@@ -98,8 +138,6 @@ export async function POST(request: Request) {
         const formData = await request.formData();
         const file = formData.get('file') as File;
         const collectionName = formData.get('collection') as string;
-        // The prompt is usually associated with an image name.
-        // Let's stick to the plan: explicit upload.
 
         if (!collectionName) {
             return NextResponse.json({ error: 'Collection name is required' }, { status: 400 });
@@ -108,13 +146,11 @@ export async function POST(request: Request) {
         const collectionPath = path.join(DATASET_DIR, collectionName);
         await ensureDir(collectionPath);
 
-        // If no file, we just created a collection (directory)
         if (!file) {
             return NextResponse.json({ success: true, message: 'Collection created', collectionPath });
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());
-        // Safe filename
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const filePath = path.join(collectionPath, safeName);
 
@@ -139,8 +175,6 @@ export async function DELETE(request: Request) {
 
         const collectionPath = path.join(DATASET_DIR, collectionName);
         const filePath = path.join(collectionPath, filename);
-        const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
-        const txtPath = path.join(collectionPath, `${nameWithoutExt}.txt`);
 
         // Delete image
         try {
@@ -149,16 +183,81 @@ export async function DELETE(request: Request) {
             console.warn(`Could not delete image file: ${filePath}`, e);
         }
 
-        // Delete prompt file
+        // Update metadata.json
         try {
-            await fs.unlink(txtPath);
+            const metadata = await getMetadata(collectionPath);
+            if (metadata.prompts[filename]) {
+                delete metadata.prompts[filename];
+                await saveMetadata(collectionPath, metadata);
+            }
         } catch (e) {
-            // It's okay if txt file doesn't exist
+            console.error("Failed to update metadata on delete", e);
         }
 
         return NextResponse.json({ success: true, message: 'Deleted successfully' });
     } catch (error) {
         console.error('Dataset Delete Error:', error);
         return NextResponse.json({ error: 'Delete Failed', details: String(error) }, { status: 500 });
+    }
+}
+
+export async function PUT(request: Request) {
+    try {
+        const body = await request.json();
+        const { collection, filename, prompt, systemPrompt } = body;
+
+        if (!collection) {
+            return NextResponse.json({ error: 'Collection name is required' }, { status: 400 });
+        }
+
+        const collectionPath = path.join(DATASET_DIR, collection);
+        await ensureDir(collectionPath);
+
+        const metadata = await getMetadata(collectionPath);
+
+        if (filename) {
+            // Update individual image prompt
+            metadata.prompts[filename] = prompt;
+        }
+
+        if (body.prompts) {
+            // Batch update prompts
+            Object.assign(metadata.prompts, body.prompts);
+        }
+
+        if (systemPrompt !== undefined) {
+            // Update collection system prompt
+            metadata.systemPrompt = systemPrompt;
+        }
+
+        if (body.newCollectionName && body.newCollectionName !== collection) {
+            // Rename collection
+            const newCollectionPath = path.join(DATASET_DIR, body.newCollectionName);
+            try {
+                // Check if target name already exists
+                await fs.access(newCollectionPath);
+                return NextResponse.json({ error: 'Collection with this name already exists' }, { status: 409 });
+            } catch {
+                // Rename directory
+                await fs.rename(collectionPath, newCollectionPath);
+                // Since we renamed, we should use the new path for saving metadata if we were to continue, 
+                // but usually renaming is a standalone or final operation in this flow.
+                // However, we also updated metadata object in memory. We should save it to the NEW path.
+                await saveMetadata(newCollectionPath, metadata);
+
+                return NextResponse.json({
+                    success: true,
+                    message: 'Collection renamed and metadata updated',
+                    newCollectionName: body.newCollectionName
+                });
+            }
+        }
+
+        await saveMetadata(collectionPath, metadata);
+
+        return NextResponse.json({ success: true, message: 'Metadata updated' });
+    } catch (error) {
+        console.error('Dataset Update Error:', error);
+        return NextResponse.json({ error: 'Update Failed', details: String(error) }, { status: 500 });
     }
 }

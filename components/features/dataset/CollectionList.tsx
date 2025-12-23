@@ -33,9 +33,9 @@ export default function CollectionList({
     return (
         <div className={`space-y-6 w-full max-w-8xl ${className || ''}`}>
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold">Datasets</h1>
+                <h1 className="text-2xl font-bold text-foreground">Datasets</h1>
                 <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" onClick={onRefresh} className="text-white/50 hover:text-white">
+                    <Button variant="ghost" size="icon" onClick={onRefresh} className="text-muted-foreground hover:text-foreground">
                         <RefreshCw className="w-4 h-4" />
                     </Button>
                     <Button
@@ -56,13 +56,13 @@ export default function CollectionList({
                 {collections.map((col) => (
                     <Card
                         key={col.id}
-                        className="bg-black/40 border-white/10 overflow-hidden hover:border-white/20 transition-all cursor-pointer group"
+                        className="bg-card border-border overflow-hidden hover:border-primary/50 transition-all cursor-pointer group"
                         onClick={() => onSelect(col.id)}
                     >
                         <CardContent className="p-0 aspect-square relative">
-                            <div className="grid grid-cols-2 grid-rows-2 h-full gap-0.5 bg-white/5">
+                            <div className="grid grid-cols-2 grid-rows-2 h-full gap-0.5 bg-muted">
                                 {[0, 1, 2, 3].map((i) => (
-                                    <div key={i} className="relative bg-white/5 flex items-center justify-center overflow-hidden">
+                                    <div key={i} className="relative bg-muted/50 flex items-center justify-center overflow-hidden">
                                         {col.previews[i] ? (
                                             <Image
                                                 src={col.previews[i]}
@@ -71,20 +71,20 @@ export default function CollectionList({
                                                 className="object-cover"
                                             />
                                         ) : (
-                                            <div className="w-8 h-8 rounded bg-white/5 border border-white/10" />
+                                            <div className="w-8 h-8 rounded bg-muted border border-border" />
                                         )}
                                     </div>
                                 ))}
                             </div>
                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-black/50" onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground hover:bg-background/80" onClick={(e) => e.stopPropagation()}>
                                     <MoreVertical className="h-4 w-4" />
                                 </Button>
                             </div>
                         </CardContent>
-                        <CardFooter className="p-4 flex flex-col items-start bg-black/20">
-                            <h3 className="font-semibold text-lg">{col.name}</h3>
-                            <p className="text-sm text-white/40">{col.imageCount} images</p>
+                        <CardFooter className="p-4 flex flex-col items-start bg-card/50">
+                            <h3 className="font-semibold text-lg text-card-foreground">{col.name}</h3>
+                            <p className="text-sm text-muted-foreground">{col.imageCount} images</p>
                         </CardFooter>
                     </Card>
                 ))}
