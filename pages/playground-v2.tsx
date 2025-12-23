@@ -17,6 +17,7 @@ import PromptInput from "@/components/features/playground-v2/PromptInput";
 import ControlToolbar from "@/components/features/playground-v2/ControlToolbar";
 import HistoryList from "@/components/features/playground-v2/HistoryList";
 import ImagePreviewModal from "@/components/features/playground-v2/ImagePreviewModal";
+import ImageEditorModal from "@/components/features/playground-v2/ImageEditorModal";
 import { GenerationConfig, GenerationResult, UploadedImage } from "@/components/features/playground-v2/types";
 import WorkflowSelectorDialog from "@/components/features/playground-v2/WorkflowSelectorDialog";
 import BaseModelSelectorDialog from "@/components/features/playground-v2/BaseModelSelectorDialog";
@@ -192,6 +193,8 @@ export function PlaygroundV2Page({
 
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState<GenerationResult | undefined>(undefined);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingImageUrl, setEditingImageUrl] = useState<string>("");
 
   const { generateImage, isGenerating: isGeneratingNano } = useImageGeneration();
   const { editImage, isEditing: isEditingNano } = useImageEditing();
@@ -520,6 +523,44 @@ export function PlaygroundV2Page({
     // Don't clear selectedResult here to allow exit animation to use the data
   };
 
+  const handleEditImage = (result: GenerationResult) => {
+    const url = result.imageUrl || (result.imageUrls && result.imageUrls[0]) || "";
+    if (url) {
+      setEditingImageUrl(url);
+      setIsEditorOpen(true);
+      setIsImageModalOpen(false);
+    }
+  };
+
+  const handleSaveEditedImage = async (dataUrl: string) => {
+    setIsEditorOpen(false);
+    try {
+      // 1. Convert dataUrl to Blob
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `edited-${Date.now()}.png`, { type: 'image/png' });
+
+      // 2. Upload to server to get a path (consistent with standard upload flow)
+      const form = new FormData();
+      form.append('file', file);
+      const uploadResp = await fetch('/api/upload', { method: 'POST', body: form });
+      const uploadJson = await uploadResp.json();
+      const path = uploadResp.ok && uploadJson?.path ? String(uploadJson.path) : undefined;
+
+      // 3. Add to playground state
+      const base64Data = dataUrl.split(',')[1];
+      setUploadedImages(prev => [
+        ...prev,
+        { file, base64: base64Data, previewUrl: dataUrl, path }
+      ]);
+
+      toast({ title: "Image Saved", description: "The edited image has been added to your uploads." });
+    } catch (error) {
+      console.error("Failed to save edited image:", error);
+      toast({ title: "Error", description: "Failed to save edited image", variant: "destructive" });
+    }
+  };
+
 
   // 样式定义
 
@@ -710,6 +751,14 @@ export function PlaygroundV2Page({
           isOpen={isImageModalOpen}
           onClose={closeImageModal}
           result={selectedResult}
+          onEdit={handleEditImage}
+        />
+
+        <ImageEditorModal
+          isOpen={isEditorOpen}
+          imageUrl={editingImageUrl}
+          onClose={() => setIsEditorOpen(false)}
+          onSave={handleSaveEditedImage}
         />
 
       </div>

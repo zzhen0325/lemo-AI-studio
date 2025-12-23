@@ -2,8 +2,11 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Download, Search, Image as ImageIcon, Type, Box, RefreshCw } from "lucide-react";
 import ImagePreviewModal from './ImagePreviewModal';
+import ImageEditorModal from './ImageEditorModal';
 import { TooltipButton } from "@/components/ui/tooltip-button";
 import { usePlaygroundStore } from '@/lib/store/playground-store';
+import { useToast } from '@/hooks/common/use-toast';
+import { GenerationResult } from './types';
 
 interface HistoryItem {
     id: string;
@@ -22,6 +25,10 @@ export default function GalleryView() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [editingImageUrl, setEditingImageUrl] = useState("");
+    const { setUploadedImages } = usePlaygroundStore();
+    const { toast } = useToast();
 
     // actions moved to child component or used directly for clarity
 
@@ -51,6 +58,48 @@ export default function GalleryView() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    };
+
+    const handleEditImage = (result: GenerationResult) => {
+        const url = result.imageUrl || (result.imageUrls && result.imageUrls[0]) || "";
+        if (url) {
+            setEditingImageUrl(url);
+            setIsEditorOpen(true);
+            setSelectedItem(null);
+        }
+    };
+
+    const handleSaveEditedImage = async (dataUrl: string) => {
+        try {
+            // 1. Convert dataUrl to Blob/File
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+            const file = new File([blob], `edited-${Date.now()}.png`, { type: 'image/png' });
+
+            // 2. Upload to server
+            const formData = new FormData();
+            formData.append('file', file);
+            const uploadRes = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadRes.ok) throw new Error("Upload failed");
+            const { path } = await uploadRes.json();
+
+            // 3. Add to playground state
+            const base64Data = dataUrl.split(',')[1];
+            setUploadedImages(prev => [
+                ...prev,
+                { file, base64: base64Data, previewUrl: dataUrl, path }
+            ]);
+
+            setIsEditorOpen(false);
+            toast({ title: "Image Saved", description: "The edited image has been added to your playground uploads." });
+        } catch (error) {
+            console.error("Failed to save edited image:", error);
+            toast({ title: "Error", description: "Failed to save edited image", variant: "destructive" });
+        }
     };
 
     return (
@@ -88,7 +137,7 @@ export default function GalleryView() {
                         </div>
                     </div>
                 ) : (
-                    <div className="columns-1 sm:columns-2 lg:columns-4 xl:columns-6 gap-2 space-y-2">
+                    <div className="columns-1 sm:columns-2 lg:columns-4 xl:columns-6 gap-0 rounded-xl overflow-hidden">
                         {history.map((item) => (
                             <GalleryCard
                                 key={item.id}
@@ -117,6 +166,14 @@ export default function GalleryView() {
                     },
                     timestamp: selectedItem.timestamp
                 } : undefined}
+                onEdit={handleEditImage}
+            />
+
+            <ImageEditorModal
+                isOpen={isEditorOpen}
+                imageUrl={editingImageUrl}
+                onClose={() => setIsEditorOpen(false)}
+                onSave={handleSaveEditedImage}
             />
         </div>
     );
@@ -132,7 +189,7 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
 
     return (
         <div
-            className="break-inside-avoid group relative bg-black/40 border border-white/5 overflow-hidden rounded-[1.5rem] hover:border-white/20 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-pointer translate-z-0"
+            className="break-inside-avoid group relative bg-black /40 border border-white/5 overflow-hidden  hover:border-white/20 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-pointer translate-z-0"
             onClick={onClick}
             onMouseEnter={() => setIsHover(true)}
             onMouseLeave={() => setIsHover(false)}
@@ -161,7 +218,7 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
 
 
                 {/* Floating Actions - consistent with HistoryList */}
-                <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-50 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`} onClick={(e) => e.stopPropagation()}>
+                <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1  bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-50 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`} onClick={(e) => e.stopPropagation()}>
                     <TooltipButton
                         icon={<Type className="w-4 h-4" />}
                         label="Use Prompt"

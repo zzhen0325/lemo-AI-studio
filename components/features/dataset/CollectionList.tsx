@@ -3,8 +3,14 @@
 import { DatasetCollection } from "./DatasetManagerView";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Loader2, RefreshCw } from "lucide-react";
+import { MoreVertical, Loader2, RefreshCw, Download, Copy, Trash2 } from "lucide-react";
 import Image from "next/image";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface CollectionListProps {
     collections: DatasetCollection[];
@@ -12,6 +18,9 @@ interface CollectionListProps {
     isLoading?: boolean;
     onRefresh?: () => void;
     onCreate?: (name: string) => void;
+    onExport?: (id: string, name: string) => void;
+    onCopy?: (id: string, name: string) => void;
+    onDelete?: (id: string, name: string) => void;
     className?: string;
 }
 
@@ -21,6 +30,9 @@ export default function CollectionList({
     isLoading,
     onRefresh,
     onCreate,
+    onExport,
+    onCopy,
+    onDelete,
     className
 }: CollectionListProps) {
     if (isLoading) {
@@ -76,15 +88,46 @@ export default function CollectionList({
                                     </div>
                                 ))}
                             </div>
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground hover:bg-background/80" onClick={(e) => e.stopPropagation()}>
-                                    <MoreVertical className="h-4 w-4" />
-                                </Button>
-                            </div>
+
                         </CardContent>
-                        <CardFooter className="p-4 flex flex-col items-start bg-card/50">
-                            <h3 className="font-semibold text-lg text-card-foreground">{col.name}</h3>
-                            <p className="text-sm text-muted-foreground">{col.imageCount} images</p>
+                        <CardFooter className="p-4 flex  justify-between items-center bg-card/50">
+                            <div className="flex flex-col">
+                                <h3 className="font-semibold text-lg text-card-foreground">{col.name}</h3>
+                                <p className="text-sm text-muted-foreground">{col.imageCount} images</p>
+
+                            </div>
+
+                            <div className="border border-transparent hover:border-white/20 rounded-lg">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-white bg-black/40 hover:bg-black/60 rounded-lg"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-40">
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onExport?.(col.id, col.name); }}>
+                                            <Download className="mr-2 h-4 w-4" />
+                                            <span>Export</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCopy?.(col.id, col.name); }}>
+                                            <Copy className="mr-2 h-4 w-4" />
+                                            <span>Copy</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className="text-destructive focus:text-destructive"
+                                            onClick={(e) => { e.stopPropagation(); onDelete?.(col.id, col.name); }}
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            <span>Delete</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </CardFooter>
                     </Card>
                 ))}

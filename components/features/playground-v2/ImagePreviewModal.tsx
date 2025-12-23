@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, RefreshCw, Pencil } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,9 +9,10 @@ interface ImagePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   result?: GenerationResult;
+  onEdit?: (result: GenerationResult) => void;
 }
 
-export default function ImagePreviewModal({ isOpen, onClose, result }: ImagePreviewModalProps) {
+export default function ImagePreviewModal({ isOpen, onClose, result, onEdit }: ImagePreviewModalProps) {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
@@ -73,33 +74,8 @@ export default function ImagePreviewModal({ isOpen, onClose, result }: ImagePrev
           />
 
           {/* Main Content */}
-          <div className="relative flex-1 flex items-center justify-center overflow-hidden pointer-events-none">
-            {/* Control Bar */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ delay: 0.2 }}
-              className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 rounded-full bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl pointer-events-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleZoomOut}>
-                <ZoomOut className="w-5 h-5" />
-              </Button>
-              <div className="w-px h-4 bg-white/10 mx-1" />
-              <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleReset}>
-                <RefreshCw className="w-5 h-5" />
-              </Button>
-              <div className="w-px h-4 bg-white/10 mx-1" />
-              <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleZoomIn}>
-                <ZoomIn className="w-5 h-5" />
-              </Button>
-              <div className="w-px h-8 bg-white/10 mx-2" />
-              <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full bg-white/10 text-white hover:bg-red-500 hover:text-white transition-colors" onClick={onClose}>
-                <X className="w-5 h-5" />
-              </Button>
-            </motion.div>
-
+          <div className="relative flex-1 h-full flex items-center justify-center overflow-hidden pointer-events-none">
+            {/* Image Viewport */}
             <div
               className="w-full h-full flex items-center justify-center cursor-move pointer-events-auto"
               onMouseDown={handleMouseDown}
@@ -131,6 +107,45 @@ export default function ImagePreviewModal({ isOpen, onClose, result }: ImagePrev
                 />
               </motion.div>
             </div>
+
+            {/* Control Bar - Moved after image container to be on top */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ delay: 0.2 }}
+              className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-3 rounded-full bg-black/60 backdrop-blur-2xl border border-white/20 shadow-2xl pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleZoomOut}>
+                <ZoomOut className="w-5 h-5" />
+              </Button>
+              <div className="w-px h-4 bg-white/10 mx-1" />
+              <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleReset}>
+                <RefreshCw className="w-5 h-5" />
+              </Button>
+              <div className="w-px h-4 bg-white/10 mx-1" />
+              <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={handleZoomIn}>
+                <ZoomIn className="w-5 h-5" />
+              </Button>
+              <div className="w-px h-8 bg-white/10 mx-2" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-10 px-4 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 transition-all font-bold gap-2 shadow-lg shadow-emerald-500/20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.(result);
+                }}
+              >
+                <Pencil className="w-4 h-4" />
+                Edit
+              </Button>
+              <div className="w-px h-8 bg-white/10 mx-2" />
+              <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full bg-white/10 text-white hover:bg-red-500 hover:text-white transition-colors" onClick={onClose}>
+                <X className="w-5 h-5" />
+              </Button>
+            </motion.div>
           </div>
 
           {/* Sidebar */}
@@ -139,7 +154,7 @@ export default function ImagePreviewModal({ isOpen, onClose, result }: ImagePrev
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="w-[360px] h-full bg-black/40 backdrop-blur-3xl border-l border-white/10 flex flex-col hidden md:flex z-[70]"
+            className="w-[360px] h-full bg-black/40 backdrop-blur-3xl border-l border-white/10 hidden md:flex flex-col z-[70]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-8 border-b border-white/10 flex items-center justify-between">

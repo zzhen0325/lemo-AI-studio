@@ -12,6 +12,7 @@ interface HistoryListProps {
   onRegenerate: (config: GenerationConfig) => void;
   onDownload: (imageUrl: string) => void;
   onImageClick: (result: GenerationResult, initialRect?: DOMRect) => void;
+  isGenerating?: boolean;
 }
 
 export default function HistoryList({

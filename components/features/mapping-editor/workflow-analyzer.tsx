@@ -5,24 +5,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { 
-  Layers, 
+import {
+  Layers,
   Info,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  Box,
+  Hash
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { WorkflowApiJSON } from "@/lib/workflow-api-parser";
 import { UIComponent } from "@/types/features/mapping-editor";
 
 interface RawWorkflowNode {
-    inputs: Record<string, any>;
-    class_type: string;
-    _meta?: {
-        title?: string;
-    };
-    [key: string]: any;
+  inputs: Record<string, any>;
+  class_type: string;
+  _meta?: {
+    title?: string;
+  };
+  [key: string]: any;
 }
 
 interface WorkflowAnalyzerProps {
@@ -53,12 +55,12 @@ export function WorkflowAnalyzer({
   // 解析工作流节点
   const parsedNodes = useMemo(() => {
     const nodes: ParsedNode[] = [];
-    
+
     Object.entries(workflowApiJSON).forEach(([nodeId, nodeData]) => {
       // Calculate inputs that are NOT connections (primitive values)
       const primitiveInputCount = nodeData.inputs ? Object.values(nodeData.inputs).filter(v => !Array.isArray(v)).length : 0;
       const inputCount = nodeData.inputs ? Object.keys(nodeData.inputs).length : 0;
-      
+
       // 查找输出连接
       const outputConnections: string[] = [];
       Object.entries(workflowApiJSON).forEach(([otherNodeId, otherNodeData]) => {
@@ -72,8 +74,8 @@ export function WorkflowAnalyzer({
       });
 
       // 检查是否有复杂输入（非基本类型）
-      const hasComplexInputs = nodeData.inputs ? 
-        Object.values(nodeData.inputs).some(value => 
+      const hasComplexInputs = nodeData.inputs ?
+        Object.values(nodeData.inputs).some(value =>
           typeof value === 'object' && !Array.isArray(value)
         ) : false;
 
@@ -95,142 +97,162 @@ export function WorkflowAnalyzer({
   };
 
   const getNodeTypeColor = (classType: string): string => {
-    // 根据节点类型返回不同颜色
     const hash = classType.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
-    
+
     const colors = [
-      "bg-blue-100 text-blue-800",
-      "bg-green-100 text-green-800", 
-      "bg-purple-100 text-purple-800",
-      "bg-orange-100 text-orange-800",
-      "bg-pink-100 text-pink-800",
-      "bg-indigo-100 text-indigo-800"
+      "border-blue-500/30 text-blue-400 bg-blue-500/5",
+      "border-emerald-500/30 text-emerald-400 bg-emerald-500/5",
+      "border-purple-500/30 text-purple-400 bg-purple-500/5",
+      "border-amber-500/30 text-amber-400 bg-amber-500/5",
+      "border-rose-500/30 text-rose-400 bg-rose-500/5",
+      "border-indigo-500/30 text-indigo-400 bg-indigo-500/5"
     ];
-    
+
     return colors[Math.abs(hash) % colors.length];
   };
 
   return (
-    <div className="space-y-4">
-      {/* 节点列表 */}
-      <ScrollArea className="h-[600px]">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {parsedNodes.map((node) => {
-            const isSelected = selectedNode === node.id;
-            const mappedParamCount = Object.keys(node.inputs || {}).filter(key => 
-              existingComponents.some(
-                c => c.mapping.workflowPath.includes(node.id) && c.mapping.parameterKey === key
-              )
-            ).length;
-            
-            const isMapped = mappedParamCount > 0;
-            
-            return (
-              <Card 
-                key={node.id}
-                className={`transition-all duration-200 cursor-pointer ${
-                  isSelected 
-                    ? 'border-orange-500 bg-orange-50 shadow-md ring-1 ring-orange-500' 
-                    : isMapped
-                      ? 'border-green-500 bg-green-50 hover:bg-green-100 hover:shadow-sm'
-                      : 'hover:bg-muted/50 hover:shadow-sm'
-                }`}
-                onClick={() => handleNodeClick(node.id)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                        <div className="text-xs font-medium truncate flex-1 pr-2" title={node._meta?.title || node.class_type}>
-                          {node._meta?.title || node.class_type}
-                        </div>
-                        <Badge variant="secondary" className="font-mono text-[10px] h-5 px-1">
-                          {node.id}
-                        </Badge>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 flex-wrap mt-1">
-                      <Badge 
-                        variant="outline" 
-                        className={`text-[10px] px-1 border-0 ${getNodeTypeColor(node.class_type)}`}
-                      >
-                        {node.class_type}
-                      </Badge>
+    <div className="h-full flex flex-col gap-4">
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-2 text-white/40 text-[10px] uppercase tracking-widest font-bold">
+          <Box className="w-3 h-3" />
+          Workflow Nodes
+        </div>
+        <Badge variant="secondary" className="bg-white/5 text-white/20 border-0 font-mono text-[10px]">
+          {parsedNodes.length} Nodes
+        </Badge>
+      </div>
 
-                      {mappedParamCount > 0 && (
-                        <Badge className="text-[10px] px-1 h-5 bg-green-200 text-green-800 hover:bg-green-200 border-0">
-                          已映射 {mappedParamCount}
-                        </Badge>
-                      )}
-                      
-                      {node.primitiveInputCount > 0 && (
-                        <Badge variant="secondary" className="text-[10px] px-1 h-5 bg-muted">
-                          {node.primitiveInputCount} 参数
-                        </Badge>
-                      )}
-                      {node.hasComplexInputs && (
-                        <Info className="w-3 h-3 text-orange-500" />
-                      )}
-                    </div>
-                  </div>
+      <ScrollArea className="flex-1 -mx-2 px-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-6">
+          <AnimatePresence mode="popLayout">
+            {parsedNodes.map((node, index) => {
+              const isSelected = selectedNode === node.id;
+              const mappedParamCount = Object.keys(node.inputs || {}).filter(key =>
+                existingComponents.some(
+                  c => c.mapping.workflowPath.includes(node.id) && c.mapping.parameterKey === key
+                )
+              ).length;
 
-                  {isSelected && (
-                    <div className="mt-3 pt-3 border-t animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="text-xs font-medium text-muted-foreground mb-2">节点参数</div>
-                      <div className="space-y-1">
-                        {Object.entries(node.inputs || {}).map(([key, value]) => {
-                          const isConnection = Array.isArray(value);
-                          const valueType = isConnection ? "connection" : typeof value;
-                          const isMapped = existingComponents.some(
-                            c => c.mapping.workflowPath.includes(node.id) && c.mapping.parameterKey === key
-                          );
-                          const isParamSelected = selectedParameter === key;
+              const isMapped = mappedParamCount > 0;
 
-                          return (
-                            <div 
-                              key={key}
-                              className={`flex items-center justify-between p-2 rounded-md text-xs cursor-pointer transition-colors ${
-                                isParamSelected 
-                                  ? 'bg-primary/10 text-primary font-medium' 
-                                  : 'hover:bg-muted'
-                              } ${isMapped ? 'border border-green-200 bg-green-50/50' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onParameterSelect?.(node.id, key);
-                              }}
-                            >
-                              <div className="flex items-center gap-2 overflow-hidden">
-                                {isMapped && <CheckCircle2 className="w-3 h-3 text-green-600 flex-shrink-0" />}
-                                <span className="truncate" title={key}>{key}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className={`text-[10px] px-1 h-4 ${
-                                  isConnection ? 'text-orange-600 border-orange-200' : 'text-muted-foreground'
-                                }`}>
-                                  {isConnection ? '连接' : valueType}
-                                </Badge>
-                                {isParamSelected && <ArrowRight className="w-3 h-3" />}
-                              </div>
+              return (
+                <motion.div
+                  key={node.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.02 }}
+                  onClick={() => handleNodeClick(node.id)}
+                  className="cursor-pointer group"
+                >
+                  <Card
+                    className={`transition-all duration-300 border-white/5 bg-white/[0.01] hover:bg-white/[0.03] overflow-hidden relative ${isSelected
+                        ? 'border-white/20 bg-white/5 shadow-2xl ring-1 ring-white/10'
+                        : isMapped
+                          ? 'border-emerald-500/20 bg-emerald-500/[0.02]'
+                          : ''
+                      }`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-[13px] font-semibold text-white/90 truncate group-hover:text-white transition-colors" title={node._meta?.title || node.class_type}>
+                              {node._meta?.title || node.class_type}
                             </div>
-                          );
-                        })}
-                        {Object.keys(node.inputs || {}).length === 0 && (
-                          <div className="text-xs text-muted-foreground italic px-2">无参数</div>
-                        )}
+                            <div className="mt-1 flex items-center gap-1.5">
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] px-1.5 py-0 border leading-relaxed uppercase tracking-wider font-bold ${getNodeTypeColor(node.class_type)}`}
+                              >
+                                {node.class_type}
+                              </Badge>
+                            </div>
+                          </div>
+                          <Badge variant="secondary" className="font-mono text-[10px] h-5 px-1.5 bg-white/5 text-white/30 border-white/5">
+                            #{node.id}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {mappedParamCount > 0 && (
+                            <Badge className="text-[9px] px-1.5 h-5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20">
+                              Mapped {mappedParamCount}
+                            </Badge>
+                          )}
+
+                          {node.primitiveInputCount > 0 && (
+                            <div className="flex items-center gap-1 text-white/20">
+                              <Hash className="w-3 h-3" />
+                              <span className="text-[10px] font-medium">{node.primitiveInputCount} params</span>
+                            </div>
+                          )}
+                          {node.hasComplexInputs && (
+                            <Info className="w-3 h-3 text-amber-500/50" />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-          
+
+                      {isSelected && (
+                        <motion.div
+                          className="mt-4 pt-4 border-t border-white/5 space-y-1.5"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                        >
+                          <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest mb-2 px-1">Parameters</div>
+                          <div className="space-y-1">
+                            {Object.entries(node.inputs || {}).map(([key, value]) => {
+                              const isConnection = Array.isArray(value);
+                              const valueType = isConnection ? "connection" : typeof value;
+                              const isMapped = existingComponents.some(
+                                c => c.mapping.workflowPath.includes(node.id) && c.mapping.parameterKey === key
+                              );
+                              const isParamSelected = selectedParameter === key;
+
+                              return (
+                                <div
+                                  key={key}
+                                  className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all ${isParamSelected
+                                      ? 'bg-white/10 text-white font-medium border border-white/10'
+                                      : 'text-white/40 hover:bg-white/5 hover:text-white/60'
+                                    } ${isMapped ? 'bg-emerald-500/[0.03] text-emerald-400 border-white/0' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onParameterSelect?.(node.id, key);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 overflow-hidden">
+                                    {isMapped && <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />}
+                                    <span className="truncate" title={key}>{key}</span>
+                                  </div>
+                                  <Badge variant="outline" className={`text-[9px] px-1.5 h-4 border-white/5 font-mono ${isConnection ? 'text-amber-500/50 border-amber-500/10' : 'text-white/20'
+                                    }`}>
+                                    {isConnection ? 'LINK' : valueType.toUpperCase()}
+                                  </Badge>
+                                </div>
+                              );
+                            })}
+                            {Object.keys(node.inputs || {}).length === 0 && (
+                              <div className="text-[10px] text-white/20 italic px-2 py-4 text-center">No configurable parameters</div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+
           {parsedNodes.length === 0 && (
-            <div className="col-span-full text-center py-8 text-muted-foreground">
-              <Layers className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p>暂无节点</p>
+            <div className="col-span-full flex flex-col items-center justify-center py-20 text-white/20">
+              <Layers className="w-12 h-12 mb-4 opacity-10" />
+              <p className="text-sm font-medium">No nodes found in workflow</p>
             </div>
           )}
         </div>

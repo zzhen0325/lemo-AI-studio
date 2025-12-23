@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Download, Hash } from "lucide-react";
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface HistoryItem {
     id: string;
@@ -102,9 +103,11 @@ export default function HistoryPage() {
                                             <Card key={item.id} className="group relative bg-[#121212] border-white/5 overflow-hidden rounded-2xl hover:border-emerald-500/50 transition-all duration-500">
                                                 <CardContent className="p-0">
                                                     <div className="relative aspect-square overflow-hidden">
-                                                        <img
+                                                        <Image
                                                             src={item.url}
                                                             alt="Generated image"
+                                                            width={400}
+                                                            height={400}
                                                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                                         />
                                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">

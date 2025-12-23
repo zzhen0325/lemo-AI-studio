@@ -7,32 +7,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { 
-  ArrowRight, 
-  Plus, 
-  Trash2, 
+import {
+  ArrowRight,
+  Plus,
+  Trash2,
   Edit3,
   Save,
   X,
   Link,
-  Settings
+  Settings,
+  Sparkles,
+  Zap,
+  Check
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-import { 
-  UIComponent, 
+import {
+  UIComponent,
   ComponentType,
 } from "@/types/features/mapping-editor";
 import { WorkflowApiJSON } from "@/lib/workflow-api-parser";
-
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu";
 
 interface ParameterMappingPanelProps {
   workflowApiJSON: WorkflowApiJSON;
@@ -48,17 +42,17 @@ interface ParameterMappingPanelProps {
 }
 
 const PLAYGROUND_TARGETS = [
-  { key: 'prompt', label: '提示词 (Prompt)', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '📝' },
-  { key: 'width', label: '宽度 (Width)', type: 'number' as ComponentType, supportedTypes: ['number', 'string'], icon: '📏' },
-  { key: 'height', label: '高度 (Height)', type: 'number' as ComponentType, supportedTypes: ['number', 'string'], icon: '📏' },
-  { key: 'batch_size', label: '生成数量 (Batch Size)', type: 'number' as ComponentType, supportedTypes: ['number', 'string'], icon: '🔢' },
-  { key: 'base_model', label: '基础模型 (Base Model)', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '🤖' },
-  { key: 'lora1', label: 'LoRA模型 1 (LoRA 1)', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '🧩' },
-  { key: 'lora2', label: 'LoRA模型 2 (LoRA 2)', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '🧩' },
-  { key: 'lora3', label: 'LoRA模型 3 (LoRA 3)', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '🧩' },
-  { key: 'lora1_strength', label: 'LoRA模型 1 强度 (LoRA 1 Strength)', type: 'number' as ComponentType, supportedTypes: ['number'], icon: '⚖️' },
-  { key: 'lora2_strength', label: 'LoRA模型 2 强度 (LoRA 2 Strength)', type: 'number' as ComponentType, supportedTypes: ['number'], icon: '⚖️' },
-  { key: 'lora3_strength', label: 'LoRA模型 3 强度 (LoRA 3 Strength)', type: 'number' as ComponentType, supportedTypes: ['number'], icon: '⚖️' },
+  { key: 'prompt', label: 'Prompt', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '📝' },
+  { key: 'width', label: 'Width', type: 'number' as ComponentType, supportedTypes: ['number', 'string'], icon: '📏' },
+  { key: 'height', label: 'Height', type: 'number' as ComponentType, supportedTypes: ['number', 'string'], icon: '📏' },
+  { key: 'batch_size', label: 'Batch Size', type: 'number' as ComponentType, supportedTypes: ['number', 'string'], icon: '🔢' },
+  { key: 'base_model', label: 'Base Model', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '🤖' },
+  { key: 'lora1', label: 'LoRA 1', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '🧩' },
+  { key: 'lora2', label: 'LoRA 2', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '🧩' },
+  { key: 'lora3', label: 'LoRA 3', type: 'text' as ComponentType, supportedTypes: ['string'], icon: '🧩' },
+  { key: 'lora1_strength', label: 'LoRA 1 Strength', type: 'number' as ComponentType, supportedTypes: ['number'], icon: '⚖️' },
+  { key: 'lora2_strength', label: 'LoRA 2 Strength', type: 'number' as ComponentType, supportedTypes: ['number'], icon: '⚖️' },
+  { key: 'lora3_strength', label: 'LoRA 3 Strength', type: 'number' as ComponentType, supportedTypes: ['number'], icon: '⚖️' },
 ];
 
 export function ParameterMappingPanel({
@@ -73,415 +67,283 @@ export function ParameterMappingPanel({
   editingComponentIndex,
   onCancelEdit
 }: ParameterMappingPanelProps) {
-  // Internal editing index only used for inline actions if needed, 
-  // but we primarily use editingComponentIndex prop now for the main edit mode
-  const [localEditingIndex, setLocalEditingIndex] = useState<number | null>(null); 
+  const [localEditingIndex, setLocalEditingIndex] = useState<number | null>(null);
   const [newComponent, setNewComponent] = useState<Partial<UIComponent> | null>(null);
-  
-  // Determine effective editing index (prop has priority)
-  const effectiveEditingIndex = editingComponentIndex !== undefined && editingComponentIndex !== null 
-    ? editingComponentIndex 
+
+  const effectiveEditingIndex = editingComponentIndex !== undefined && editingComponentIndex !== null
+    ? editingComponentIndex
     : localEditingIndex;
 
-  // 获取当前选中节点的信息
   const selectedNodeInfo = useMemo(() => {
-    if (!selectedNode || !workflowApiJSON[selectedNode]) {
-      return null;
-    }
+    if (!selectedNode || !workflowApiJSON[selectedNode]) return null;
     const node = workflowApiJSON[selectedNode];
-    return {
-      id: selectedNode,
-      class_type: node.class_type,
-      inputs: node.inputs || {}
-    };
+    return { id: selectedNode, class_type: node.class_type, inputs: node.inputs || {} };
   }, [selectedNode, workflowApiJSON]);
 
-  // 获取当前选中参数的信息
   const selectedParameterInfo = useMemo(() => {
-    if (!selectedNode || !selectedParameter || !workflowApiJSON[selectedNode]) {
-      return null;
-    }
-
+    if (!selectedNode || !selectedParameter || !workflowApiJSON[selectedNode]) return null;
     const node = workflowApiJSON[selectedNode];
     const parameterValue = node.inputs?.[selectedParameter];
-    
-    if (parameterValue === undefined) {
-      return null;
-    }
-
-    const isConnection = Array.isArray(parameterValue);
-    const valueType = isConnection ? "connection" : typeof parameterValue;
-    
+    if (parameterValue === undefined) return null;
     return {
       nodeId: selectedNode,
       parameterKey: selectedParameter,
       currentValue: parameterValue,
-      valueType,
-      isConnection,
+      valueType: Array.isArray(parameterValue) ? "connection" : typeof parameterValue,
+      isConnection: Array.isArray(parameterValue),
       nodeClass: node.class_type
     };
   }, [selectedNode, selectedParameter, workflowApiJSON]);
 
-  // 检查参数是否已经有映射
   const existingMappingIndex = useMemo(() => {
     if (!selectedNode || !selectedParameter) return -1;
-    
     return existingComponents.findIndex(comp =>
-      comp.mapping.workflowPath.includes(selectedNode) && 
-      comp.mapping.parameterKey === selectedParameter
+      comp.mapping.workflowPath.includes(selectedNode) && comp.mapping.parameterKey === selectedParameter
     );
   }, [selectedNode, selectedParameter, existingComponents]);
-
-  const createPlaygroundMapping = (targetKey: string) => {
-    if (!selectedParameterInfo) return;
-    handleDirectMapping(
-        selectedParameterInfo.nodeId, 
-        selectedParameterInfo.parameterKey, 
-        selectedParameterInfo.currentValue, 
-        targetKey
-    );
-  };
 
   const handleDirectMapping = (nodeId: string, parameterKey: string, currentValue: any, targetKey: string) => {
     const target = PLAYGROUND_TARGETS.find(t => t.key === targetKey);
     if (!target) return;
-
     const component: UIComponent = {
       id: `pg_map_${Date.now()}`,
       type: target.type,
       label: target.label,
-      properties: {
-        defaultValue: currentValue,
-        paramName: target.key, // 关键：用于标识这是 Playground 参数
-        placeholder: `Mapped to ${target.label}`
-      },
+      properties: { defaultValue: currentValue, paramName: target.key, placeholder: `Mapped to ${target.label}` },
       validation: {},
-      mapping: {
-        workflowPath: [nodeId, "inputs", parameterKey],
-        parameterKey: parameterKey,
-        defaultValue: currentValue
-      },
+      mapping: { workflowPath: [nodeId, "inputs", parameterKey], parameterKey: parameterKey, defaultValue: currentValue },
       orderIndex: existingComponents.length
     };
-
     onComponentCreate?.(component);
-  };
-
-  const saveNewMapping = () => {
-    if (!newComponent) return;
-
-    onComponentCreate?.(newComponent as UIComponent);
-    setNewComponent(null);
-  };
-
-  const cancelNewMapping = () => {
-    setNewComponent(null);
-  };
-
-  const startEditMapping = (index: number) => {
-    setLocalEditingIndex(index);
-  };
-
-  const saveEditMapping = (index: number, component: UIComponent) => {
-    onComponentUpdate?.(index, component);
-    setLocalEditingIndex(null);
-    onCancelEdit?.();
-  };
-
-  const cancelEditMapping = () => {
-    setLocalEditingIndex(null);
-    onCancelEdit?.();
-  };
-
-  const deleteMapping = (index: number) => {
-    onComponentDelete?.(index);
   };
 
   const getValueTypeColor = (type: string) => {
     switch (type) {
-      case "string": return "bg-green-100 text-green-800";
-      case "number": return "bg-blue-100 text-blue-800";
-      case "boolean": return "bg-purple-100 text-purple-800";
-      case "connection": return "bg-orange-100 text-orange-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "string": return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+      case "number": return "text-blue-400 bg-blue-400/10 border-blue-400/20";
+      case "connection": return "text-amber-400 bg-amber-400/10 border-amber-400/20";
+      default: return "text-white/40 bg-white/5 border-white/10";
     }
-  };
-
-  const getComponentTypeIcon = (component: UIComponent) => {
-    // 优先查找 Playground 映射图标
-    if (component.properties.paramName) {
-      const target = PLAYGROUND_TARGETS.find(t => t.key === component.properties.paramName);
-      if (target) return target.icon;
-    }
-    // 后备图标
-    return "🔧";
   };
 
   return (
-    <div className="space-y-4">
-      {/* 当前选中参数信息 */}
-      {selectedParameterInfo && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">选中参数</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">节点 {selectedParameterInfo.nodeId}</Badge>
-              <ArrowRight className="w-3 h-3 text-muted-foreground" />
-              <Badge variant="outline">{selectedParameterInfo.parameterKey}</Badge>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">节点类型:</span>
-                <Badge variant="outline" className="text-xs">
-                  {selectedParameterInfo.nodeClass}
-                </Badge>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">参数类型:</span>
-                <Badge 
-                  variant="secondary" 
-                  className={`text-xs ${getValueTypeColor(selectedParameterInfo.valueType)}`}
-                >
-                  {selectedParameterInfo.valueType}
-                  {selectedParameterInfo.isConnection && <Link className="w-3 h-3 ml-1" />}
-                </Badge>
-              </div>
-              
-              <div className="text-sm">
-                <span className="text-muted-foreground">当前值:</span>
-                <div className="mt-1 p-2 bg-muted/30 rounded text-xs font-mono break-all">
-                  {JSON.stringify(selectedParameterInfo.currentValue)}
+    <div className="h-full flex flex-col gap-6">
+      <AnimatePresence mode="wait">
+        {selectedParameterInfo ? (
+          <motion.div
+            key="selected"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-6"
+          >
+            <Card className="bg-white/[0.02] border-white/5 backdrop-blur-3xl overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/50" />
+              <CardHeader className="pb-4 border-b border-white/5">
+                <CardTitle className="text-[12px] font-bold text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <Sparkles className="w-3 h-3 text-blue-400" />
+                  Selected Parameter
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="bg-white/5 border-white/10 text-white/60 font-mono text-[10px] py-1">Node #{selectedParameterInfo.nodeId}</Badge>
+                  <ArrowRight className="w-3 h-3 text-white/20" />
+                  <Badge variant="outline" className="bg-blue-500/10 border-blue-500/20 text-blue-400 font-mono text-[10px] py-1">{selectedParameterInfo.parameterKey}</Badge>
                 </div>
-              </div>
-            </div>
 
-            {selectedParameterInfo.isConnection ? (
-              <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                <div className="flex items-center gap-2 text-orange-800">
-                  <Link className="w-4 h-4" />
-                  <span className="text-sm font-medium">连接参数</span>
-                </div>
-                <p className="text-xs text-orange-700 mt-1">
-                  此参数连接到其他节点，无法直接映射为UI组件
-                </p>
-              </div>
-            ) : existingMappingIndex >= 0 ? (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-blue-800">
-                    <Settings className="w-4 h-4" />
-                    <span className="text-sm font-medium">已有映射</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Node Type</span>
+                    <div className="text-xs text-white/60 font-medium truncate">{selectedParameterInfo.nodeClass}</div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => startEditMapping(existingMappingIndex)}
-                  >
-                    <Edit3 className="w-3 h-3 mr-1" />
-                    编辑
-                  </Button>
-                </div>
-                <p className="text-xs text-blue-700 mt-1">
-                  此参数已映射为UI组件，可以编辑现有映射
-                </p>
-              </div>
-            ) : (
-              <div>
-                <div className="mb-2">
-                  <Label className="text-sm font-medium mb-2 block">映射到 Playground 参数</Label>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    将此节点参数直接关联到 Playground 的标准输入（如提示词、尺寸等）
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {PLAYGROUND_TARGETS.filter(t => {
-                      // 类型兼容性检查
-                      const valueType = selectedParameterInfo.valueType;
-                      // string 类型可以映射到 text
-                      if (valueType === 'string' && t.supportedTypes.includes('string')) return true;
-                      // number 类型可以映射到 number
-                      if (valueType === 'number' && t.supportedTypes.includes('number')) return true;
-                      // 特殊情况：有些 number 也可以作为 string 输入（如 seed）
-                      return false;
-                    }).map((target) => (
-                      <Button
-                        key={target.key}
-                        variant="secondary"
-                        size="sm"
-                        className="justify-start"
-                        onClick={() => createPlaygroundMapping(target.key)}
-                      >
-                        <span className="mr-2">{target.icon}</span>
-                        {target.label}
-                      </Button>
-                    ))}
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Data Type</span>
+                    <Badge variant="outline" className={`text-[10px] border leading-relaxed ${getValueTypeColor(selectedParameterInfo.valueType)}`}>
+                      {selectedParameterInfo.valueType.toUpperCase()}
+                      {selectedParameterInfo.isConnection && <Link className="w-2.5 h-2.5 ml-1 opacity-50" />}
+                    </Badge>
                   </div>
-                  {PLAYGROUND_TARGETS.filter(t => {
-                      const valueType = selectedParameterInfo.valueType;
-                      if (valueType === 'string' && t.supportedTypes.includes('string')) return true;
-                      if (valueType === 'number' && t.supportedTypes.includes('number')) return true;
-                      return false;
-                  }).length === 0 && (
-                    <div className="text-xs text-muted-foreground italic p-2 bg-muted/30 rounded">
-                      当前参数类型 ({selectedParameterInfo.valueType}) 没有可用的 Playground 映射目标
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Current Value</span>
+                  <div className="p-3 bg-black/20 rounded-xl text-[11px] font-mono text-white/40 border border-white/5 break-all max-h-24 overflow-y-auto leading-relaxed">
+                    {JSON.stringify(selectedParameterInfo.currentValue)}
+                  </div>
+                </div>
+
+                {selectedParameterInfo.isConnection ? (
+                  <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-start gap-4">
+                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <Link className="w-4 h-4 text-amber-500" />
                     </div>
-                  )}
-                </div>
-              </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-amber-500/80 uppercase tracking-wider">Node Connection</h4>
+                      <p className="text-[11px] text-amber-500/50 mt-1 leading-relaxed"> This parameter is driven by another node and cannot be mapped directly to a UI component.</p>
+                    </div>
+                  </div>
+                ) : existingMappingIndex >= 0 ? (
+                  <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        <Check className="w-4 h-4 text-emerald-500" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-emerald-500/80 uppercase tracking-wider">Already Mapped</h4>
+                        <p className="text-[11px] text-emerald-400/30 mt-1 leading-relaxed">Configured and ready. </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-white/40 hover:text-white hover:bg-white/5"
+                      onClick={() => setLocalEditingIndex(existingMappingIndex)}
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4 pt-4 border-t border-white/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Zap className="w-3 h-3 text-blue-400" />
+                      <span className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Quick Connect</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {PLAYGROUND_TARGETS.filter(t => {
+                        const valType = selectedParameterInfo.valueType;
+                        if (valType === 'string' && t.supportedTypes.includes('string')) return true;
+                        if (valType === 'number' && t.supportedTypes.includes('number')) return true;
+                        return false;
+                      }).map((target) => (
+                        <Button
+                          key={target.key}
+                          variant="ghost"
+                          size="sm"
+                          className="justify-start bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-white/10 h-10 px-3 text-[11px] text-white/60 hover:text-white transition-all rounded-xl"
+                          onClick={() => handleDirectMapping(selectedParameterInfo.nodeId, selectedParameterInfo.parameterKey, selectedParameterInfo.currentValue, target.key)}
+                        >
+                          <span className="mr-2 text-lg opacity-80">{target.icon}</span>
+                          {target.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button
+                      className="w-full bg-white text-black hover:bg-white/90 font-bold text-[11px] uppercase tracking-widest h-12 rounded-xl mt-4"
+                      onClick={() => setNewComponent({
+                        label: selectedParameterInfo.parameterKey,
+                        type: selectedParameterInfo.valueType === 'number' ? 'number' : 'text',
+                        properties: { defaultValue: selectedParameterInfo.currentValue },
+                        mapping: { workflowPath: [selectedParameterInfo.nodeId, "inputs", selectedParameterInfo.parameterKey], parameterKey: selectedParameterInfo.parameterKey, defaultValue: selectedParameterInfo.currentValue },
+                        validation: {},
+                        orderIndex: existingComponents.length
+                      })}
+                    >
+                      Create Custom Mapping
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {newComponent && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <Card className="bg-blue-500/5 border-blue-500/20 backdrop-blur-3xl">
+                  <CardHeader className="pb-3 border-b border-blue-500/10">
+                    <CardTitle className="text-[11px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                      <Plus className="w-3 h-3" />
+                      New Mapping Configuration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 space-y-4">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Component Label</Label>
+                        <Input
+                          className="bg-white/5 border-white/5 text-white h-10 rounded-lg focus:border-blue-500/50"
+                          value={newComponent.label || ""}
+                          onChange={(e) => setNewComponent(prev => prev ? { ...prev, label: e.target.value } : null)}
+                          placeholder="Display name in UI..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Default Value</Label>
+                        <Input
+                          className="bg-white/5 border-white/5 text-white h-10 rounded-lg focus:border-blue-500/50"
+                          value={newComponent.properties?.defaultValue || ""}
+                          onChange={(e) => setNewComponent(prev => prev ? { ...prev, properties: { ...prev.properties!, defaultValue: e.target.value } } : null)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold text-[10px] uppercase tracking-widest h-10 rounded-lg" onClick={() => { onComponentCreate?.(newComponent as UIComponent); setNewComponent(null); }}>
+                        Confirm
+                      </Button>
+                      <Button variant="ghost" className="px-3 text-white/40 hover:text-white hover:bg-white/5" onClick={() => setNewComponent(null)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             )}
-          </CardContent>
-        </Card>
-      )}
 
-      {/* 新建映射配置 */}
-      {newComponent && (
-        <Card className="border-primary">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              创建参数映射
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="component-label">组件标签</Label>
-                <Input
-                  id="component-label"
-                  value={newComponent.label || ""}
-                  onChange={(e) => setNewComponent(prev => prev ? {
-                    ...prev,
-                    label: e.target.value
-                  } : null)}
-                  placeholder="输入组件显示标签..."
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="default-value">默认值</Label>
-                <Input
-                  id="default-value"
-                  value={newComponent.properties?.defaultValue || ""}
-                  onChange={(e) => setNewComponent(prev => prev ? {
-                    ...prev,
-                    properties: {
-                      ...prev.properties!,
-                      defaultValue: e.target.value
-                    }
-                  } : null)}
-                  placeholder="输入默认值..."
-                />
-              </div>
+            {effectiveEditingIndex !== null && existingComponents[effectiveEditingIndex] && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <Card className="bg-white/[0.02] border-white/10 backdrop-blur-3xl">
+                  <CardHeader className="pb-3 border-b border-white/5">
+                    <CardTitle className="text-[11px] font-bold text-white/40 uppercase tracking-widest">Edit Mapping</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <MappingEditor
+                      component={existingComponents[effectiveEditingIndex]}
+                      onSave={(updated) => { onComponentUpdate?.(effectiveEditingIndex, updated); setLocalEditingIndex(null); onCancelEdit?.(); }}
+                      onCancel={() => { setLocalEditingIndex(null); onCancelEdit?.(); }}
+                    />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col items-center justify-center p-8 text-center"
+          >
+            <div className="w-20 h-20 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center mb-6">
+              <Settings className="w-8 h-8 text-white/10" />
             </div>
-            
-            <div className="flex gap-2">
-              <Button onClick={saveNewMapping} size="sm">
-                <Save className="w-3 h-3 mr-1" />
-                保存映射
-              </Button>
-              <Button variant="outline" onClick={cancelNewMapping} size="sm">
-                <X className="w-3 h-3 mr-1" />
-                取消
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 现有映射列表 - 如果正在编辑中，显示编辑表单 */}
-      {effectiveEditingIndex !== null && existingComponents[effectiveEditingIndex] && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">编辑映射</CardTitle>
-          </CardHeader>
-          <CardContent>
-              <MappingEditor
-                component={existingComponents[effectiveEditingIndex]}
-                onSave={(updatedComponent) => saveEditMapping(effectiveEditingIndex, updatedComponent)}
-                onCancel={cancelEditMapping}
-              />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 空状态 */}
-      {!selectedParameterInfo && existingComponents.length === 0 && !selectedNodeInfo && (
-        <div className="text-center py-12 text-muted-foreground">
-          <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <h3 className="font-medium mb-2">开始创建参数映射</h3>
-          <p className="text-sm">
-            选择左侧工作流节点中的参数，然后为其创建UI组件映射
-          </p>
-        </div>
-      )}
-
-      {/* 选中节点但未选中参数：提示 */}
-      {selectedNodeInfo && !selectedParameterInfo && effectiveEditingIndex === null && (
-        <div className="text-center py-12 text-muted-foreground">
-           <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
-           <h3 className="font-medium mb-2">选择参数</h3>
-           <p className="text-sm">
-             请在左侧节点卡片中选择一个参数进行映射
-           </p>
-        </div>
-      )}
+            <h3 className="text-sm font-bold text-white/60 uppercase tracking-widest mb-3">Editor Ready</h3>
+            <p className="text-xs text-white/20 leading-relaxed max-w-[240px]">
+              Select a node and pick a parameter from the workflow analyzer to start mapping.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// 映射编辑器组件
-interface MappingEditorProps {
-  component: UIComponent;
-  onSave: (component: UIComponent) => void;
-  onCancel: () => void;
-}
-
-function MappingEditor({ component, onSave, onCancel }: MappingEditorProps) {
-  const [editedComponent, setEditedComponent] = useState<UIComponent>(component);
-
-  const handleSave = () => {
-    onSave(editedComponent);
-  };
-
+function MappingEditor({ component, onSave, onCancel }: { component: UIComponent; onSave: (c: UIComponent) => void; onCancel: () => void; }) {
+  const [edited, setEdited] = useState<UIComponent>(component);
   return (
-    <div className="space-y-3">
-      <div>
-        <Label htmlFor="edit-label">组件标签</Label>
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <Label className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Component Label</Label>
         <Input
-          id="edit-label"
-          value={editedComponent.label}
-          onChange={(e) => setEditedComponent(prev => ({
-            ...prev,
-            label: e.target.value
-          }))}
+          className="bg-white/5 border-white/5 text-white h-10 rounded-lg"
+          value={edited.label}
+          onChange={(e) => setEdited(prev => ({ ...prev, label: e.target.value }))}
         />
       </div>
-      
-      {/* 
-      <div>
-        <Label htmlFor="edit-description">组件描述</Label>
-        <Input
-          id="edit-description"
-          value={editedComponent.description || ""}
-          onChange={(e) => setEditedComponent(prev => ({
-            ...prev,
-            description: e.target.value
-          }))}
-        />
-      </div>
-      */}
-      
       <div className="flex gap-2">
-        <Button onClick={handleSave} size="sm">
-          <Save className="w-3 h-3 mr-1" />
-          保存
+        <Button className="flex-1 bg-white text-black hover:bg-white/90 font-bold text-[10px] uppercase tracking-widest h-10 rounded-lg" onClick={() => onSave(edited)}>
+          Save Changes
         </Button>
-        <Button variant="outline" onClick={onCancel} size="sm">
-          <X className="w-3 h-3 mr-1" />
-          取消
+        <Button variant="ghost" className="px-3 text-white/40 hover:text-white" onClick={onCancel}>
+          Cancel
         </Button>
       </div>
     </div>

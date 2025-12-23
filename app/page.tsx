@@ -25,7 +25,7 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
-import { AuroraBackground } from "@/components/ui/aurora-background";
+
 
 
 
@@ -281,22 +281,7 @@ export default function Page() {
               <Image alt="" src="/images/parallax/front.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
             </div>
           </div>
-        ) : (
-          /* Simple solid background for other tabs */
-          <AuroraBackground
-            className="fixed inset-0 z-0 bg-black"
-            colors={{
-              color1: "#000000",
-              color2: "#184d92ff",
-              color3: "#4d4d4dff",
-              color4: "#999999",
-              color5: "#642e67ff",
-            }}
-          >
-            {/* Empty children requirement satisfied */}
-          </AuroraBackground>
-
-        )}
+        ) : null}
 
 
 

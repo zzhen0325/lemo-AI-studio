@@ -15,6 +15,23 @@ async function ensureDir(dirPath: string) {
     }
 }
 
+// Helper to recursively copy directory
+async function copyDir(src: string, dest: string) {
+    await fs.mkdir(dest, { recursive: true });
+    const entries = await fs.readdir(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
+
+        if (entry.isDirectory()) {
+            await copyDir(srcPath, destPath);
+        } else {
+            await fs.copyFile(srcPath, destPath);
+        }
+    }
+}
+
 // Helper to get collection metadata
 async function getMetadata(collectionPath: string): Promise<{ prompts: Record<string, string>, systemPrompt: string }> {
     const metaPath = path.join(collectionPath, 'metadata.json');
@@ -138,12 +155,28 @@ export async function POST(request: Request) {
         const formData = await request.formData();
         const file = formData.get('file') as File;
         const collectionName = formData.get('collection') as string;
+        const mode = formData.get('mode') as string;
 
         if (!collectionName) {
             return NextResponse.json({ error: 'Collection name is required' }, { status: 400 });
         }
 
         const collectionPath = path.join(DATASET_DIR, collectionName);
+
+        if (mode === 'duplicate') {
+            const newName = formData.get('newName') as string;
+            if (!newName) return NextResponse.json({ error: 'New collection name is required' }, { status: 400 });
+            const newPath = path.join(DATASET_DIR, newName);
+
+            try {
+                await fs.access(newPath);
+                return NextResponse.json({ error: 'Collection already exists' }, { status: 409 });
+            } catch {
+                await copyDir(collectionPath, newPath);
+                return NextResponse.json({ success: true, message: 'Collection duplicated' });
+            }
+        }
+
         await ensureDir(collectionPath);
 
         if (!file) {
@@ -169,11 +202,23 @@ export async function DELETE(request: Request) {
         const collectionName = searchParams.get('collection');
         const filename = searchParams.get('filename');
 
-        if (!collectionName || !filename) {
-            return NextResponse.json({ error: 'Collection and filename are required' }, { status: 400 });
+        if (!collectionName) {
+            return NextResponse.json({ error: 'Collection name is required' }, { status: 400 });
         }
 
         const collectionPath = path.join(DATASET_DIR, collectionName);
+
+        if (!filename) {
+            // Delete entire collection
+            try {
+                await fs.rm(collectionPath, { recursive: true, force: true });
+                return NextResponse.json({ success: true, message: 'Collection deleted' });
+            } catch (e) {
+                console.error("Failed to delete collection", e);
+                return NextResponse.json({ error: 'Delete Collection Failed' }, { status: 500 });
+            }
+        }
+
         const filePath = path.join(collectionPath, filename);
 
         // Delete image

@@ -1,27 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Plus,
+  Play,
+  Info,
   Upload,
   Save,
   Download,
   Settings,
-  FileText,
-  Layers,
-  ArrowRight,
-  Plus,
-  Trash2,
-  Play
+  Layers
 } from "lucide-react";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { MappingConfig, UIComponent } from "@/types/features/mapping-editor";
 import { WorkflowApiJSON } from "@/lib/workflow-api-parser";
@@ -71,20 +67,6 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
     fetchWorkflows();
   }, []);
 
-  // Auto-save effect
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-
-    if (editorState.isDirty && editorState.currentConfig) {
-      timer = setTimeout(() => {
-        handleSaveConfig();
-      }, 30000); // 30 seconds auto-save
-    }
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [editorState.isDirty, editorState.currentConfig]);
 
   const fetchWorkflows = async () => {
     try {
@@ -238,7 +220,7 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
     }
   };
 
-  const handleSaveConfig = async () => {
+  const handleSaveConfig = useCallback(async () => {
     if (!editorState.currentConfig) {
       toast.error("没有可保存的配置");
       return;
@@ -319,7 +301,22 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
       toast.error("保存配置失败");
       setEditorState(prev => ({ ...prev, isLoading: false }));
     }
-  };
+  }, [editorState.currentConfig, editorState.isDirty, workflows, fetchWorkflows]);
+
+  // Auto-save effect
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (editorState.isDirty && editorState.currentConfig) {
+      timer = setTimeout(() => {
+        handleSaveConfig();
+      }, 30000); // 30 seconds auto-save
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [editorState.isDirty, editorState.currentConfig, handleSaveConfig]);
 
   const handleGoToGeneration = () => {
     if (!editorState.currentConfig) {
@@ -490,63 +487,73 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6 h-full overflow-y-auto text-white">
+    <div className="container mx-auto p-6 space-y-6 h-full overflow-y-auto text-white selection:bg-white/20">
       {/* 页面标题和操作栏 */}
-      <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
         <div>
-          <h1 className="text-[40px] text-white" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>ViewComfy 参数映射编辑器</h1>
-          <p className="text-white/60 mt-2">
-            将 ComfyUI 工作流参数映射为用户友好的界面组件
+          <h1 className="text-[48px] text-white tracking-tight" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>
+            Mapping Editor
+          </h1>
+          <p className="text-white/40 mt-1 text-lg">
+            Bridge ComfyUI parameters to a premium user interface.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="border-white/10 text-white hover:bg-white/10"
+            className="text-white/60 hover:text-white hover:bg-white/5 transition-all"
             onClick={handleSaveConfig}
             disabled={!editorState.currentConfig || !editorState.isDirty}
           >
             <Save className="w-4 h-4 mr-2" />
-            保存配置
+            <span>Save</span>
+            {editorState.isDirty && <span className="ml-2 w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
           </Button>
 
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="border-white/10 text-white hover:bg-white/10"
+            className="text-white/60 hover:text-white hover:bg-white/5 transition-all"
             onClick={handleExportConfig}
             disabled={!editorState.currentConfig}
           >
             <Download className="w-4 h-4 mr-2" />
-            导出配置
+            Export
           </Button>
 
           <Button
             onClick={handleGoToGeneration}
             disabled={!editorState.currentConfig || editorState.isDirty}
             size="sm"
-            className="bg-white/10 hover:bg-white/20 text-white"
+            className="bg-white text-black hover:bg-white/90 font-medium px-4 shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all disabled:opacity-50"
           >
             <Play className="w-4 h-4 mr-2" />
-            生成界面
+            Go to App
           </Button>
 
-          <Button variant="outline" size="sm" className="border-white/10 text-white hover:bg-white/10">
-            <Settings className="w-4 h-4 mr-2" />
-            设置
+          <Button variant="ghost" size="icon" className="text-white/40 hover:text-white transition-all">
+            <Settings className="w-4 h-4" />
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Workflow Tabs */}
-      <div className="w-full overflow-x-auto pb-2">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="w-full"
+      >
         <Tabs
           value={editorState.currentConfig?.title || "default"}
           onValueChange={(val) => {
             if (val === "default") {
-              // Clear selection
               setEditorState(prev => ({ ...prev, currentConfig: null }));
             } else {
               const wf = workflows.find(w => w.viewComfyJSON.title === val);
@@ -558,102 +565,138 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
           <TabsList className="w-full justify-start h-auto flex-wrap gap-2 bg-transparent p-0">
             <TabsTrigger
               value="default"
-              className="rounded-full bg-white/5 data-[state=active]:bg-white/20 data-[state=active]:text-white border border-white/10 px-4 py-2 text-white/70 hover:text-white transition-colors"
+              className="rounded-full bg-white/5 data-[state=active]:bg-white/10 data-[state=active]:text-white border border-white/5 px-6 py-2 text-white/40 hover:text-white/70 transition-all data-[state=active]:border-white/20"
             >
               <Plus className="w-4 h-4 mr-2" />
-              新建/上传
+              New Configuration
             </TabsTrigger>
             {workflows.map(wf => (
               <TabsTrigger
                 key={wf.viewComfyJSON.id}
                 value={wf.viewComfyJSON.title}
-                className="rounded-full bg-white/5 data-[state=active]:bg-white/20 data-[state=active]:text-white border border-white/10 px-4 py-2 text-white/70 hover:text-white transition-colors"
+                className="rounded-full bg-white/5 data-[state=active]:bg-white/10 data-[state=active]:text-white border border-white/5 px-6 py-2 text-white/40 hover:text-white/70 transition-all data-[state=active]:border-white/20"
               >
-                {wf.viewComfyJSON.title || "Untitled Workflow"}
+                {wf.viewComfyJSON.title || "Untitled"}
               </TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
-      </div>
+      </motion.div>
 
       {/* 工作流上传区域 */}
-      {!editorState.currentConfig && (
-        <Card className="bg-black/40 backdrop-blur-md border-white/10 text-white">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Upload className="w-5 h-5" />
-              上传 ComfyUI 工作流
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="config-title" className="text-white/70">配置标题</Label>
-              <Input
-                id="config-title"
-                placeholder="输入配置标题..."
-                value={configTitle}
-                onChange={(e) => setConfigTitle(e.target.value)}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
-              />
-            </div>
+      <AnimatePresence mode="wait">
+        {!editorState.currentConfig && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Card className="bg-white/[0.02] backdrop-blur-3xl border-white/5 text-white overflow-hidden relative group">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-xl font-medium tracking-tight">
+                  <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+                    <Upload className="w-5 h-5 text-white/80" />
+                  </div>
+                  Upload ComfyUI Workflow
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6 relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="config-title" className="text-white/40 text-xs uppercase tracking-wider">Configuration Title</Label>
+                    <Input
+                      id="config-title"
+                      placeholder="e.g. Portrait Master V1"
+                      value={configTitle}
+                      onChange={(e) => setConfigTitle(e.target.value)}
+                      className="bg-white/5 border-white/5 text-white placeholder:text-white/20 focus:border-white/20 focus:ring-0 transition-all h-12"
+                    />
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="workflow-file" className="text-white/70">工作流文件 (JSON)</Label>
-              <Input
-                id="workflow-file"
-                type="file"
-                accept=".json"
-                onChange={handleWorkflowUpload}
-                className="bg-white/5 border-white/10 text-white file:text-white file:bg-white/10 file:border-0 file:rounded-md file:mr-4 file:px-2 file:py-1 cursor-pointer"
-              />
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="workflow-file" className="text-white/40 text-xs uppercase tracking-wider">Workflow JSON File</Label>
+                    <div className="relative group/input">
+                      <Input
+                        id="workflow-file"
+                        type="file"
+                        accept=".json"
+                        onChange={handleWorkflowUpload}
+                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-20"
+                      />
+                      <div className="h-12 bg-white/5 border-white/5 rounded-md flex items-center px-4 text-white/40 group-hover/input:border-white/10 transition-all border border-dashed">
+                        {workflowFile ? workflowFile.name : "Select or drop JSON file..."}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex items-center gap-2">
-              <div className="h-px bg-white/10 flex-1" />
-              <span className="text-xs text-white/40 uppercase">或者</span>
-              <div className="h-px bg-white/10 flex-1" />
-            </div>
+                <div className="flex items-center gap-4 text-white/10">
+                  <div className="h-px bg-white/5 flex-1" />
+                  <span className="text-[10px] uppercase tracking-[0.2em] font-medium">OR</span>
+                  <div className="h-px bg-white/5 flex-1" />
+                </div>
 
-            <Button variant="outline" className="w-full border-white/10 text-white hover:bg-white/10" onClick={() => setIsWorkflowSelectorOpen(true)}>
-              <Layers className="w-4 h-4 mr-2" />
-              从服务器加载现有工作流
-            </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full bg-white/5 border border-white/5 text-white hover:bg-white/10 h-12 transition-all"
+                  onClick={() => setIsWorkflowSelectorOpen(true)}
+                >
+                  <Layers className="w-4 h-4 mr-2 text-white/60" />
+                  Browse Server Templates
+                </Button>
 
-            <div className="text-sm text-white/50">
-              <p>请上传从 ComfyUI 导出的工作流 JSON 文件。</p>
-              <p>文件应包含完整的节点定义和参数信息。</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                <div className="flex items-start gap-3 p-4 bg-white/[0.02] rounded-xl border border-white/5">
+                  <Info className="w-4 h-4 text-white/20 mt-0.5" />
+                  <div className="text-sm text-white/30 leading-relaxed">
+                    Upload a ComfyUI workflow exported in <strong>API format</strong>.
+                    This will allow you to map internal nodes to a custom interface.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 主编辑区域 */}
       {editorState.currentConfig && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
-          <div className="lg:col-span-2 h-full flex flex-col overflow-hidden gap-4">
-            <MappingList
-              components={editorState.currentConfig.uiConfig.components}
-              onEdit={(index) => {
-                setEditorState(prev => ({
-                  ...prev,
-                  editingComponentIndex: index,
-                  selectedParameter: null, // Clear selected parameter to focus on editing
-                  selectedNode: null
-                }));
-              }}
-              onDelete={handleComponentDelete}
-            />
-            <WorkflowAnalyzer
-              workflowApiJSON={editorState.currentConfig.workflowApiJSON}
-              onNodeSelect={handleNodeSelect}
-              onParameterSelect={handleParameterSelect}
-              selectedNode={editorState.selectedNode}
-              selectedParameter={editorState.selectedParameter}
-              existingComponents={editorState.currentConfig.uiConfig.components}
-            />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-280px)] min-h-[600px]"
+        >
+          <div className="lg:col-span-8 h-full flex flex-col overflow-hidden gap-6">
+            <div className="flex-shrink-0">
+              <MappingList
+                components={editorState.currentConfig.uiConfig.components}
+                onEdit={(index) => {
+                  setEditorState(prev => ({
+                    ...prev,
+                    editingComponentIndex: index,
+                    selectedParameter: null,
+                    selectedNode: null
+                  }));
+                }}
+                onDelete={handleComponentDelete}
+                className="bg-white/[0.02] border-white/5"
+              />
+            </div>
+
+            <div className="flex-1 overflow-hidden">
+              <WorkflowAnalyzer
+                workflowApiJSON={editorState.currentConfig.workflowApiJSON}
+                onNodeSelect={handleNodeSelect}
+                onParameterSelect={handleParameterSelect}
+                selectedNode={editorState.selectedNode}
+                selectedParameter={editorState.selectedParameter}
+                existingComponents={editorState.currentConfig.uiConfig.components}
+              />
+            </div>
           </div>
 
-          <div className="lg:col-span-1 h-full overflow-y-auto">
+          <div className="lg:col-span-4 h-full">
             <ParameterMappingPanel
               workflowApiJSON={editorState.currentConfig.workflowApiJSON}
               selectedNode={editorState.selectedNode}
@@ -667,7 +710,7 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
               onCancelEdit={() => setEditorState(prev => ({ ...prev, editingComponentIndex: null }))}
             />
           </div>
-        </div>
+        </motion.div>
       )}
 
       <WorkflowSelectorDialog

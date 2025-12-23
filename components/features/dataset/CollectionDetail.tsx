@@ -11,11 +11,24 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, Download, Scissors, Wand2, Plus, MoreVertical, Loader2, Upload, Trash2, Save, Tag, Languages, X } from "lucide-react";
+import { ChevronLeft, Download, Scissors, Wand2, Plus, Loader2, Trash2, Save, Tag, Languages, X } from "lucide-react";
 import Image from "next/image";
+import { ImageZoom } from "@/components/ui/shadcn-io/image-zoom";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 import JSZip from "jszip";
 import { useToast } from "@/hooks/common/use-toast";
 
@@ -31,6 +44,23 @@ interface DatasetImage {
     filename: string;
     isOptimizing?: boolean;
     isTranslating?: boolean;
+    width?: number;
+    height?: number;
+}
+
+
+const ImageSize = ({ src }: { src: string }) => {
+    const [size, setSize] = useState<{ w: number, h: number } | null>(null);
+    useEffect(() => {
+        const img = new window.Image();
+        img.src = src;
+        img.onload = () => {
+            setSize({ w: img.naturalWidth, h: img.naturalHeight });
+        };
+    }, [src]);
+
+    if (!size) return null;
+    return <span className="text-[10px] text-muted-foreground/60 bg-muted/50 px-1.5 py-0.5 rounded-md font-mono">{size.w}x{size.h}</span>;
 }
 
 
@@ -52,6 +82,8 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
     const [systemPrompt, setSystemPrompt] = useState("");
     const [isPromptPanelOpen, setIsPromptPanelOpen] = useState(false);
     const [batchPrefix, setBatchPrefix] = useState("");
+    const [cropMode, setCropMode] = useState<'center' | 'longest'>('center');
+    const [targetSize, setTargetSize] = useState<string>('512');
     const { toast } = useToast();
 
     const handleDeleteImage = async (img: DatasetImage) => {
@@ -108,43 +140,53 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         }
     };
 
+    const processCrop = async (img: DatasetImage, mode: 'center' | 'longest', sizeStr: string): Promise<DatasetImage> => {
+        const image = new window.Image();
+        image.src = img.url;
+        await new Promise((resolve) => (image.onload = resolve));
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return img;
+
+        const size = sizeStr === 'original' ? (mode === 'center' ? Math.min(image.width, image.height) : Math.max(image.width, image.height)) : parseInt(sizeStr);
+
+        if (mode === 'center') {
+            canvas.width = size;
+            canvas.height = size;
+            const sourceSize = Math.min(image.width, image.height);
+            ctx.drawImage(
+                image,
+                (image.width - sourceSize) / 2, (image.height - sourceSize) / 2, sourceSize, sourceSize,
+                0, 0, size, size
+            );
+        } else {
+            const ratio = size / Math.max(image.width, image.height);
+            canvas.width = Math.round(image.width * ratio);
+            canvas.height = Math.round(image.height * ratio);
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        }
+
+        const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.95));
+        const newUrl = URL.createObjectURL(blob);
+        return { ...img, url: newUrl };
+    };
+
     const handleBatchCrop = async () => {
         if (images.length === 0) return;
         setIsProcessing(true);
-
         try {
-            const croppedImages = await Promise.all(images.map(async (img: DatasetImage) => {
-                const image = new window.Image();
-                image.src = img.url;
-                await new Promise((resolve) => (image.onload = resolve));
-
-                const canvas = document.createElement("canvas");
-                const size = Math.min(image.width, image.height);
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext("2d");
-
-                // Center crop to 1:1
-                ctx?.drawImage(
-                    image,
-                    (image.width - size) / 2, (image.height - size) / 2, size, size,
-                    0, 0, size, size
-                );
-
-                const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.95));
-                const newUrl = URL.createObjectURL(blob);
-
-                return { ...img, url: newUrl };
-            }));
-
+            const croppedImages = await Promise.all(images.map(img => processCrop(img, cropMode, targetSize)));
             setImages(croppedImages);
-            toast({ title: "Crop complete", description: "All images cropped to 1:1 square." });
-        } catch {
+            toast({ title: "Crop complete", description: `All images processed (${cropMode === 'center' ? 'Center Crop' : 'Scale'})` });
+        } catch (error) {
+            console.error("Batch crop failed", error);
             toast({ title: "Crop failed", variant: "destructive" });
         } finally {
             setIsProcessing(false);
         }
     };
+
 
     const handleExport = async () => {
         if (images.length === 0) return;
@@ -550,27 +592,9 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
     const handleCropImage = async (img: DatasetImage) => {
         setIsProcessing(true);
         try {
-            const image = new window.Image();
-            image.src = img.url;
-            await new Promise((resolve) => (image.onload = resolve));
-
-            const canvas = document.createElement("canvas");
-            const size = Math.min(image.width, image.height);
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext("2d");
-
-            ctx?.drawImage(
-                image,
-                (image.width - size) / 2, (image.height - size) / 2, size, size,
-                0, 0, size, size
-            );
-
-            const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.95));
-            const newUrl = URL.createObjectURL(blob);
-
-            setImages(prev => prev.map(i => i.id === img.id ? { ...i, url: newUrl } : i));
-            toast({ title: "Crop complete", description: "Image cropped to 1:1 square." });
+            const updated = await processCrop(img, cropMode, targetSize);
+            setImages(prev => prev.map(i => i.id === img.id ? updated : i));
+            toast({ title: "Crop complete", description: "Image cropped successfully." });
         } catch {
             toast({ title: "Crop failed", variant: "destructive" });
         } finally {
@@ -691,11 +715,11 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
     };
 
     return (
-        <div className="flex flex-col h-full space-y-6">
+        <div className="flex flex-col pb-20 space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={onBack} className="text-foreground hover:bg-muted">
-                        <ChevronLeft className="h-6 w-6" />
+                    <Button variant="ghost" size="icon" onClick={onBack} className="text-white border   border-white/10 hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg">
+                        <ChevronLeft className="h-6 w-6 " />
                     </Button>
 
                     <div>
@@ -718,15 +742,6 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                                     {collection.name}
                                 </h1>
                             )}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-primary hover:text-primary hover:bg-primary/10 rounded-lg text-xs"
-                                onClick={() => setIsPromptPanelOpen(!isPromptPanelOpen)}
-                            >
-                                AI Describe Settings
-                                <Wand2 className="ml-1.5 h-3 w-3" />
-                            </Button>
                         </div>
                         <p className="text-sm text-muted-foreground">{images.length} images with prompts</p>
                     </div>
@@ -734,48 +749,95 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
 
                 <div className="flex  items-end gap-2">
                     <Button
-                        variant="default"
+                        variant="outline"
                         size="sm"
                         disabled={isProcessing}
                         onClick={handleSaveAllData}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl gap-2 h-10 px-4 shadow-lg shadow-primary/20"
+                        className="text-primary hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg"
                     >
                         {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        <span className="font-semibold">Save All</span>
+                        Save All
                     </Button>
-                    <div className="w-[1px] h-6 bg-border mx-1 mb-2" />
-                    <label className="cursor-pointer">
-                        <Button
-                            variant="outline"
-                            asChild
-                            disabled={isProcessing}
-                            className="text-foreground"
-                        >
-                            <span>
-                                <Upload className="h-4 w-4 mr-2" />
-                                <span>Upload</span>
-                            </span>
-                        </Button>
-                        <input type="file" multiple accept="image/*,.txt" className="hidden" onChange={handleUpload} />
-                    </label>
                     <Button
                         variant="outline"
-                        disabled={isProcessing}
-                        onClick={handleBatchCrop}
-                        className="text-foreground"
+                        size="sm"
+                        className="text-primary hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg"
+                        onClick={() => setIsPromptPanelOpen(!isPromptPanelOpen)}
                     >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4 mr-2" />}
-                        Batch Crop
+                        AI Settings
+                        <Wand2 className="ml-2 h-4 w-4" />
                     </Button>
+                    <div className="w-[1px] h-6 bg-border ml-2 mb-2" />
+                    <label className="cursor-pointer">
+
+                        <input type="file" multiple accept="image/*,.txt" className="hidden" onChange={handleUpload} />
+                    </label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                disabled={isProcessing}
+                                className="text-foreground"
+                            >
+                                <Scissors className="h-4 w-4 " />
+                                Crop
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-4" align="start">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label className="text-xs">Crop Mode</Label>
+                                    <Select value={cropMode} onValueChange={(v: 'center' | 'longest') => setCropMode(v)}>
+                                        <SelectTrigger className="w-full h-9 bg-background border-border text-xs">
+                                            <SelectValue placeholder="Mode" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="center">Center Crop (1:1)</SelectItem>
+                                            <SelectItem value="longest">Scale Longest Side</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-xs">Target Size</Label>
+                                    <Select value={targetSize} onValueChange={setTargetSize}>
+                                        <SelectTrigger className="w-full h-9 bg-background border-border text-xs">
+                                            <SelectValue placeholder="Size" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="512">512px</SelectItem>
+                                            <SelectItem value="768">768px</SelectItem>
+                                            <SelectItem value="1024">1024px</SelectItem>
+                                            <SelectItem value="2048">2048px</SelectItem>
+                                            <SelectItem value="original">Original Size</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <Button
+                                    variant="default"
+                                    size="sm"
+                                    disabled={isProcessing}
+                                    onClick={handleBatchCrop}
+                                    className="w-full h-9 text-xs"
+                                >
+                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin " /> : <Scissors className="h-4 w-4 " />}
+                                    Apply Batch Crop
+                                </Button>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
                     <Button
                         variant="outline"
                         disabled={isProcessing}
                         onClick={handleOptimizeAll}
                         className="text-foreground"
                     >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
-                        Optimize all prompts
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                        Optimize All
                     </Button>
+
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
@@ -783,7 +845,7 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                                 disabled={isProcessing}
                                 className="text-foreground"
                             >
-                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4 mr-2" />}
+                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4 " />}
                                 Translate All
                             </Button>
                         </DropdownMenuTrigger>
@@ -796,14 +858,15 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+                    <div className="w-[1px] h-6 bg-border mx-2 mb-2" />
                     <Button
                         variant="outline"
                         disabled={isProcessing}
                         onClick={handleExport}
                         className="text-foreground"
                     >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-                        Export dataset
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 " />}
+                        Export
                     </Button>
                 </div>
             </div>
@@ -893,7 +956,7 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                                 disabled={!batchPrefix.trim()}
                                 className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border"
                             >
-                                <Plus className="h-4 w-4 mr-2" />
+                                <Plus className="h-4 w-4 " />
                                 Add Prefix
                             </Button>
                         </div>
@@ -918,8 +981,8 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                     <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center group-hover:scale-110 group-hover:bg-primary/20 transition-all">
                         <Plus className="h-8 w-8 text-muted-foreground group-hover:text-primary" />
                     </div>
-                    <span className="mt-4 text-base font-medium text-muted-foreground group-hover:text-primary transition-colors">Add to Collection</span>
-                    <p className="mt-2 text-xs text-muted-foreground/70 text-center">Support multiple JPG, PNG, WEBP files</p>
+                    <span className="mt-4 text-white text-xl font-medium text-muted-foreground group-hover:text-primary transition-colors">Add</span>
+                    <p className="mt-2 text-sm text-muted-foreground/70 text-center">Support multiple JPG, PNGfiles</p>
                     <input type="file" multiple accept="image/*,.txt" className="hidden" onChange={handleUpload} />
                 </label>
 
@@ -927,15 +990,17 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                 {images.map((img: DatasetImage) => (
                     <div key={img.id} className="flex flex-col sm:flex-row bg-card border border-border rounded-2xl overflow-hidden group hover:border-primary/30 transition-all duration-300">
                         {/* Image Section */}
-                        <div className="w-full sm:w-2/5 relative bg-muted/30 min-h-[240px] max-h-[600px] border-b sm:border-b-0 sm:border-r border-border flex items-center justify-center p-4">
-                            <div className="relative w-full h-full min-h-[220px]  ">
-                                <Image
-                                    src={img.url}
-                                    alt=""
-                                    fill
-                                    className="object-contain "
-                                    sizes="(max-width: 768px) 100vw, 40vw "
-                                />
+                        <div className="w-[300px] relative bg-muted/30 min-h-[300px] max-h-[600px] border-b sm:border-b-0 sm:border-r border-border flex items-center justify-center p-4">
+                            <div className=" w-full h-full rounded-2xl ">
+                                <ImageZoom className="w-full h-full">
+                                    <Image
+                                        src={img.url}
+                                        alt=""
+                                        fill
+                                        className="object-contain rounded-2xl"
+                                        sizes="(max-width: 768px) 100vw, 40vw "
+                                    />
+                                </ImageZoom>
                             </div>
 
                             {img.isOptimizing && (
@@ -955,6 +1020,7 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                                     <span className="text-xs font-medium text-muted-foreground tracking-tight truncate max-w-[180px]" title={img.filename}>
                                         {img.filename}
                                     </span>
+                                    <ImageSize src={img.url} />
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <Button
@@ -988,15 +1054,61 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                                        onClick={() => handleCropImage(img)}
-                                        title="Crop image"
-                                    >
-                                        <Scissors className="h-4 w-4" />
-                                    </Button>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                                title="Crop image"
+                                            >
+                                                <Scissors className="h-4 w-4" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-64 p-4" align="end">
+                                            <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] uppercase text-muted-foreground font-semibold">Crop Mode</Label>
+                                                    <Select value={cropMode} onValueChange={(v: 'center' | 'longest') => setCropMode(v)}>
+                                                        <SelectTrigger className="w-full h-8 bg-background border-border text-xs">
+                                                            <SelectValue placeholder="Mode" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="center">Center Crop (1:1)</SelectItem>
+                                                            <SelectItem value="longest">Scale Longest Side</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] uppercase text-muted-foreground font-semibold">Target Size</Label>
+                                                    <Select value={targetSize} onValueChange={setTargetSize}>
+                                                        <SelectTrigger className="w-full h-8 bg-background border-border text-xs">
+                                                            <SelectValue placeholder="Size" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="512">512px</SelectItem>
+                                                            <SelectItem value="768">768px</SelectItem>
+                                                            <SelectItem value="1024">1024px</SelectItem>
+                                                            <SelectItem value="2048">2048px</SelectItem>
+                                                            <SelectItem value="original">Original Size</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    disabled={isProcessing}
+                                                    onClick={() => handleCropImage(img)}
+                                                    className="w-full h-8 text-xs"
+                                                >
+                                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin " /> : <Scissors className="h-4 w-4 " />}
+                                                    Apply Crop
+                                                </Button>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
                                     <Button
                                         variant="ghost"
                                         size="icon"
