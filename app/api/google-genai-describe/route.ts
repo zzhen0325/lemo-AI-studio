@@ -35,12 +35,14 @@ export async function POST(req: NextRequest) {
 
     let mimeType = "image/jpeg";
     let pureBase64 = imageBase64;
-    const dataUrlMatch = imageBase64.match(
-      /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
-    );
-    if (dataUrlMatch) {
-      mimeType = dataUrlMatch[1];
-      pureBase64 = dataUrlMatch[2];
+
+    if (imageBase64.includes(";base64,")) {
+      const parts = imageBase64.split(";base64,");
+      pureBase64 = parts[1];
+      const mimePart = parts[0].split(":");
+      if (mimePart.length > 1) {
+        mimeType = mimePart[1];
+      }
     }
 
     const contents: ContentListUnion = [

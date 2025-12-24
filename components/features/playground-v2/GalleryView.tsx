@@ -104,8 +104,8 @@ export default function GalleryView() {
 
     return (
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-transparent p-2">
-            <div className="max-w-7xl mx-auto space-y-10 mt-14">
-                <header className="flex flex-col md:flex-row md:items-end justify-between gap-1">
+            <div className="max-w-9xl mx-auto space-y-10 mt-14">
+                {/* <header className="flex flex-col md:flex-row md:items-end justify-between gap-1">
                     <div className="space-y-2">
                         <h1 className="text-5xl font-bold tracking-tight text-white/90">Gallery Archive</h1>
                         <p className="text-white/40 text-lg">Explore your creative journey through generated history.</p>
@@ -116,7 +116,7 @@ export default function GalleryView() {
                             <span className="text-white text-2xl font-bold tabular-nums">{history.length}</span>
                         </div>
                     </div>
-                </header>
+                </header> */}
 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">

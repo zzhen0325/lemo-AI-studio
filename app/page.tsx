@@ -17,18 +17,8 @@ import Image from "next/image";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
 import ToolsView from "@/components/features/tools/ToolsView";
 import DatasetManagerView from "@/components/features/dataset/DatasetManagerView";
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
-
-
-
-
+import { NewSidebar } from "@/components/layout/NewSidebar";
 
 export default function Page() {
   const [currentTab, setCurrentTab] = useState<TabValue>(TabValue.Playground);
@@ -183,185 +173,145 @@ export default function Page() {
 
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-7xl h-16 z-50 rounded-2xl border border-white/10 bg-black/20 backdrop-blur-xl transition-all duration-300">
-        <div className="flex justify-between items-center h-full px-6">
-          <h1 className="text-xl md:text-2xl text-white font-semibold tracking-tight font-[family-name:var(--font-instrument)]">
-            Lemon8 AI Studio
-          </h1>
+      <div className="flex bg-black min-h-screen">
+        <NewSidebar currentTab={currentTab} onTabChange={handleTabChange} />
 
-          <NavigationMenu>
-            <NavigationMenuList className="gap-1">
-              {[
-                { label: "Playground", value: TabValue.Playground },
-                { label: "Mapping Editor", value: TabValue.MappingEditor },
-                { label: "Gallery", value: TabValue.Gallery },
-                { label: "Tools", value: TabValue.Tools },
-                { label: "Dataset", value: TabValue.DatasetManager },
-                { label: "Settings", value: TabValue.Settings },
-              ].map((item) => (
-                <NavigationMenuItem key={item.value}>
-                  <NavigationMenuLink
-                    className={cn(
-                      navigationMenuTriggerStyle(),
-                      "bg-transparent text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer rounded-xl h-10 px-4",
-                      currentTab === item.value && "bg-white/10 text-white font-medium"
+        <main className="flex-1 relative ml-[80px] p-6 lg:p-10">
+          <div className="h-[calc(100vh-64px)]  my-auto bg-black/40 backdrop-blur-sm border border-white/30 rounded-[2rem] overflow-hidden relative ">
+            <div className="relative flex h-full justify-center z-10">
+              {/* 视差动画背景 - Logically render only for Playground/Gallery */}
+              {([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? (
+                <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
+                  {/* Beams Background */}
+                  <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden ">
+                    {renderBeams && (
+                      <Image alt="" src="/images/5.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
                     )}
-                    onClick={() => handleTabChange(item.value)}
+                  </div>
+
+                  <div ref={bgRef} className="absolute inset-0 bg-[#142856] -z-10" />
+
+                  <div
+                    ref={cloudRef}
+                    className="absolute flex h-[739.543px] items-center justify-center left-[853.01px] top-[31.43px] w-[1189.462px]"
                   >
-                    {item.label}
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-              ))}
-            </NavigationMenuList>
-          </NavigationMenu>
-        </div>
-      </header>
-
-      <div className="relative flex h-screen justify-center z-10">
-
-
-        {/* 视差动画背景 */}
-
-
-        {/* 视差动画背景 - Logically render only for Playground/Gallery */}
-        {([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? (
-          <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden scale-[1.1]">
-            {/* Beams Background */}
-            <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden ">
-              {renderBeams && (
-                <Image alt="" src="/images/5.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
-                // <Canvas className="w-full h-full]"
-                //   onCreated={(state) => {
-                //     const gl = state.gl;
-                //   }}
-                // >
-                //   <WarpFlowCard />
-                // </Canvas>
-              )}
-            </div>
-
-            <div ref={bgRef} className="absolute inset-0 bg-[#142856] -z-10" />
-
-            <div
-              ref={cloudRef}
-              className="absolute flex h-[739.543px] items-center justify-center left-[853.01px] top-[31.43px] w-[1189.462px]"
-            >
-              <div className="flex-none rotate-[346.65deg]">
-                <div className="h-[498.023px] relative w-[1104.312px]">
-                  <Image alt="" src="/images/parallax/cloud.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+                    <div className="flex-none rotate-[346.65deg]">
+                      <div className="h-[498.023px] relative w-[1104.312px]">
+                        <Image alt="" src="/images/parallax/cloud.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    ref={treeRef}
+                    className="absolute bottom-0  h-full w-full"
+                  >
+                    <Image alt="" src="/images/parallax/tree.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+                  </div>
+                  <div
+                    ref={dogRef}
+                    className="absolute flex h-[248.291px] items-center justify-center left-[821.49px] top-[723.27px] w-[216.026px]"
+                  >
+                    <div className="flex-none rotate-[355.014deg]">
+                      <div className="h-[232.084px] relative w-[196.601px]">
+                        <Image alt="" src="/images/parallax/dog.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    ref={manRef}
+                    className="absolute h-[324.406px] left-[676.57px] top-[569.17px] w-[83.815px]"
+                  >
+                    <Image alt="" src="/images/parallax/man.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
+                  </div>
+                  <div
+                    ref={frontRef}
+                    className="absolute h-[500px] left-[7.22px] top-[606.53px] w-[1600px]"
+                  >
+                    <Image alt="" src="/images/parallax/front.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div
-              ref={treeRef}
-              className="absolute bottom-0  h-full w-full"
-            >
-              <Image alt="" src="/images/parallax/tree.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
-            </div>
-            <div
-              ref={dogRef}
-              className="absolute flex h-[248.291px] items-center justify-center left-[821.49px] top-[723.27px] w-[216.026px]"
-            >
-              <div className="flex-none rotate-[355.014deg]">
-                <div className="h-[232.084px] relative w-[196.601px]">
-                  <Image alt="" src="/images/parallax/dog.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
+              ) : null}
+
+              <div className="relative z-10 flex-1 overflow-hidden ">
+                <div className={`flex flex-col flex-1 h-full overflow-hidden transition-all duration-500 ${currentTab === TabValue.Gallery ? 'bg-[#050505]' : 'bg-transparent'}`}>
+
+                  {/* Playground Header (also visible in Gallery to preserve prompt) */}
+                  <div className={`flex flex-col flex-1 ${currentTab === TabValue.Gallery ? 'max-h-[240px] mt-4' : 'h-full'} overflow-hidden ${([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? '' : 'hidden'}`}>
+                    <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Playground...</div>}>
+                      <PlaygroundV2Page
+                        onEditMapping={handleEditMapping}
+                        onGenerate={() => handleBackgroundAnimate('out')}
+                        backgroundRefs={{
+                          cloud: cloudRef,
+                          tree: treeRef,
+                          dog: dogRef,
+                          man: manRef,
+                          front: frontRef,
+                          bg: bgRef
+                        }}
+                      />
+                    </Suspense>
+                  </div>
+
+                  {/* Gallery Tab (rendered under the prompt input when active) */}
+                  {currentTab === TabValue.Gallery && (
+                    <div className="flex flex-col flex-1 h-full overflow-hidden animate-in fade-in duration-500">
+                      <GalleryView />
+                    </div>
+                  )}
+
+                  {/* Mapping Editor Tab */}
+                  {currentTab === TabValue.MappingEditor && (
+                    <div className="flex flex-col flex-1 h-full overflow-hidden">
+                      <MappingEditorPage onNavigate={() => handleTabChange(TabValue.Playground)} />
+                    </div>
+                  )}
+
+                  {/* Tools Tab */}
+                  {currentTab === TabValue.Tools && (
+                    <div className="flex flex-col flex-1 h-full overflow-hidden animate-in fade-in duration-500">
+                      <ToolsView />
+                    </div>
+                  )}
+
+                  {/* Settings Tab */}
+                  {currentTab === TabValue.Settings && (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="p-6">
+                      <Card className="max-w-2xl mx-auto backdrop-blur-xl bg-black/40 border-white/10 shadow-2xl rounded-2xl">
+                        <CardHeader>
+                          <CardTitle className="text-white">Settings</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="apiKey" className="text-white/70">Google API Key</Label>
+                            <Input id="apiKey" type="password" placeholder="请输入 Google API Key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="bg-white/5 border-white/10 text-white rounded-xl" />
+                            <p className="text-xs text-white/30">仅保存在本地浏览器，不会上传服务器。</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="comfyUrl" className="text-white/70">ComfyUI 地址</Label>
+                            <Input id="comfyUrl" type="text" placeholder="例如：http://127.0.0.1:8188/" value={comfyUrl} onChange={(e) => setComfyUrl(e.target.value)} className="bg-white/5 border-white/10 text-white rounded-xl" />
+                            <p className="text-xs text-white/30">用于工作流执行的 ComfyUI 服务地址。</p>
+                          </div>
+                          <div className="pt-2">
+                            <Button onClick={handleSaveSettings} className="rounded-xl bg-white/10 hover:bg-white/20 text-white">保存设置</Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )}
+
+                  {/* Dataset Manager Tab */}
+                  {currentTab === TabValue.DatasetManager && (
+                    <div className="flex flex-col flex-1 h-full w-full overflow-hidden animate-in fade-in duration-500">
+                      <DatasetManagerView />
+                    </div>
+                  )}
                 </div>
+                <Toaster />
               </div>
-            </div>
-            <div
-              ref={manRef}
-              className="absolute h-[324.406px] left-[676.57px] top-[569.17px] w-[83.815px]"
-            >
-              <Image alt="" src="/images/parallax/man.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
-            </div>
-            <div
-              ref={frontRef}
-              className="absolute h-[500px] left-[7.22px] top-[606.53px] w-[1600px]"
-            >
-              <Image alt="" src="/images/parallax/front.png" fill className="absolute inset-0 max-w-none object-cover size-full" />
             </div>
           </div>
-        ) : null}
-
-
-
-        <div className="relative z-10 flex-1 overflow-hidden ">
-          <div className={`flex flex-col flex-1 h-screen overflow-hidden transition-all duration-500 ${currentTab === TabValue.Gallery ? 'bg-[#050505]' : 'bg-transparent'}`}>
-
-            {/* Playground Header (also visible in Gallery to preserve prompt) */}
-            <div className={`flex flex-col flex-1 ${currentTab === TabValue.Gallery ? 'max-h-[240px] mt-24' : 'h-screen pt-16'} overflow-hidden ${([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? '' : 'hidden'}`}>
-              <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Playground...</div>}>
-                <PlaygroundV2Page
-                  onEditMapping={handleEditMapping}
-                  onGenerate={() => handleBackgroundAnimate('out')}
-                  backgroundRefs={{
-                    cloud: cloudRef,
-                    tree: treeRef,
-                    dog: dogRef,
-                    man: manRef,
-                    front: frontRef,
-                    bg: bgRef
-                  }}
-                />
-              </Suspense>
-            </div>
-
-            {/* Gallery Tab (rendered under the prompt input when active) */}
-            {currentTab === TabValue.Gallery && (
-              <div className="flex flex-col flex-1 h-screen overflow-hidden animate-in fade-in duration-500">
-                <GalleryView />
-              </div>
-            )}
-
-            {/* Mapping Editor Tab */}
-            {currentTab === TabValue.MappingEditor && (
-              <div className="flex flex-col flex-1 h-screen overflow-hidden pt-24">
-                <MappingEditorPage onNavigate={() => handleTabChange(TabValue.Playground)} />
-              </div>
-            )}
-
-            {/* Tools Tab */}
-            {currentTab === TabValue.Tools && (
-              <div className="flex flex-col flex-1 h-screen overflow-hidden animate-in fade-in duration-500">
-                <ToolsView />
-              </div>
-            )}
-
-            {/* Settings Tab */}
-            {currentTab === TabValue.Settings && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="p-6 pt-24">
-                <Card className="max-w-2xl mx-auto backdrop-blur-xl bg-black/40 border-white/10 shadow-2xl rounded-2xl">
-                  <CardHeader>
-                    <CardTitle className="text-white">Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="apiKey" className="text-white/70">Google API Key</Label>
-                      <Input id="apiKey" type="password" placeholder="请输入 Google API Key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="bg-white/5 border-white/10 text-white rounded-xl" />
-                      <p className="text-xs text-white/30">仅保存在本地浏览器，不会上传服务器。</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="comfyUrl" className="text-white/70">ComfyUI 地址</Label>
-                      <Input id="comfyUrl" type="text" placeholder="例如：http://127.0.0.1:8188/" value={comfyUrl} onChange={(e) => setComfyUrl(e.target.value)} className="bg-white/5 border-white/10 text-white rounded-xl" />
-                      <p className="text-xs text-white/30">用于工作流执行的 ComfyUI 服务地址。</p>
-                    </div>
-                    <div className="pt-2">
-                      <Button onClick={handleSaveSettings} className="rounded-xl bg-white/10 hover:bg-white/20 text-white">保存设置</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* Dataset Manager Tab */}
-            {currentTab === TabValue.DatasetManager && (
-              <div className="flex flex-col flex-1 h-screen w-[80vw] mx-auto overflow-hidden animate-in fade-in duration-500 pt-36">
-                <DatasetManagerView />
-              </div>
-            )}
-          </div>
-          <Toaster />
-        </div>
+        </main>
       </div>
     </TabContext.Provider>
   );

@@ -148,7 +148,7 @@ export default function DatasetManagerView() {
     const selectedCollection = collections.find(c => c.id === selectedCollectionId);
 
     return (
-        <div className="bg-transparent h-full">
+        <div className="bg-[#1E1E1E] h-full p-6 px-8">
             <div className="relative z-10 flex flex-col h-full w-full mx-auto text-foreground">
                 <div className="flex-1 min-h-0 overflow-y-auto">
                     {!selectedCollectionId ? (

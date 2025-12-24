@@ -21,33 +21,70 @@ export default function HistoryList({
   onDownload,
   onImageClick,
 }: HistoryListProps) {
+  // Group history by date
+  const groupedHistory = React.useMemo(() => {
+    const groups: { [key: string]: GenerationResult[] } = {};
+
+    history.forEach((result) => {
+      const date = new Date(result.timestamp);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const itemDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+      let title = "";
+      if (itemDate.getTime() === today.getTime()) {
+        title = "Today";
+      } else if (itemDate.getTime() === yesterday.getTime()) {
+        title = "Yesterday";
+      } else {
+        title = itemDate.toLocaleDateString();
+      }
+
+      if (!groups[title]) {
+        groups[title] = [];
+      }
+      groups[title].push(result);
+    });
+
+    // keys will be in insertion order for string keys in modern JS engines, 
+    // effectively sorting by most recent if 'history' is sorted.
+    return groups;
+  }, [history]);
+
   if (history.length === 0) return null;
 
   return (
-    <div className="relative flex flex-col w-full h-full overflow-y-auto custom-scrollbar  ">
-      {/* 顶部或内容容器 */}
-      <div className="flex flex-wrap justify-center   max-w-[1500px] mx-auto overflow-y-auto h-full rounded-lg px-4 pb-32  pt-72">
-        {history.map((result) => {
-          // Dynamic card width logic based on history count
-          let widthClass = "w-[280px]";
-          if (history.length === 5) widthClass = "w-[280px]";
-          else if (history.length === 4) widthClass = "w-[300px]";
-          else if (history.length === 3) widthClass = "w-[320px]";
-          else if (history.length === 2) widthClass = "w-[320px]";
-          else if (history.length === 1) widthClass = "w-[320px]";
+    <div className="relative flex flex-col w-full h-full overflow-y-auto custom-scrollbar px-4 mt-80 pb-32">
+      {Object.entries(groupedHistory).map(([title, groupItems]) => (
+        <div key={title} className="flex flex-col mb-8 w-full max-w-[1500px] mx-auto">
+          <h3 className="text-lg font-medium text-white/80 mb-4 pl-1">{title}</h3>
+          <div className="flex flex-wrap gap-4">
+            {groupItems.map((result) => {
+              // Dynamic card width logic based on group count
+              let widthClass = "w-[280px]";
+              const count = groupItems.length;
 
-          return (
-            <div key={result.id} className={`${widthClass} rounded-lg shrink-0`}>
-              <HistoryCard
-                result={result}
-                onRegenerate={onRegenerate}
-                onDownload={onDownload}
-                onImageClick={onImageClick}
-              />
-            </div>
-          );
-        })}
-      </div>
+              if (count >= 5) widthClass = "w-[280px]";
+              else if (count === 4) widthClass = "w-[300px]";
+              else widthClass = "w-[320px]";
+
+              return (
+                <div key={result.id} className={`${widthClass} shrink-0`}>
+                  <HistoryCard
+                    result={result}
+                    onRegenerate={onRegenerate}
+                    onDownload={onDownload}
+                    onImageClick={onImageClick}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

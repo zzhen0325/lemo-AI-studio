@@ -20,7 +20,7 @@ const config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-rany)", "sans-serif"],
+        sans: ["var(--font-google-sans-flex)", "sans-serif"],
       },
 
 
