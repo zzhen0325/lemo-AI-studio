@@ -21,7 +21,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, Download, Scissors, Wand2, Plus, Loader2, Trash2, Save, Tag, Languages, X } from "lucide-react";
+import { ChevronLeft, ChevronUp, Download, Scissors, Wand2, Plus, Loader2, Trash2, Save, Languages, ListOrdered, X } from "lucide-react";
 import Image from "next/image";
 import { ImageZoom } from "@/components/ui/shadcn-io/image-zoom";
 import {
@@ -29,6 +29,15 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import JSZip from "jszip";
 import { useToast } from "@/hooks/common/use-toast";
 
@@ -81,9 +90,12 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
     const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
     const [systemPrompt, setSystemPrompt] = useState("");
     const [isPromptPanelOpen, setIsPromptPanelOpen] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
     const [batchPrefix, setBatchPrefix] = useState("");
     const [cropMode, setCropMode] = useState<'center' | 'longest'>('center');
     const [targetSize, setTargetSize] = useState<string>('512');
+    const [isBatchRenameDialogOpen, setIsBatchRenameDialogOpen] = useState(false);
+    const [renamePrefix, setRenamePrefix] = useState("");
     const { toast } = useToast();
 
     const handleDeleteImage = async (img: DatasetImage) => {
@@ -309,23 +321,19 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         fetchImages();
     }, [fetchImages]); // Refresh when fetchImages (or collection) changes
 
-    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
+    const processUploadFiles = async (files: File[]) => {
         if (files.length === 0) return;
 
         setIsProcessing(true);
         let successCount = 0;
+        setProgress({ current: 0, total: files.length });
 
         try {
-            // Process uploads
-            for (const file of files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
                 const formData = new FormData();
                 formData.append('file', file);
-                formData.append('collection', collection.name); // Using name as folder name
-
-                // If it's a text file, we might handle it differently or just upload it nearby
-                // Our API handles file storage. 
-                // For this implementation, we just upload everything.
+                formData.append('collection', collection.name);
 
                 const res = await fetch('/api/dataset', {
                     method: 'POST',
@@ -333,65 +341,153 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                 });
 
                 if (res.ok) successCount++;
+                setProgress({ current: i + 1, total: files.length });
             }
 
             toast({ title: "Upload complete", description: `Uploaded ${successCount}/${files.length} files.` });
-            fetchImages(); // Refresh list
-
+            fetchImages();
         } catch (error) {
             console.error('Upload failed', error);
             toast({ title: "Upload failed", variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+            setProgress(null);
+        }
+    };
+
+    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        processUploadFiles(files);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const files = Array.from(e.dataTransfer.files);
+        processUploadFiles(files);
+    };
+
+    const handleBatchRename = async () => {
+        if (!renamePrefix) {
+            toast({ title: "Error", description: "Prefix is required", variant: "destructive" });
+            return;
+        }
+
+        setIsProcessing(true);
+        try {
+            // First save any pending prompt changes
+            await handleSaveAllData();
+
+            const res = await fetch('/api/dataset', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    collection: collection.name,
+                    mode: 'batchRename',
+                    prefix: renamePrefix
+                })
+            });
+
+            if (res.ok) {
+                toast({ title: "Success", description: "Batch rename complete." });
+                setIsBatchRenameDialogOpen(false);
+                fetchImages(); // Refresh to see new filenames
+            } else {
+                const data = await res.json();
+                toast({ title: "Failed", description: data.error || "Rename failed", variant: "destructive" });
+            }
+        } catch (error) {
+            console.error('Batch rename error', error);
+            toast({ title: "Error", description: "Internal server error", variant: "destructive" });
         } finally {
             setIsProcessing(false);
         }
     };
 
     const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+    const [isSystemPromptDirty, setIsSystemPromptDirty] = useState(false);
 
     const handlePromptChange = (id: string, newPrompt: string) => {
         setImages((prev: DatasetImage[]) => prev.map((img: DatasetImage) => img.id === id ? { ...img, prompt: newPrompt } : img));
         setDirtyIds(prev => new Set(prev).add(id));
     };
 
-    const savePrompt = useCallback(async (img: DatasetImage) => {
-        try {
-            const res = await fetch('/api/dataset', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    collection: collection.name,
-                    filename: img.filename,
-                    prompt: img.prompt
-                })
-            });
-            if (!res.ok) throw new Error("Save failed");
-        } catch (error) {
-            console.error("Failed to save prompt", error);
-        }
-    }, [collection.name]);
-
-    // Auto-save prompts with debounce
+    // Unified auto-save with debounce
     useEffect(() => {
-        if (dirtyIds.size === 0) return;
+        if (dirtyIds.size === 0 && !isSystemPromptDirty) return;
 
         const timer = setTimeout(async () => {
-            const idsToSave = Array.from(dirtyIds);
-            setDirtyIds(new Set());
+            const currentDirtyIds = Array.from(dirtyIds);
+            const currentSystemPromptDirty = isSystemPromptDirty;
 
-            for (const id of idsToSave) {
-                const img = images.find(i => i.id === id);
-                if (img) {
-                    await savePrompt(img);
+            // Optimistically clear flags before request
+            setDirtyIds(new Set());
+            setIsSystemPromptDirty(false);
+
+            try {
+                const updatePayload: {
+                    collection: string;
+                    prompts?: Record<string, string>;
+                    systemPrompt?: string;
+                } = {
+                    collection: collection.name
+                };
+
+                if (currentDirtyIds.length > 0) {
+                    const promptsToUpdate: Record<string, string> = {};
+                    currentDirtyIds.forEach(id => {
+                        const img = images.find(i => i.id === id);
+                        if (img) {
+                            promptsToUpdate[img.filename] = img.prompt;
+                        }
+                    });
+                    updatePayload.prompts = promptsToUpdate;
                 }
+
+                if (currentSystemPromptDirty) {
+                    updatePayload.systemPrompt = systemPrompt;
+                }
+
+                const res = await fetch('/api/dataset', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatePayload)
+                });
+
+                if (res.ok) {
+                    toast({ title: "已同步", description: "更改已自动保存" });
+                } else {
+                    throw new Error("Save failed");
+                }
+            } catch (error) {
+                console.error("Auto-save failed", error);
+                // Re-mark as dirty on failure so it retries or allows manual save
+                if (currentDirtyIds.length > 0) {
+                    setDirtyIds(prev => new Set([...Array.from(prev), ...currentDirtyIds]));
+                }
+                if (currentSystemPromptDirty) {
+                    setIsSystemPromptDirty(true);
+                }
+                toast({ title: "同步失败", description: "自动保存暂不可用", variant: "destructive" });
             }
-            toast({ title: "已保存", description: "Prompt 已同步" });
-        }, 1200);
+        }, 2000); // Slightly longer debounce for batch efficiency
 
         return () => clearTimeout(timer);
-    }, [dirtyIds, images, savePrompt, toast]);
-
-    // Handle System Prompt local change and auto-save
-    const [isSystemPromptDirty, setIsSystemPromptDirty] = useState(false);
+    }, [dirtyIds, isSystemPromptDirty, collection.name, images, systemPrompt, toast]);
 
     const handleModifierChange = (modifierText: string, checked: boolean) => {
         let newPrompt = systemPrompt.trim();
@@ -407,30 +503,7 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         setIsSystemPromptDirty(true);
     };
 
-    useEffect(() => {
-        if (!isSystemPromptDirty) return;
 
-        const timer = setTimeout(async () => {
-            try {
-                const res = await fetch('/api/dataset', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        collection: collection.name,
-                        systemPrompt: systemPrompt
-                    })
-                });
-                if (res.ok) {
-                    setIsSystemPromptDirty(false);
-                    toast({ title: "设置已更新", description: "集合 AI 提示词已保存" });
-                }
-            } catch (error) {
-                console.error("Failed to save system prompt", error);
-            }
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, [systemPrompt, isSystemPromptDirty, collection.name, toast]);
 
 
 
@@ -443,12 +516,17 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         const targets = images;
         setIsProcessing(true);
         setProgress({ current: 0, total: targets.length });
-        toast({ title: "Optimizing...", description: "Queueing Google GenAI describe for each image." });
+        const toastId = toast({ title: "批量优化中...", description: `准备中: 0/${targets.length}` });
 
         try {
             let success = 0;
             for (let idx = 0; idx < targets.length; idx++) {
                 const img = targets[idx];
+                toast({
+                    id: toastId,
+                    title: "批量优化中...",
+                    description: `正在处理第 ${idx + 1} 张，共 ${targets.length} 张...`
+                });
                 try {
                     const response = await fetch(img.url);
                     const blob = await response.blob();
@@ -480,9 +558,18 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                     setProgress({ current: idx + 1, total: targets.length });
                 }
             }
-            toast({ title: "Success", description: `Described ${success}/${targets.length} images.` });
+            toast({
+                id: toastId,
+                title: "优化完成",
+                description: `成功生成 ${success}/${targets.length} 张图片的提示词。`
+            });
         } catch {
-            toast({ title: "Optimization failed", variant: "destructive", description: "Could not connect to Google GenAI." });
+            toast({
+                id: toastId,
+                title: "优化失败",
+                variant: "destructive",
+                description: "无法连接到 Google GenAI 服务。"
+            });
         } finally {
             setIsProcessing(false);
             setProgress(null);
@@ -618,13 +705,18 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
 
         setIsProcessing(true);
         setProgress({ current: 0, total: targets.length });
-        toast({ title: "Translating...", description: `Batch translating to ${targetLang === 'zh' ? 'Chinese' : 'English'}...` });
+        const toastId = toast({ title: "批量翻译中...", description: `准备中: 0/${targets.length}` });
 
         let successCount = 0;
 
         try {
             for (let idx = 0; idx < targets.length; idx++) {
                 const img = targets[idx];
+                toast({
+                    id: toastId,
+                    title: "批量翻译中...",
+                    description: `正在处理第 ${idx + 1} 张，共 ${targets.length} 张...`
+                });
 
                 // Set individual translating state (optional, reusing isProcessing primarily)
                 setImages(prev => prev.map(i => i.id === img.id ? { ...i, isTranslating: true } : i));
@@ -652,11 +744,16 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                 }
             }
             toast({
-                title: "Batch Translation Complete",
-                description: `Translated ${successCount}/${targets.length} prompts.`
+                id: toastId,
+                title: "批量翻译完成",
+                description: `成功翻译 ${successCount}/${targets.length} 条提示词。`
             });
         } catch {
-            toast({ title: "Batch Translation Failed", variant: "destructive" });
+            toast({
+                id: toastId,
+                title: "批量翻译失败",
+                variant: "destructive"
+            });
         } finally {
             setIsProcessing(false);
             setProgress(null);
@@ -715,7 +812,22 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
     };
 
     return (
-        <div className="flex flex-col pb-20 space-y-6">
+        <div
+            className="flex flex-col pb-20 space-y-6 relative"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
+            {isDragging && (
+                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-primary/10 backdrop-blur-sm border-4 border-dashed border-primary rounded-2xl animate-in fade-in duration-200 pointer-events-none">
+                    <div className="bg-background/80 p-8 rounded-3xl flex flex-col items-center gap-4 shadow-2xl scale-110">
+                        <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center">
+                            <Plus className="w-10 h-10 text-primary animate-bounce" />
+                        </div>
+                        <span className="text-2xl font-bold text-primary">Drop to Upload</span>
+                    </div>
+                </div>
+            )}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={onBack} className="text-white border   border-white/10 hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg">
@@ -824,6 +936,50 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                                     {isProcessing ? <Loader2 className="h-4 w-4 animate-spin " /> : <Scissors className="h-4 w-4 " />}
                                     Apply Batch Crop
                                 </Button>
+
+                                <Dialog open={isBatchRenameDialogOpen} onOpenChange={setIsBatchRenameDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full h-9 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                                        >
+                                            <ListOrdered className="h-4 w-4 mr-2" />
+                                            Batch Rename (Files)
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Batch Rename Images</DialogTitle>
+                                            <DialogDescription>
+                                                All images in this collection will be renamed to <b>prefix_01, prefix_02...</b>
+                                                <br />
+                                                <span className="text-destructive font-semibold">Important: This operation cannot be easily undone.</span>
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4 py-4">
+                                            <div className="space-y-2">
+                                                <Label>File Prefix</Label>
+                                                <Input
+                                                    placeholder="e.g. character_name_v1"
+                                                    value={renamePrefix}
+                                                    onChange={(e) => setRenamePrefix(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button variant="ghost" onClick={() => setIsBatchRenameDialogOpen(false)}>Cancel</Button>
+                                            <Button
+                                                variant="destructive"
+                                                onClick={handleBatchRename}
+                                                disabled={isProcessing || !renamePrefix}
+                                            >
+                                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                                Execute Rename
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
                         </PopoverContent>
                     </Popover>
@@ -879,6 +1035,15 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                                 <Wand2 className="h-4 w-4 text-primary" />
                                 System prompt for this collection
                             </h3>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                onClick={() => setIsPromptPanelOpen(false)}
+                                title="Collapse"
+                            >
+                                <ChevronUp className="h-4 w-4" />
+                            </Button>
 
                         </div>
                         <AutosizeTextarea
@@ -919,50 +1084,54 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
 
                         <div className="border-t border-border my-4"></div>
 
-                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                            <Tag className="h-4 w-4 text-primary" />
-                            Batch Prefix / Trigger Word
-                        </h3>
-                        <div className="flex flex-col gap-3">
-                            <div className="flex gap-2 flex-wrap min-h-[40px] p-2 border border-border rounded-xl bg-background">
-                                {activeTags.map((tag) => (
-                                    <div key={tag} className="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium animate-in fade-in zoom-in-95 duration-200">
-                                        {tag}
-                                        <button
-                                            onClick={() => handleRemoveTag(tag)}
-                                            className="ml-1 hover:text-red-500 focus:outline-none"
-                                            title="Remove prefix"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </div>
-                                ))}
-                                <Input
-                                    value={batchPrefix}
-                                    onChange={(e) => setBatchPrefix(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleAddPrefix();
-                                        }
-                                    }}
-                                    className="flex-1 bg-transparent border-none text-foreground text-sm focus-visible:ring-0 px-2 h-7"
-                                    placeholder={activeTags.length === 0 ? "Type prefix and press Enter..." : ""}
-                                />
-                            </div>
-                            <Button
-                                variant="secondary"
-                                onClick={handleAddPrefix}
-                                disabled={!batchPrefix.trim()}
-                                className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border"
-                            >
-                                <Plus className="h-4 w-4 " />
-                                Add Prefix
-                            </Button>
-                        </div>
+
                     </div>
                 )
             }
+
+            {/* 批量前缀/触发词 */}
+
+            <h3 className="text-sm font-semibold text-foreground flex items-center">
+
+                Batch Trigger Word
+            </h3>
+            <div className="flex flex-col gap-3">
+                <div className="flex gap-2 flex-wrap min-h-[40px] p-2 border border-border rounded-xl bg-background">
+                    {activeTags.map((tag) => (
+                        <div key={tag} className="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium animate-in fade-in zoom-in-95 duration-200">
+                            {tag}
+                            <button
+                                onClick={() => handleRemoveTag(tag)}
+                                className="ml-1 hover:text-red-500 focus:outline-none"
+                                title="Remove prefix"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </div>
+                    ))}
+                    <Input
+                        value={batchPrefix}
+                        onChange={(e) => setBatchPrefix(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddPrefix();
+                            }
+                        }}
+                        className="flex-1 bg-transparent border-none text-foreground text-sm focus-visible:ring-0 px-2 h-7"
+                        placeholder={activeTags.length === 0 ? "Type prefix and press Enter..." : ""}
+                    />
+                </div>
+                <Button
+                    variant="secondary"
+                    onClick={handleAddPrefix}
+                    disabled={!batchPrefix.trim()}
+                    className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border"
+                >
+                    <Plus className="h-4 w-4 " />
+                    Add Prefix
+                </Button>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
                 {isProcessing && (

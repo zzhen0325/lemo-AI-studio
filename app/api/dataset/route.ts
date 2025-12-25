@@ -275,6 +275,44 @@ export async function PUT(request: Request) {
             metadata.systemPrompt = systemPrompt;
         }
 
+        if (body.mode === 'batchRename') {
+            const { prefix } = body;
+            if (!prefix) return NextResponse.json({ error: 'Prefix is required' }, { status: 400 });
+
+            const files = await fs.readdir(collectionPath);
+            const imageFiles = files
+                .filter(file => /\.(jpg|jpeg|png|webp|gif)$/i.test(file))
+                .sort(); // Sort to ensure consistent numbering
+
+            const newPrompts: Record<string, string> = {};
+
+            for (let i = 0; i < imageFiles.length; i++) {
+                const oldName = imageFiles[i];
+                const ext = path.extname(oldName);
+                const newName = `${prefix}_${String(i + 1).padStart(2, '0')}${ext}`;
+
+                const oldPath = path.join(collectionPath, oldName);
+                const newPath = path.join(collectionPath, newName);
+
+                if (oldName !== newName) {
+                    await fs.rename(oldPath, newPath);
+                }
+
+                // Map prompt to new name
+                if (metadata.prompts[oldName]) {
+                    newPrompts[newName] = metadata.prompts[oldName];
+                }
+            }
+
+            metadata.prompts = newPrompts;
+            await saveMetadata(collectionPath, metadata);
+
+            return NextResponse.json({
+                success: true,
+                message: `Renamed ${imageFiles.length} files with prefix ${prefix}`
+            });
+        }
+
         if (body.newCollectionName && body.newCollectionName !== collection) {
             // Rename collection
             const newCollectionPath = path.join(DATASET_DIR, body.newCollectionName);

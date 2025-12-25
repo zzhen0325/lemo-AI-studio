@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GenerationConfig, UploadedImage } from '@/components/features/playground-v2/types';
+import { GenerationConfig, UploadedImage, Preset } from '@/components/features/playground-v2/types';
 import { IViewComfy } from '@/lib/providers/view-comfy-provider';
 import { SelectedLora } from '@/components/features/playground-v2/LoraSelectorDialog';
 
@@ -22,6 +22,13 @@ interface PlaygroundState {
     applyImage: (imageUrl: string) => Promise<void>;
     applyModel: (model: string, configData?: GenerationConfig) => void;
     remix: (result: { config: GenerationConfig, workflow?: IViewComfy, loras?: SelectedLora[] }) => void;
+
+    // Presets
+    presets: Preset[];
+    initPresets: () => void;
+    addPreset: (preset: Preset, coverFile?: File) => void;
+    removePreset: (id: string) => void;
+    updatePreset: (preset: Preset, coverFile?: File) => void;
 }
 
 // Assuming 'toast' is imported or defined elsewhere, e.g., from a UI library like shadcn/ui
@@ -107,5 +114,78 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
                 config: { ...state.config, ...result.config, base_model: finalModel }
             };
         });
-    }
+    },
+
+    // Presets
+    presets: [],
+
+    // Initialize Presets (Fetching from API)
+    initPresets: async () => {
+        try {
+            const res = await fetch('/api/presets');
+            if (res.ok) {
+                const data = await res.json();
+                set({ presets: data });
+            } else {
+                console.error("Failed to fetch presets");
+            }
+        } catch (e) {
+            console.error("Error fetching presets:", e);
+        }
+    },
+
+    addPreset: async (preset: Preset, coverFile?: File) => {
+        try {
+            const formData = new FormData();
+            formData.append('json', JSON.stringify(preset));
+            if (coverFile) {
+                formData.append('cover', coverFile);
+            }
+
+            const res = await fetch('/api/presets', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                const savedPreset = await res.json();
+                set((state) => ({ presets: [savedPreset, ...state.presets] }));
+            }
+        } catch (e) {
+            console.error("Failed to add preset", e);
+        }
+    },
+
+    removePreset: async (id: string) => {
+        try {
+            await fetch(`/api/presets?id=${id}`, { method: 'DELETE' });
+            set((state) => ({ presets: state.presets.filter(p => p.id !== id) }));
+        } catch (e) {
+            console.error("Failed to delete preset", e);
+        }
+    },
+
+    updatePreset: async (preset: Preset, coverFile?: File) => {
+        try {
+            const formData = new FormData();
+            formData.append('json', JSON.stringify(preset));
+            if (coverFile) {
+                formData.append('cover', coverFile);
+            }
+
+            const res = await fetch('/api/presets', {
+                method: 'POST', // Reusing POST for update as it overwrites
+                body: formData
+            });
+
+            if (res.ok) {
+                const savedPreset = await res.json();
+                set((state) => ({
+                    presets: state.presets.map(p => p.id === savedPreset.id ? savedPreset : p)
+                }));
+            }
+        } catch (e) {
+            console.error("Failed to update preset", e);
+        }
+    },
 }));

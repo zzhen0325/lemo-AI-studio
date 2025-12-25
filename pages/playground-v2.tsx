@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/common/use-toast";
+import { Button } from "@/components/ui/button";
 
 import { useImageGeneration } from "@/hooks/features/PlaygroundV2/useImageGeneration";
 import { useImageEditing } from "@/hooks/features/PlaygroundV2/useImageEditing";
@@ -22,6 +23,8 @@ import { GenerationConfig, GenerationResult, UploadedImage } from "@/components/
 import WorkflowSelectorDialog from "@/components/features/playground-v2/WorkflowSelectorDialog";
 import BaseModelSelectorDialog from "@/components/features/playground-v2/BaseModelSelectorDialog";
 import LoraSelectorDialog, { SelectedLora } from "@/components/features/playground-v2/LoraSelectorDialog";
+import { PresetCarousel } from "@/components/features/playground-v2/PresetCarousel";
+import { PresetManagerDialog } from "@/components/features/playground-v2/PresetManagerDialog";
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import type { IMultiValueInput, IInputField } from "@/lib/workflow-api-parser";
 import type { WorkflowApiJSON } from "@/lib/workflow-api-parser";
@@ -30,7 +33,7 @@ import type { CozeWorkflowParams } from "@/types/coze-workflow";
 import { usePostPlayground } from "@/hooks/features/playground/use-post-playground";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { X, Plus } from "lucide-react";
+import { X, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlaygroundStore } from "@/lib/store/playground-store";
 
@@ -66,6 +69,8 @@ export function PlaygroundV2Page({
     setSelectedWorkflowConfig,
     selectedLoras,
     setSelectedLoras,
+    presets,
+    initPresets,
   } = usePlaygroundStore();
 
   const setConfig = (val: GenerationConfig | ((prev: GenerationConfig) => GenerationConfig)) => {
@@ -92,6 +97,12 @@ export function PlaygroundV2Page({
   const [isBaseModelDialogOpen, setIsBaseModelDialogOpen] = useState(false);
   const [isLoraDialogOpen, setIsLoraDialogOpen] = useState(false);
   const [workflows, setWorkflows] = useState<IViewComfy[]>([]);
+  const [isPresetManagerOpen, setIsPresetManagerOpen] = useState(false);
+  const [isPresetExpanded, setIsPresetExpanded] = useState(true);
+
+  useEffect(() => {
+    initPresets();
+  }, [initPresets]);
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -196,12 +207,12 @@ export function PlaygroundV2Page({
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingImageUrl, setEditingImageUrl] = useState<string>("");
 
-  const { generateImage, isGenerating: isGeneratingNano } = useImageGeneration();
-  const { editImage, isEditing: isEditingNano } = useImageEditing();
+  const { generateImage } = useImageGeneration();
+  const { editImage } = useImageEditing();
   const { optimizePrompt, isOptimizing } = usePromptOptimization({ systemInstruction: `# 角色\n你是备受赞誉的提示词大师Lemo-prompt，专为AI绘图工具flux打造提示词。\n\n## 技能\n### 技能1: 理解用户意图\n利用先进的自然语言处理技术，准确剖析用户输入自然语言背后的真实意图，精准定位用户对于图像生成的核心需求。在描述物品时，避免使用"各种""各类"等概称，要详细列出具体物品。若用户提供图片，你会精准描述图片中的内容信息与构图，并按照图片信息完善提示词。\n\n### 2: 优化构图与细节\n运用专业的构图知识和美学原理，自动为场景增添丰富且合理的细节，精心调整构图，显著提升生成图像的构图完整性、故事性和视觉吸引力。\n\n### 技能3: 概念转化\n熟练运用丰富的视觉语言库，将用户提出的抽象概念快速且准确地转化为可执行的视觉描述，让抽象想法能通过图像生动、直观地呈现。\n\n### 技能4: 描述纬度\n1. **版式分析**：能准确判断版面率（高版面率：留白少、信息密集，适合促销、营销场景；低版面率：留白多、气质高级，适合文艺、静态设计）；识别构图方式（上下构图、左右构图、中心构图、对角线构图、四角构图、曲线（S线）构图、散点式构图、包围式构图）；分辨网格系统（通栏网格、分栏网格、模块网格、基线网格、层级网格）。\n2. **层级关系**：清晰区分主标题、副标题、正文、辅助文字，通过强调层级信息的大小、颜色、字重，使用不同字号、字重、灰度制造视觉主次。\n3. **字体搭配**：根据字体气质分类进行搭配，如轻盈现代（细、无衬线）、厚重力量（黑体、笔画重）、文艺清新（舒展、居中）、柔和可爱（曲线笔画）、古典沉稳（仿宋、书法感）、现代简洁（极简无装饰）。\n4. **色彩搭配**：准确识别并运用单色（一个色相展开，简洁高级）、相似色（色环上相邻色，柔和统一）、互补色（色环对向色，强对比）、Duotone双色调（叠加两种对比色调，印刷感或冲击力）。\n6.**画面内容**：准确描述画面中的主体 and 辅助元素的主要内容和详细细节。\n\n## 限制\n1. 严禁生成涉及暴力、色情、恐怖等不良内容的描述，确保内容积极健康。\n2. 不提供技术参数相关内容，专注于图像内容和风格的描述。\n3. 不提供与图像生成无关的建议，保持回答的针对性。\n4. 描述必须客观、准确，符合实际情况和大众审美标准。\n\n## 输出格式\n1. 输出完整提示词中文版本\n2. 使用精炼且生动的语言表达\n3. 文字控制在500字以内\n4. lemo是一个卡通角色的名字，不要描述lemo的角色特质，可以描述lemo的穿搭动作表情等！！！` });
-  const { runWorkflow, loading: isGeneratingCoze, uploadFile } = useCozeWorkflow({ retryCount: 3, retryDelay: 2000, onSuccess: (result) => { console.log('🎉 Coze Workflow 生成成功:', result); toast({ title: "生成成功", description: "Seed 4.0 图像已成功生成！" }); }, onError: (error) => { console.error('💥 Coze Workflow 生成失败:', error); toast({ title: "生成失败", description: error.message || "Seed 4.0 生成失败", variant: "destructive" }); } });
-  const { doPost: runComfyWorkflow, loading: isRunningComfy } = usePostPlayground();
-  const isLoading = isGeneratingNano || isEditingNano || isGeneratingCoze || isRunningComfy;
+  const { runWorkflow, uploadFile } = useCozeWorkflow({ retryCount: 3, retryDelay: 2000, onSuccess: (result) => { console.log('🎉 Coze Workflow 生成成功:', result); toast({ title: "生成成功", description: "Seed 4.0 图像已成功生成！" }); }, onError: (error) => { console.error('💥 Coze Workflow 生成失败:', error); toast({ title: "生成失败", description: error.message || "Seed 4.0 生成失败", variant: "destructive" }); } });
+  const { doPost: runComfyWorkflow } = usePostPlayground();
+
 
   const blobToDataURL = useCallback((blob: Blob) => new Promise<string>((resolve) => { const r = new FileReader(); r.onloadend = () => resolve(String(r.result)); r.readAsDataURL(blob); }), []);
   const urlToDataURL = async (url: string) => { if (url.startsWith('data:')) return url; const res = await fetch(url); const blob = await res.blob(); return blobToDataURL(blob); };
@@ -693,7 +704,11 @@ export function PlaygroundV2Page({
                   onAIModelChange={setSelectedAIModel}
                   onAddImages={handleFilesUpload}
                 />
+
               </div>
+
+
+
               <ControlToolbar
                 selectedModel={selectedModel}
                 onModelChange={setSelectedModel}
@@ -722,7 +737,7 @@ export function PlaygroundV2Page({
                 onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)}
                 onImageUpload={handleImageUpload}
                 onGenerate={handleGenerate}
-                isGenerating={isLoading}
+                isGenerating={false}
                 uploadedImagesCount={uploadedImages.length}
                 loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."}
                 onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)}
@@ -740,8 +755,61 @@ export function PlaygroundV2Page({
                 isSelectorExpanded={isSelectorExpanded}
                 onSelectorExpandedChange={setIsSelectorExpanded}
               />
+              {/* Preset Carousel */}
+              {/* Preset Carousel Toggle & Content */}
+              <div className="w-full px-4 mt-2">
+                <div className="flex justify-center mb-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1 text-white/30 hover:text-white/60 hover:bg-white/5 rounded-full px-3 transition-all"
+                    onClick={() => setIsPresetExpanded(!isPresetExpanded)}
+                  >
+                    {isPresetExpanded ? (
+                      <>
+                        <ChevronUp className="w-3 h-3" />
+                        <span className="text-xs">收起预设</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-3 h-3" />
+                        <span className="text-xs">展开预设</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <AnimatePresence>
+                  {isPresetExpanded && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <PresetCarousel
+                        presets={presets}
+                        onSelectPreset={(preset) => {
+                          setConfig(prev => ({
+                            ...prev,
+                            prompt: preset.prompt,
+                            base_model: preset.base_model,
+                            img_width: preset.width,
+                            image_height: preset.height,
+                            image_size: preset.image_size
+                          }));
+                          setSelectedModel(preset.base_model);
+                          toast({ title: "已应用预设", description: `使用了预设: ${preset.title}` });
+                        }}
+                        onOpenManager={() => setIsPresetManagerOpen(true)}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
+
           <GoogleApiStatus className="fixed bottom-4 right-4" />
         </div>
       </div>
@@ -767,6 +835,7 @@ export function PlaygroundV2Page({
       <WorkflowSelectorDialog open={isWorkflowDialogOpen} onOpenChange={setIsWorkflowDialogOpen} onSelect={(wf) => setSelectedWorkflowConfig(wf)} onEdit={onEditMapping} />
       <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={config.base_model || selectedModel} onConfirm={(m) => updateConfig({ base_model: m })} />
       <LoraSelectorDialog open={isLoraDialogOpen} onOpenChange={setIsLoraDialogOpen} value={selectedLoras} onConfirm={(list) => setSelectedLoras(list)} />
+      <PresetManagerDialog open={isPresetManagerOpen} onOpenChange={setIsPresetManagerOpen} />
     </main>
   );
 }

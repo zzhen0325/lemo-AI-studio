@@ -26,3 +26,14 @@ export interface UploadedImage {
   previewUrl: string;
   path?: string;
 }
+
+export interface Preset {
+  id: string;
+  title: string;
+  cover: string; // Image URL
+  prompt: string;
+  base_model: string;
+  width: number;
+  height: number;
+  image_size?: '1K' | '2K' | '4K';
+}

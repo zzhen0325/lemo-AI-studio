@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Wand2, ImagePlus, ChevronDown, Link, Unlink, Sparkles } from "lucide-react";
 
-import { GlowEffect } from "@/components/motion-primitives/glow-effect";
+
 import { cn } from "@/lib/utils";
 
 import {
@@ -302,15 +302,20 @@ export default function ControlToolbar({
         </div>
 
         <div className="relative ml-auto rounded-full">
-          <GlowEffect
-            colors={['#ecffd1ff', '#40cf8fff', '#79cbffff', '#e1ffe3ff']}
-            mode='pulse'
-            blur='strong'
-            duration={5}
-            scale={1.5}
-            className="absolute inset-0 rounded-3xl opacity-70"
-          />
-          <Button onClick={onGenerate} disabled={isGenerating} className="relative z-10 w-auto h-10 bg-white text-black font-medium py-1 rounded-full hover:bg-white shadow-[0_0_16px_rgba(255,255,255,0.6)] hover:shadow-[0_0_24px_rgba(255,255,255,0.9)] transition-shadow duration-300 hover:border-white hover:border hover:text-[#203d87]">
+          <Button
+            onClick={onGenerate}
+            disabled={isGenerating}
+            className="relative z-10 w-auto h-10 px-6 rounded-full text-sm font-medium text-[#d0d8fb] flex items-center justify-center gap-2 border-[2px] border-transparent transition-all duration-300 hover:animate-border-rotate"
+            style={{
+              backgroundImage: `
+                linear-gradient(83deg, rgba(58, 94, 251, 0) 8.11%, rgba(58, 94, 251, 0.5) 100%),
+                linear-gradient(black, black),
+                conic-gradient(from var(--angle), #223895 0deg, #93a7fe 17%, #3a5efb 35%, #3a5efb 51%, #93a7ff 68%, #223895 84%)
+              `,
+              backgroundClip: 'padding-box, padding-box, border-box',
+              backgroundOrigin: 'border-box',
+            }}
+          >
             {isGenerating ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -318,7 +323,7 @@ export default function ControlToolbar({
               </>
             ) : (
               <>
-                <Wand2 className="w-4 h-4 " />
+                <Wand2 className="w-4 h-4" />
                 Generate
               </>
             )}

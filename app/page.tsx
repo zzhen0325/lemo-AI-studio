@@ -11,13 +11,13 @@ import { useToast } from "@/hooks/common/use-toast";
 import { SETTINGS_STORAGE_KEY } from "@/lib/constants";
 import { PlaygroundV2Page } from "@/pages/playground-v2";
 import { MappingEditorPage } from "@/pages/mapping-editor-page";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "sonner";
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import Image from "next/image";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
 import ToolsView from "@/components/features/tools/ToolsView";
 import DatasetManagerView from "@/components/features/dataset/DatasetManagerView";
-import { cn } from "@/lib/utils";
+
 import { NewSidebar } from "@/components/layout/NewSidebar";
 
 export default function Page() {
@@ -173,11 +173,11 @@ export default function Page() {
 
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
-      <div className="flex bg-black min-h-screen">
+      <div className="flex bg-black h-screen w-screen overflow-hidden text-neutral-200 selection:bg-indigo-500/30">
         <NewSidebar currentTab={currentTab} onTabChange={handleTabChange} />
 
-        <main className="flex-1 relative ml-[80px] p-6 lg:p-10">
-          <div className="h-[calc(100vh-64px)]  my-auto bg-black/40 backdrop-blur-sm border border-white/30 rounded-[2rem] overflow-hidden relative ">
+        <main className="flex-1 relative ml-[80px] p-6 lg:p-10 h-full flex flex-col overflow-hidden">
+          <div className="flex-1 bg-black/40 backdrop-blur-sm border border-white/30 rounded-[2rem] overflow-hidden relative flex flex-col">
             <div className="relative flex h-full justify-center z-10">
               {/* 视差动画背景 - Logically render only for Playground/Gallery */}
               {([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? (
@@ -307,7 +307,7 @@ export default function Page() {
                     </div>
                   )}
                 </div>
-                <Toaster />
+                <Toaster richColors position="top-right" />
               </div>
             </div>
           </div>

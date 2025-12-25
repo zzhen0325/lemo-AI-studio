@@ -78,6 +78,7 @@ const config = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         aurora: "aurora 60s linear infinite",
+        "border-rotate": "border-rotate 2s linear infinite",
       },
       keyframes: {
         "accordion-down": {
@@ -95,6 +96,10 @@ const config = {
           to: {
             backgroundPosition: "350% 50%, 350% 50%",
           },
+        },
+        "border-rotate": {
+          "0%": { "--angle": "0deg" },
+          "100%": { "--angle": "360deg" },
         },
       },
     },

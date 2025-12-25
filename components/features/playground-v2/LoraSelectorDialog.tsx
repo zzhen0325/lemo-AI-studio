@@ -6,6 +6,7 @@ import { Slider } from '@/components/ui/slider';
 import { Search, ServerCrash, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import Image from 'next/image';
 
 interface LoraMeta {
   model_name: string;
@@ -110,13 +111,15 @@ export default function LoraSelectorDialog({ open, onOpenChange, value, onConfir
                   {/* Image Aspect Keeper */}
                   <div className="aspect-[2/3] w-full relative overflow-hidden bg-black/20">
                     {item.preview_url ? (
-                      <img
+                      <Image
                         src={item.preview_url}
                         alt={item.model_name}
+                        fill
                         className={cn(
-                          "w-full h-full object-cover transition-transform duration-500",
+                          "object-cover transition-transform duration-500",
                           isSelected ? "scale-105" : "group-hover:scale-105"
                         )}
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-white/20">
