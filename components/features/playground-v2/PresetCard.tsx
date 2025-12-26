@@ -31,6 +31,7 @@ export const PresetCard: React.FC<PresetCardProps> = ({ preset, onClick }) => {
                 height="30%"
                 strength={3}
                 zIndex={10}
+                divCount={2}
             />
 
 

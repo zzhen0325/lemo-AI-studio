@@ -16,7 +16,10 @@ interface PresetManagerDialogProps {
 }
 
 export const PresetManagerDialog: React.FC<PresetManagerDialogProps> = ({ open, onOpenChange }) => {
-    const { presets, addPreset, removePreset, updatePreset } = usePlaygroundStore();
+    const presets = usePlaygroundStore(s => s.presets);
+    const addPreset = usePlaygroundStore(s => s.addPreset);
+    const removePreset = usePlaygroundStore(s => s.removePreset);
+    const updatePreset = usePlaygroundStore(s => s.updatePreset);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
 

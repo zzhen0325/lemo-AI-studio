@@ -63,6 +63,7 @@ export default function BaseModelSelectorDialog({ open, onOpenChange, value, onC
                       src={item.cover}
                       alt={item.name}
                       fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                       className={cn(
                         "object-cover transition-transform duration-500",
                         isSelected ? "scale-105" : "group-hover:scale-105"

@@ -59,22 +59,20 @@ export function PlaygroundV2Page({
 }) {
 
   const { toast } = useToast();
-  const {
-    config,
-    updateConfig,
-    uploadedImages,
-    setUploadedImages,
-    selectedModel,
-    setSelectedModel,
-    selectedWorkflowConfig,
-    setSelectedWorkflowConfig,
-    selectedLoras,
-    setSelectedLoras,
-    presets,
-    initPresets,
-    generationHistory,
-    setGenerationHistory,
-  } = usePlaygroundStore();
+  const config = usePlaygroundStore(s => s.config);
+  const updateConfig = usePlaygroundStore(s => s.updateConfig);
+  const uploadedImages = usePlaygroundStore(s => s.uploadedImages);
+  const setUploadedImages = usePlaygroundStore(s => s.setUploadedImages);
+  const selectedModel = usePlaygroundStore(s => s.selectedModel);
+  const setSelectedModel = usePlaygroundStore(s => s.setSelectedModel);
+  const selectedWorkflowConfig = usePlaygroundStore(s => s.selectedWorkflowConfig);
+  const setSelectedWorkflowConfig = usePlaygroundStore(s => s.setSelectedWorkflowConfig);
+  const selectedLoras = usePlaygroundStore(s => s.selectedLoras);
+  const setSelectedLoras = usePlaygroundStore(s => s.setSelectedLoras);
+  const presets = usePlaygroundStore(s => s.presets);
+  const initPresets = usePlaygroundStore(s => s.initPresets);
+  const generationHistory = usePlaygroundStore(s => s.generationHistory);
+  const setGenerationHistory = usePlaygroundStore(s => s.setGenerationHistory);
 
   const setConfig = (val: GenerationConfig | ((prev: GenerationConfig) => GenerationConfig)) => {
     if (typeof val === 'function') {
@@ -659,7 +657,7 @@ export function PlaygroundV2Page({
       <div className={cn(
         "w-full transition-all duration-700 ease-in-out z-50",
         (hasGenerated || currentTab === TabValue.Gallery)
-          ? "fixed top-0 left-0 right-0 pt-10 pb-8 px-4"
+          ? "fixed top-0 left-0 right-0 max-w-6xl mx-auto pb-8 px-4"
           : "absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
       )}>
 

@@ -16,13 +16,33 @@ interface PromptInputProps {
   onAddImages: (files: File[] | FileList) => void;
 }
 
+import { useDebounce } from '@/hooks/common/use-debounce';
+
 export default function PromptInput({
   prompt,
   onPromptChange,
   onAddImages,
 }: PromptInputProps) {
-
+  const [localPrompt, setLocalPrompt] = React.useState(prompt);
+  const debouncedPrompt = useDebounce(localPrompt, 500);
   const [isFocused, setIsFocused] = React.useState(false);
+  const lastSyncPrompt = React.useRef(prompt);
+
+  // 当外部 prompt 变更时（例如 AI 优化），如果不是我们自己发出的变更，则同步到本地
+  React.useEffect(() => {
+    if (prompt !== lastSyncPrompt.current) {
+      setLocalPrompt(prompt);
+      lastSyncPrompt.current = prompt;
+    }
+  }, [prompt]);
+
+  // 当防抖后的本地状态变更时，回传给父组件并更新同步记录
+  React.useEffect(() => {
+    if (debouncedPrompt !== lastSyncPrompt.current) {
+      lastSyncPrompt.current = debouncedPrompt;
+      onPromptChange(debouncedPrompt);
+    }
+  }, [debouncedPrompt, onPromptChange]);
 
   return (
     <div
@@ -36,12 +56,12 @@ export default function PromptInput({
     >
       <AutosizeTextarea
         placeholder="请描述您想要生成的图像，例如：黄色的lemo圣诞老人，淡蓝色的背景"
-        value={prompt}
+        value={localPrompt}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         minHeight={86}
         maxHeight={isFocused ? undefined : 86}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onPromptChange(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setLocalPrompt(e.target.value)}
         onPaste={(e: React.ClipboardEvent<HTMLTextAreaElement>) => {
           const items = e.clipboardData?.items;
           if (!items) return;

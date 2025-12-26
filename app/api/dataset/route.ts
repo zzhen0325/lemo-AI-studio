@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { datasetEvents, DATASET_SYNC_EVENT } from '@/lib/server/dataset-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,22 +34,23 @@ async function copyDir(src: string, dest: string) {
 }
 
 // Helper to get collection metadata
-async function getMetadata(collectionPath: string): Promise<{ prompts: Record<string, string>, systemPrompt: string }> {
+async function getMetadata(collectionPath: string): Promise<{ prompts: Record<string, string>, systemPrompt: string, order: string[] }> {
     const metaPath = path.join(collectionPath, 'metadata.json');
     try {
         const content = await fs.readFile(metaPath, 'utf-8');
         const data = JSON.parse(content);
         return {
             prompts: data.prompts || {},
-            systemPrompt: data.systemPrompt || ""
+            systemPrompt: data.systemPrompt || "",
+            order: Array.isArray(data.order) ? data.order : []
         };
     } catch {
-        return { prompts: {}, systemPrompt: "" };
+        return { prompts: {}, systemPrompt: "", order: [] };
     }
 }
 
 // Helper to save collection metadata
-async function saveMetadata(collectionPath: string, data: { prompts: Record<string, string> }) {
+async function saveMetadata(collectionPath: string, data: { prompts: Record<string, string>, systemPrompt?: string, order?: string[] }) {
     const metaPath = path.join(collectionPath, 'metadata.json');
     await fs.writeFile(metaPath, JSON.stringify(data, null, 2), 'utf-8');
 }
@@ -102,19 +104,38 @@ export async function GET(request: Request) {
                 };
             }));
 
+            // Sort images based on metadata.order
+            if (metadata.order && metadata.order.length > 0) {
+                const orderMap = new Map(metadata.order.map((filename, index) => [filename, index]));
+                images.sort((a, b) => {
+                    const indexA = orderMap.get(a.filename);
+                    const indexB = orderMap.get(b.filename);
+
+                    // If both adhere to order, sort by index
+                    if (indexA !== undefined && indexB !== undefined) {
+                        return indexA - indexB;
+                    }
+                    // If only A in order, A comes first
+                    if (indexA !== undefined) return -1;
+                    // If only B in order, B comes first
+                    if (indexB !== undefined) return 1;
+                    // Otherwise sort by filename (default)
+                    return a.filename.localeCompare(b.filename);
+                });
+            } else {
+                // Default sort by filename if no order
+                images.sort((a, b) => a.filename.localeCompare(b.filename));
+            }
+
             // If we migrated any prompts, save it back to metadata.json
-            // Check if metadata.prompts has new entries or if it was empty and now has entries
-            // A simple check for length > 0 might not be enough if it was already populated.
-            // A more robust check would be to compare before and after, but for this context,
-            // if any prompt was potentially migrated, we save.
-            // The instruction implies saving if there are any prompts, which is covered by the initial check.
             if (Object.keys(metadata.prompts).length > 0) {
                 await saveMetadata(collectionPath, metadata);
             }
 
             return NextResponse.json({
                 images,
-                systemPrompt: metadata.systemPrompt || ""
+                systemPrompt: metadata.systemPrompt || "",
+                order: metadata.order || []
             });
 
         } else {
@@ -173,6 +194,7 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Collection already exists' }, { status: 409 });
             } catch {
                 await copyDir(collectionPath, newPath);
+                datasetEvents.emit(DATASET_SYNC_EVENT);
                 return NextResponse.json({ success: true, message: 'Collection duplicated' });
             }
         }
@@ -188,6 +210,7 @@ export async function POST(request: Request) {
         const filePath = path.join(collectionPath, safeName);
 
         await fs.writeFile(filePath, buffer);
+        datasetEvents.emit(DATASET_SYNC_EVENT);
 
         return NextResponse.json({ success: true, path: `/dataset/${collectionName}/${safeName}` });
     } catch (error) {
@@ -212,6 +235,7 @@ export async function DELETE(request: Request) {
             // Delete entire collection
             try {
                 await fs.rm(collectionPath, { recursive: true, force: true });
+                datasetEvents.emit(DATASET_SYNC_EVENT);
                 return NextResponse.json({ success: true, message: 'Collection deleted' });
             } catch (e) {
                 console.error("Failed to delete collection", e);
@@ -231,14 +255,27 @@ export async function DELETE(request: Request) {
         // Update metadata.json
         try {
             const metadata = await getMetadata(collectionPath);
+            let dirty = false;
+
             if (metadata.prompts[filename]) {
                 delete metadata.prompts[filename];
+                dirty = true;
+            }
+
+            // Remove from order if present
+            if (metadata.order && metadata.order.includes(filename)) {
+                metadata.order = metadata.order.filter(f => f !== filename);
+                dirty = true;
+            }
+
+            if (dirty) {
                 await saveMetadata(collectionPath, metadata);
             }
         } catch (e) {
             console.error("Failed to update metadata on delete", e);
         }
 
+        datasetEvents.emit(DATASET_SYNC_EVENT);
         return NextResponse.json({ success: true, message: 'Deleted successfully' });
     } catch (error) {
         console.error('Dataset Delete Error:', error);
@@ -249,7 +286,7 @@ export async function DELETE(request: Request) {
 export async function PUT(request: Request) {
     try {
         const body = await request.json();
-        const { collection, filename, prompt, systemPrompt } = body;
+        const { collection, filename, prompt, systemPrompt, order } = body;
 
         if (!collection) {
             return NextResponse.json({ error: 'Collection name is required' }, { status: 400 });
@@ -275,6 +312,11 @@ export async function PUT(request: Request) {
             metadata.systemPrompt = systemPrompt;
         }
 
+        if (order !== undefined && Array.isArray(order)) {
+            // Update image order
+            metadata.order = order;
+        }
+
         if (body.mode === 'batchRename') {
             const { prefix } = body;
             if (!prefix) return NextResponse.json({ error: 'Prefix is required' }, { status: 400 });
@@ -282,12 +324,34 @@ export async function PUT(request: Request) {
             const files = await fs.readdir(collectionPath);
             const imageFiles = files
                 .filter(file => /\.(jpg|jpeg|png|webp|gif)$/i.test(file))
-                .sort(); // Sort to ensure consistent numbering
+                .sort(); // Sort to ensure consistent numbering 
+
+            // NOTE: Ideally we should resort using existing metadata.order if available?
+            // For now, let's keep it simple: batch rename sorts by filename alphanumeric.
+            // If the user has a custom order, we might want to respect it?
+            // "The user wants to rename", usually this implies a "reset" of order or 
+            // the user might want to applying naming sequence based on *current visual order*.
+            // Since we don't have the order in this block easily without more logic, 
+            // and `imageFiles` is re-read from disk, let's respect `metadata.order` if possible.
+
+            let sortedFiles = imageFiles;
+            if (metadata.order && metadata.order.length > 0) {
+                const orderMap = new Map(metadata.order.map((f, i) => [f, i]));
+                sortedFiles = [...imageFiles].sort((a, b) => {
+                    const ia = orderMap.get(a);
+                    const ib = orderMap.get(b);
+                    if (ia !== undefined && ib !== undefined) return ia - ib;
+                    if (ia !== undefined) return -1;
+                    if (ib !== undefined) return 1;
+                    return a.localeCompare(b);
+                });
+            }
 
             const newPrompts: Record<string, string> = {};
+            const newOrder: string[] = [];
 
-            for (let i = 0; i < imageFiles.length; i++) {
-                const oldName = imageFiles[i];
+            for (let i = 0; i < sortedFiles.length; i++) {
+                const oldName = sortedFiles[i];
                 const ext = path.extname(oldName);
                 const newName = `${prefix}_${String(i + 1).padStart(2, '0')}${ext}`;
 
@@ -302,14 +366,19 @@ export async function PUT(request: Request) {
                 if (metadata.prompts[oldName]) {
                     newPrompts[newName] = metadata.prompts[oldName];
                 }
+
+                newOrder.push(newName);
             }
 
             metadata.prompts = newPrompts;
+            metadata.order = newOrder;
+
             await saveMetadata(collectionPath, metadata);
+            datasetEvents.emit(DATASET_SYNC_EVENT);
 
             return NextResponse.json({
                 success: true,
-                message: `Renamed ${imageFiles.length} files with prefix ${prefix}`
+                message: `Renamed ${sortedFiles.length} files with prefix ${prefix}`
             });
         }
 
@@ -327,6 +396,7 @@ export async function PUT(request: Request) {
                 // but usually renaming is a standalone or final operation in this flow.
                 // However, we also updated metadata object in memory. We should save it to the NEW path.
                 await saveMetadata(newCollectionPath, metadata);
+                datasetEvents.emit(DATASET_SYNC_EVENT);
 
                 return NextResponse.json({
                     success: true,
@@ -337,6 +407,7 @@ export async function PUT(request: Request) {
         }
 
         await saveMetadata(collectionPath, metadata);
+        datasetEvents.emit(DATASET_SYNC_EVENT);
 
         return NextResponse.json({ success: true, message: 'Metadata updated' });
     } catch (error) {

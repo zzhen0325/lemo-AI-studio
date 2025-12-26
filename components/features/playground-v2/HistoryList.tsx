@@ -101,7 +101,9 @@ function HistoryCard({
   onImageClick: (result: GenerationResult, initialRect?: DOMRect) => void;
 }) {
   const [isHover, setIsHover] = React.useState(false);
-  const { applyPrompt, applyModel, applyImage } = usePlaygroundStore();
+  const applyPrompt = usePlaygroundStore(s => s.applyPrompt);
+  const applyModel = usePlaygroundStore(s => s.applyModel);
+  const applyImage = usePlaygroundStore(s => s.applyImage);
   const mainImage = result.imageUrl || (result.imageUrls && result.imageUrls[0]);
 
   return (

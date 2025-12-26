@@ -143,12 +143,31 @@ export default function DatasetManagerView() {
 
     useEffect(() => {
         fetchCollections();
+
+        // 实时同步逻辑：EventSource 监听
+        const eventSource = new EventSource('/api/dataset/sync');
+
+        eventSource.onmessage = (event) => {
+            if (event.data === 'refresh') {
+                console.log('Real-time sync: refreshing collections...');
+                fetchCollections();
+            }
+        };
+
+        eventSource.onerror = (error) => {
+            console.error('SSE Error:', error);
+            eventSource.close();
+        };
+
+        return () => {
+            eventSource.close();
+        };
     }, []);
 
     const selectedCollection = collections.find(c => c.id === selectedCollectionId);
 
     return (
-        <div className="bg-[#1E1E1E] h-full p-6 px-8">
+        <div className="bg-[#1E1E1E] h-full w-full px-8">
             <div className="relative z-10 flex flex-col h-full w-full mx-auto text-foreground">
                 <div className="flex-1 min-h-0 overflow-y-auto">
                     {!selectedCollectionId ? (

@@ -121,6 +121,11 @@ temp/
 
 # macOS
 .DS_Store
+
 # Generated images and uploads
 public/outputs/
 public/upload/
+public/dataset/**/*.png
+public/dataset/**/*.jpg
+public/dataset/**/*.jpeg
+public/dataset/**/*.webp

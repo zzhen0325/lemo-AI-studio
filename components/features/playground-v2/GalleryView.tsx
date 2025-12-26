@@ -28,7 +28,8 @@ export default function GalleryView() {
     const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [editingImageUrl, setEditingImageUrl] = useState("");
-    const { setUploadedImages, generationHistory } = usePlaygroundStore();
+    const setUploadedImages = usePlaygroundStore(s => s.setUploadedImages);
+    const generationHistory = usePlaygroundStore(s => s.generationHistory);
     const { toast } = useToast();
 
     // Combine local history with active generations from store
@@ -205,7 +206,10 @@ export default function GalleryView() {
 
 function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick: () => void, onDownload: (e: React.MouseEvent, url: string, filename: string) => void }) {
     const [isHover, setIsHover] = useState(false);
-    const { applyPrompt, applyModel, remix, applyImage } = usePlaygroundStore();
+    const applyPrompt = usePlaygroundStore(s => s.applyPrompt);
+    const applyModel = usePlaygroundStore(s => s.applyModel);
+    const remix = usePlaygroundStore(s => s.remix);
+    const applyImage = usePlaygroundStore(s => s.applyImage);
     const performDownload = () => {
         const fakeEvent = { stopPropagation: () => void 0 } as unknown as React.MouseEvent;
         onDownload(fakeEvent, item.url, item.id);
@@ -231,6 +235,7 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         alt="Generated masterwork"
                         width={item.metadata?.img_width || 1024}
                         height={item.metadata?.img_height || 1024}
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 25vw, 15vw"
                         className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                 )}

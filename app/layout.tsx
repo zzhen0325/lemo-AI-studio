@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import localFont from "next/font/local";
 import "@/styles/globals.css";
 import { ThemeProvider } from "@/components/common/theme-provider";
@@ -7,9 +8,9 @@ import { ViewComfyProvider } from "@/lib/providers/view-comfy-provider";
 import { cn } from "@/lib/utils";
 import ScrollbarVisibility from "@/components/common/scrollbar-visibility";
 
-const googleSansFlex = localFont({
-  src: "../public/Font/GoogleSansFlex-VariableFont_GRAD,ROND,opsz,slnt,wdth,wght.ttf",
-  variable: "--font-google-sans-flex",
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
 });
 
 const instrument = localFont({
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${googleSansFlex.variable} ${instrument.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${instrument.variable}`}>
       <head />
       <body className={cn("min-h-screen font-sans antialiased")}>
 

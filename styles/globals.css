@@ -49,7 +49,7 @@
     --sidebar-ring: oklch(0.4390 0 0);
 
     /* Font definitions from user snippet - combining with existing if needed, but using user's preference */
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: var(--font-inter), ui-sans-serif, system-ui;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
@@ -125,7 +125,23 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-google-sans-flex), sans-serif;
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 400;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  strong,
+  b {
+    font-weight: 600;
   }
 
 
@@ -188,4 +204,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Global Sonner Toast Overrides for Sidebar */
+[data-sonner-toast].sidebar-toast [data-title] {
+  color: #ffffff !important;
+  font-weight: 500 !important;
+}
+
+[data-sonner-toast].sidebar-toast [data-description] {
+  color: #ffffffa4 !important;
+  opacity: 1 !important;
 }

@@ -125,6 +125,18 @@ const WebGLRenderer: React.FC<WebGLRendererProps> = ({ shader, uniforms, classNa
             if (requestRef.current) {
                 cancelAnimationFrame(requestRef.current);
             }
+
+            // Clean up WebGL resources
+            gl.deleteBuffer(positionBuffer);
+            gl.deleteShader(vertexShader);
+            gl.deleteShader(fragmentShader);
+            gl.deleteProgram(program);
+
+            // Explicitly lose context if possible (optional but recommended for complete cleanup)
+            const extension = gl.getExtension('WEBGL_lose_context');
+            if (extension) {
+                // extension.loseContext(); // Be careful with this as it might affect other contexts if not handled right
+            }
         };
     }, [shader, uniforms]);
 

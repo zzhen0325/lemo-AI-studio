@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TabValue } from "./sidebar";
+import { Toaster } from "sonner";
 
 interface NewSidebarProps {
     currentTab: TabValue;
@@ -29,14 +30,12 @@ const navItems = [
 export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
     return (
         <aside
-            className="fixed left-0 top-0 h-screen z-50 flex flex-col py-6 select-none w-[240px]"
+            className="fixed left-0 top-0 h-screen z-50 flex flex-col mt-6 select-none w-28 "
         >
-            <div className="px-6 mb-10 flex items-center h-10">
-                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-primary font-bold text-lg">L</span>
-                </div>
-                <span className="ml-3 text-white font-semibold text-lg whitespace-nowrap">
-                    Lemon8 AI
+            <div className="px-6 mb-4 flex items-center h-10">
+
+                <span className="ml-3 text-white font-bold  text-md whitespace-nowrap">
+                    LEMO STUDIO
                 </span>
             </div>
 
@@ -50,17 +49,17 @@ export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
                             key={item.value}
                             onClick={() => onTabChange(item.value)}
                             className={cn(
-                                "w-full flex items-center h-10 ml-6 rounded-xl transition-all relative group",
+                                "w-full flex items-center h-10 ml-6  border-b border-white/10 hover:font-bold  transition-all relative group",
                                 isActive
-                                    ? " text-white"
-                                    : "text-white/50  hover:text-white"
+                                    ? " text-white "
+                                    : "text-white/70  hover:text-white "
                             )}
                         >
                             {/* <div className="w-[54px] flex-shrink-0 flex items-center justify-center">
                                 <Icon className={cn("size-5 transition-transform", isActive && "scale-110")} />
                             </div> */}
 
-                            <span className="text-sm font-medium whitespace-nowrap">
+                            <span className="text-sm whitespace-nowrap">
                                 {item.label}
                             </span>
                         </button>
@@ -68,9 +67,32 @@ export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
                 })}
             </nav>
 
-            <div className="px-6 mt-auto">
-                <div className="flex items-center text-white/30 text-xs transition-opacity duration-300">
+            <div className="px-6 mt-auto pb-4">
+                <div className="flex items-center text-white/30 text-xs mb-2">
                     v0.2.0
+                </div>
+                <div className="fixed bottom-80 left-4 z-[9999] pointer-events-auto">
+                    <Toaster
+                        position="bottom-left"
+                        toastOptions={{
+                            className: "sidebar-toast",
+                            classNames: {
+                                description: "text-white",
+                                title: "text-white font-medium"
+                            },
+                            style: {
+                                background: 'linear-gradient(to bottom, rgba(18, 24, 45, 0.95), rgba(29, 36, 70, 0.95)) padding-box, linear-gradient(135deg, rgba(22, 38, 149, 0.3), rgba(58, 94, 251, 0.3)) border-box',
+                                backdropFilter: 'blur(12px)',
+                                border: '1px solid rgba(255, 255, 255, 0.31)',
+                                color: '#fff',
+                                fontSize: '11px',
+                                width: '160px',
+                                minWidth: '160px',
+                                borderRadius: '12px',
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                            },
+                        }}
+                    />
                 </div>
             </div>
         </aside>

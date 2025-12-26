@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { DatasetCollection } from "./DatasetManagerView";
 import { Button } from "@/components/ui/button";
 import { AutosizeTextarea } from "@/components/ui/autosize-text-area";
@@ -21,7 +21,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronUp, Download, Scissors, Wand2, Plus, Loader2, Trash2, Save, Languages, ListOrdered, X } from "lucide-react";
+import { ChevronLeft, ChevronUp, Download, Scissors, Wand2, Plus, Loader2, Trash2, Save, Languages, ListOrdered, X, LayoutGrid, List } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import Image from "next/image";
 import { ImageZoom } from "@/components/ui/shadcn-io/image-zoom";
 import {
@@ -40,6 +41,107 @@ import {
 } from "@/components/ui/dialog";
 import JSZip from "jszip";
 import { useToast } from "@/hooks/common/use-toast";
+import { createPortal } from "react-dom";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragOverlay,
+    DragStartEvent,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface SortableImageProps {
+    img: DatasetImage;
+    gridColumns: number;
+    onDelete: (img: DatasetImage) => void;
+}
+
+const SortableImage = ({ img, gridColumns, onDelete }: SortableImageProps) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: img.id });
+
+    const style = {
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.3 : 1,
+        zIndex: isDragging ? 100 : 'auto',
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            id={img.id}
+            style={style}
+            {...attributes}
+            {...listeners}
+            className="group relative aspect-square bg-card border border-border rounded-xl overflow-hidden hover:ring-2 hover:ring-primary/50 transition-all select-none touch-none"
+        >
+            <Image
+                src={img.url}
+                alt={img.filename}
+                fill
+                className="object-cover"
+                sizes={`(max-width: 768px) 33vw, ${Math.round(100 / gridColumns)}vw`}
+            />
+
+            {/* Overlay */}
+            <div className={`absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3 ${isDragging ? 'opacity-0' : ''}`}>
+                <div className="flex justify-end">
+                    <div className="bg-black/50 backdrop-blur-sm rounded px-1.5 py-0.5 text-[10px] text-white/80 font-mono truncate max-w-full">
+                        {img.filename}
+                    </div>
+                </div>
+
+                <div className="flex justify-center items-end h-full pb-2">
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-8 w-auto px-4 shadow-lg scale-90 hover:scale-100 transition-transform"
+                        onPointerDown={(e) => e.stopPropagation()} // Prevent drag start on button click
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(img);
+                        }}
+                    >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                    </Button>
+                </div>
+
+                <div className="absolute bottom-2 left-2">
+                    <span className="text-[10px] text-white/60 bg-black/40 px-1 rounded">
+                        <ImageSize src={img.url} />
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+};
+// ... rest of the file ...
+// Note: I need to target the Main Component's render part again to update DragOverlay
+// This tool call only allows one contiguous block. 
+// I will split this into two tool calls or use multi_replace.
+// But wait, the SortableImage definition is separate from the CollectionDetail return.
+// I can only edit SortableImage here. I'll simply return.
+
 
 interface CollectionDetailProps {
     collection: DatasetCollection;
@@ -96,7 +198,67 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
     const [targetSize, setTargetSize] = useState<string>('512');
     const [isBatchRenameDialogOpen, setIsBatchRenameDialogOpen] = useState(false);
     const [renamePrefix, setRenamePrefix] = useState("");
-    const { toast } = useToast();
+    const [pendingTask, setPendingTask] = useState<{ type: 'optimize' | 'translate', lang?: 'en' | 'zh' } | null>(null);
+    const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+    const { toast, dismiss } = useToast();
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+    const [gridColumns, setGridColumns] = useState<number>(5);
+    const cancelRef = useRef<AbortController | null>(null);
+
+    // DnD Logic
+    const [draggedId, setDraggedId] = useState<string | null>(null);
+    const [draggedSize, setDraggedSize] = useState<{ width: number; height: number } | null>(null);
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
+    const handleSaveOrder = useCallback(async (newImages: DatasetImage[]) => {
+        try {
+            const order = newImages.map(img => img.filename);
+            await fetch('/api/dataset', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    collection: collection.name,
+                    order
+                })
+            });
+        } catch (e) {
+            console.error("Failed to save order", e);
+        }
+    }, [collection.name]);
+
+    const handleDragStart = (event: DragStartEvent) => {
+        const { active } = event;
+        setDraggedId(active.id as string);
+
+        // Measure the dragged element to ensure overlay matches size
+        // We need to delay slightly or just grab it directly if it exists
+        // Note: The element might be transforming, but initial size should be correct
+        // If we attached id={img.id} to the SortableImage div
+        const node = document.getElementById(active.id as string);
+        if (node) {
+            const rect = node.getBoundingClientRect();
+            setDraggedSize({ width: rect.width, height: rect.height });
+        }
+    };
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            setImages((items) => {
+                const oldIndex = items.findIndex((item) => item.id === active.id);
+                const newIndex = items.findIndex((item) => item.id === over.id);
+                const newItems = arrayMove(items, oldIndex, newIndex);
+                handleSaveOrder(newItems);
+                return newItems;
+            });
+        }
+        setDraggedId(null);
+        setDraggedSize(null);
+    };
 
     const handleDeleteImage = async (img: DatasetImage) => {
         if (!window.confirm("Are you sure you want to delete this image?")) return;
@@ -290,6 +452,9 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
             description: `Removed "${prefix}" from matching images.`,
         });
     };
+    const dirtyIdsRef = useRef<Set<string>>(new Set());
+    const isSystemPromptDirtyRef = useRef(false);
+
     const fetchImages = useCallback(async () => {
         try {
             setIsProcessing(true);
@@ -299,27 +464,58 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                 try {
                     const data = await res.json();
                     errMsg = data?.error || errMsg;
-                } catch {
-                    // ignore
-                }
+                } catch { /* ignore */ }
                 toast({ title: "加载失败", description: errMsg, variant: "destructive" });
                 setImages([]);
                 return;
             }
             const data = await res.json();
-            setImages(data.images || []);
-            setSystemPrompt(data.systemPrompt || "");
+
+            // Smart Merge: Only update non-dirty images
+            setImages(prev => {
+                const incomingImages = (data.images || []) as DatasetImage[];
+                const currentDirty = dirtyIdsRef.current;
+
+                if (currentDirty.size === 0) return incomingImages;
+
+                return incomingImages.map(img => {
+                    if (currentDirty.has(img.id)) {
+                        const localImg = prev.find(p => p.id === img.id);
+                        return localImg ? { ...img, prompt: localImg.prompt } : img;
+                    }
+                    return img;
+                });
+            });
+
+            if (!isSystemPromptDirtyRef.current) {
+                setSystemPrompt(data.systemPrompt || "");
+            }
         } catch (error) {
             console.error("Failed to fetch images", error);
             toast({ title: "加载失败", description: "无法读取数据集图片", variant: "destructive" });
         } finally {
             setIsProcessing(false);
         }
-    }, [collection, toast]);
+    }, [collection.name, toast]); // Now only depends on collection.name
 
     useEffect(() => {
         fetchImages();
-    }, [fetchImages]); // Refresh when fetchImages (or collection) changes
+
+        // Real-time synchronization
+        const eventSource = new EventSource('/api/dataset/sync');
+        eventSource.onmessage = (event) => {
+            if (event.data === 'refresh') {
+                console.log('CollectionDetail: received sync signal');
+                fetchImages();
+            }
+        };
+
+        eventSource.onerror = () => {
+            eventSource.close();
+        };
+
+        return () => eventSource.close();
+    }, [fetchImages]);
 
     const processUploadFiles = async (files: File[]) => {
         if (files.length === 0) return;
@@ -421,9 +617,17 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
     const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
     const [isSystemPromptDirty, setIsSystemPromptDirty] = useState(false);
 
+    // Sync refs with state for use in useCallback without changing dependencies
+    useEffect(() => { dirtyIdsRef.current = dirtyIds; }, [dirtyIds]);
+    useEffect(() => { isSystemPromptDirtyRef.current = isSystemPromptDirty; }, [isSystemPromptDirty]);
+
     const handlePromptChange = (id: string, newPrompt: string) => {
         setImages((prev: DatasetImage[]) => prev.map((img: DatasetImage) => img.id === id ? { ...img, prompt: newPrompt } : img));
-        setDirtyIds(prev => new Set(prev).add(id));
+        setDirtyIds(prev => {
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+        });
     };
 
     // Unified auto-save with debounce
@@ -434,10 +638,7 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
             const currentDirtyIds = Array.from(dirtyIds);
             const currentSystemPromptDirty = isSystemPromptDirty;
 
-            // Optimistically clear flags before request
-            setDirtyIds(new Set());
-            setIsSystemPromptDirty(false);
-
+            // Do not clear flags optimistically to prevent SSE from overwriting during the save process
             try {
                 const updatePayload: {
                     collection: string;
@@ -469,6 +670,17 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                 });
 
                 if (res.ok) {
+                    // Clear only what was sent
+                    if (currentDirtyIds.length > 0) {
+                        setDirtyIds(prev => {
+                            const next = new Set(prev);
+                            currentDirtyIds.forEach(id => next.delete(id));
+                            return next;
+                        });
+                    }
+                    if (currentSystemPromptDirty) {
+                        setIsSystemPromptDirty(false);
+                    }
                     toast({ title: "已同步", description: "更改已自动保存" });
                 } else {
                     throw new Error("Save failed");
@@ -508,6 +720,15 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
 
 
     const handleOptimizeAll = async () => {
+        if (isProcessing) {
+            setPendingTask({ type: 'optimize' });
+            setIsConflictDialogOpen(true);
+            return;
+        }
+        startOptimizeAll();
+    };
+
+    const startOptimizeAll = async () => {
         if (images.length === 0) {
             toast({ title: "No images", description: "This collection is empty." });
             return;
@@ -516,23 +737,49 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         const targets = images;
         setIsProcessing(true);
         setProgress({ current: 0, total: targets.length });
-        const toastId = toast({ title: "批量优化中...", description: `准备中: 0/${targets.length}` });
+
+        // Initialize cancel controller
+        const controller = new AbortController();
+        cancelRef.current = controller;
+
+        const toastId = toast({
+            title: "批量优化中...",
+            description: `准备中: 0/${targets.length}`,
+            duration: Infinity, // Maintain visibility
+            action: (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs font-semibold hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                        controller.abort();
+                        dismiss(toastId);
+                    }}
+                >
+                    Cancel
+                </Button>
+            ),
+        });
 
         try {
             let success = 0;
             for (let idx = 0; idx < targets.length; idx++) {
+                if (controller.signal.aborted) break;
+
                 const img = targets[idx];
                 toast({
                     id: toastId,
                     title: "批量优化中...",
-                    description: `正在处理第 ${idx + 1} 张，共 ${targets.length} 张...`
+                    description: `正在处理第 ${idx + 1} 张，共 ${targets.length} 张...`,
+                    duration: Infinity,
                 });
                 try {
-                    const response = await fetch(img.url);
+                    const response = await fetch(img.url, { signal: controller.signal });
                     const blob = await response.blob();
                     const reader = new FileReader();
-                    const base64 = await new Promise<string>((resolve) => {
+                    const base64 = await new Promise<string>((resolve, reject) => {
                         reader.onloadend = () => resolve(reader.result as string);
+                        reader.onerror = reject;
                         reader.readAsDataURL(blob);
                     });
 
@@ -541,38 +788,67 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             imageBase64: base64,
-                            systemPrompt: systemPrompt // Pass system prompt
+                            systemPrompt: systemPrompt
                         }),
+                        signal: controller.signal
                     });
 
                     if (apiRes.ok) {
                         const data = await apiRes.json();
-                        setImages(prev => prev.map(i => i.id === img.id ? { ...i, prompt: data.text || i.prompt, isOptimizing: false } : i));
+                        const newPrompt = data.text || img.prompt;
+
+                        // 1. 更新本地状态
+                        setImages(prev => prev.map(i => i.id === img.id ? { ...i, prompt: newPrompt, isOptimizing: false } : i));
+
+                        // 2. 立即持久化到服务器 (逐图保存)
+                        await fetch('/api/dataset', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                collection: collection.name,
+                                prompts: { [img.filename]: newPrompt }
+                            }),
+                            signal: controller.signal
+                        });
+
                         success++;
                     } else {
                         setImages(prev => prev.map(i => i.id === img.id ? { ...i, isOptimizing: false } : i));
                     }
-                } catch {
+                } catch (e: unknown) {
+                    if (e instanceof Error && e.name === 'AbortError') {
+                        console.log('Batch optimization cancelled');
+                        break;
+                    }
                     setImages(prev => prev.map(i => i.id === img.id ? { ...i, isOptimizing: false } : i));
                 } finally {
                     setProgress({ current: idx + 1, total: targets.length });
                 }
             }
-            toast({
-                id: toastId,
-                title: "优化完成",
-                description: `成功生成 ${success}/${targets.length} 张图片的提示词。`
-            });
+
+            if (!controller.signal.aborted) {
+                dismiss(toastId);
+                toast({
+                    title: "优化完成",
+                    description: `成功生成 ${success}/${targets.length} 张图片的提示词。`
+                });
+            } else {
+                toast({
+                    title: "任务已取消",
+                    description: `已处理 ${success} 张后中止。`
+                });
+            }
         } catch {
+            dismiss(toastId);
             toast({
-                id: toastId,
                 title: "优化失败",
                 variant: "destructive",
-                description: "无法连接到 Google GenAI 服务。"
+                description: "发生未知错误，请重试。"
             });
         } finally {
             setIsProcessing(false);
             setProgress(null);
+            cancelRef.current = null;
         }
     };
 
@@ -691,6 +967,15 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
 
 
     const handleBatchTranslate = async (targetLang: 'en' | 'zh') => {
+        if (isProcessing) {
+            setPendingTask({ type: 'translate', lang: targetLang });
+            setIsConflictDialogOpen(true);
+            return;
+        }
+        startBatchTranslate(targetLang);
+    };
+
+    const startBatchTranslate = async (targetLang: 'en' | 'zh') => {
         if (images.length === 0) {
             toast({ title: "No images", description: "This collection is empty." });
             return;
@@ -705,20 +990,44 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
 
         setIsProcessing(true);
         setProgress({ current: 0, total: targets.length });
-        const toastId = toast({ title: "批量翻译中...", description: `准备中: 0/${targets.length}` });
+
+        // Initialize cancel controller
+        const controller = new AbortController();
+        cancelRef.current = controller;
+
+        const toastId = toast({
+            title: "批量翻译中...",
+            description: `准备中: 0/${targets.length}`,
+            duration: Infinity,
+            action: (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs font-semibold hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                        controller.abort();
+                        dismiss(toastId);
+                    }}
+                >
+                    Cancel
+                </Button>
+            ),
+        });
 
         let successCount = 0;
 
         try {
             for (let idx = 0; idx < targets.length; idx++) {
+                if (controller.signal.aborted) break;
+
                 const img = targets[idx];
                 toast({
                     id: toastId,
                     title: "批量翻译中...",
-                    description: `正在处理第 ${idx + 1} 张，共 ${targets.length} 张...`
+                    description: `正在处理第 ${idx + 1} 张，共 ${targets.length} 张...`,
+                    duration: Infinity,
                 });
 
-                // Set individual translating state (optional, reusing isProcessing primarily)
                 setImages(prev => prev.map(i => i.id === img.id ? { ...i, isTranslating: true } : i));
 
                 try {
@@ -729,34 +1038,60 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                             text: img.prompt,
                             target: targetLang
                         }),
+                        signal: controller.signal
                     });
 
                     if (response.ok) {
                         const data = await response.json();
-                        handlePromptChange(img.id, data.translatedText);
+                        const newPrompt = data.translatedText;
+
+                        // 1. 更新本地状态
+                        handlePromptChange(img.id, newPrompt);
+
+                        // 2. 立即持久化到服务器 (逐图保存)
+                        await fetch('/api/dataset', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                collection: collection.name,
+                                prompts: { [img.filename]: newPrompt }
+                            }),
+                            signal: controller.signal
+                        });
+
                         successCount++;
                     }
-                } catch (error) {
+                } catch (error: unknown) {
+                    if (error instanceof Error && error.name === 'AbortError') break;
                     console.error(`Failed to translate image ${img.id}`, error);
                 } finally {
                     setImages(prev => prev.map(i => i.id === img.id ? { ...i, isTranslating: false } : i));
                     setProgress({ current: idx + 1, total: targets.length });
                 }
             }
-            toast({
-                id: toastId,
-                title: "批量翻译完成",
-                description: `成功翻译 ${successCount}/${targets.length} 条提示词。`
-            });
+
+            if (!controller.signal.aborted) {
+                dismiss(toastId);
+                toast({
+                    title: "批量翻译完成",
+                    description: `成功翻译 ${successCount}/${targets.length} 条提示词。`
+                });
+            } else {
+                toast({
+                    title: "翻译已取消",
+                    description: `已处理 ${successCount} 条后中止。`
+                });
+            }
         } catch {
+            dismiss(toastId);
             toast({
-                id: toastId,
                 title: "批量翻译失败",
                 variant: "destructive"
             });
         } finally {
             setIsProcessing(false);
             setProgress(null);
+            cancelRef.current = null;
         }
     };
 
@@ -828,277 +1163,344 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                     </div>
                 </div>
             )}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={onBack} className="text-white border   border-white/10 hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg">
-                        <ChevronLeft className="h-6 w-6 " />
-                    </Button>
+            {/* Sticky Header Section */}
+            <div className="sticky top-0 z-30 bg-[#1E1E1E]/95 backdrop-blur-sm -mx-4 px-4 p-6 pb-4 border-b border-white/5">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button variant="ghost" size="icon" onClick={onBack} className="text-white border   border-white/10 hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg">
+                            <ChevronLeft className="h-6 w-6 " />
+                        </Button>
 
-                    <div>
-                        <div className="flex items-center gap-2">
-                            {isEditingName ? (
-                                <Input
-                                    value={newName}
-                                    onChange={(e) => setNewName(e.target.value)}
-                                    onBlur={handleRenameCollection}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleRenameCollection()}
-                                    autoFocus
-                                    className="h-8 py-1 text-xl font-bold w-[200px]"
-                                />
-                            ) : (
-                                <h1
-                                    className="text-2xl font-bold text-foreground cursor-pointer hover:bg-muted/50 px-2 rounded -ml-2 transition-colors select-none"
-                                    onDoubleClick={() => setIsEditingName(true)}
-                                    title="Double click to rename"
-                                >
-                                    {collection.name}
-                                </h1>
-                            )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{images.length} images with prompts</p>
-                    </div>
-                </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                {isEditingName ? (
+                                    <Input
+                                        value={newName}
+                                        onChange={(e) => setNewName(e.target.value)}
+                                        onBlur={handleRenameCollection}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleRenameCollection()}
+                                        autoFocus
+                                        className="h-8 py-1 text-xl font-bold w-[200px]"
+                                    />
+                                ) : (
+                                    <h1
+                                        className="text-2xl font-bold text-foreground cursor-pointer hover:bg-muted/50 px-2 rounded -ml-2 transition-colors select-none"
+                                        onDoubleClick={() => setIsEditingName(true)}
+                                        title="Double click to rename"
+                                    >
+                                        {collection.name}
+                                    </h1>
+                                )}
 
-                <div className="flex  items-end gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isProcessing}
-                        onClick={handleSaveAllData}
-                        className="text-primary hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg"
-                    >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Save All
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-primary hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg"
-                        onClick={() => setIsPromptPanelOpen(!isPromptPanelOpen)}
-                    >
-                        AI Settings
-                        <Wand2 className="ml-2 h-4 w-4" />
-                    </Button>
-                    <div className="w-[1px] h-6 bg-border ml-2 mb-2" />
-                    <label className="cursor-pointer">
-
-                        <input type="file" multiple accept="image/*,.txt" className="hidden" onChange={handleUpload} />
-                    </label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                disabled={isProcessing}
-                                className="text-foreground"
-                            >
-                                <Scissors className="h-4 w-4 " />
-                                Crop
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80 p-4" align="start">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="text-xs">Crop Mode</Label>
-                                    <Select value={cropMode} onValueChange={(v: 'center' | 'longest') => setCropMode(v)}>
-                                        <SelectTrigger className="w-full h-9 bg-background border-border text-xs">
-                                            <SelectValue placeholder="Mode" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="center">Center Crop (1:1)</SelectItem>
-                                            <SelectItem value="longest">Scale Longest Side</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label className="text-xs">Target Size</Label>
-                                    <Select value={targetSize} onValueChange={setTargetSize}>
-                                        <SelectTrigger className="w-full h-9 bg-background border-border text-xs">
-                                            <SelectValue placeholder="Size" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="512">512px</SelectItem>
-                                            <SelectItem value="768">768px</SelectItem>
-                                            <SelectItem value="1024">1024px</SelectItem>
-                                            <SelectItem value="2048">2048px</SelectItem>
-                                            <SelectItem value="original">Original Size</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <Button
-                                    variant="default"
-                                    size="sm"
-                                    disabled={isProcessing}
-                                    onClick={handleBatchCrop}
-                                    className="w-full h-9 text-xs"
-                                >
-                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin " /> : <Scissors className="h-4 w-4 " />}
-                                    Apply Batch Crop
-                                </Button>
-
-                                <Dialog open={isBatchRenameDialogOpen} onOpenChange={setIsBatchRenameDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="w-full h-9 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
-                                        >
-                                            <ListOrdered className="h-4 w-4 mr-2" />
-                                            Batch Rename (Files)
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Batch Rename Images</DialogTitle>
-                                            <DialogDescription>
-                                                All images in this collection will be renamed to <b>prefix_01, prefix_02...</b>
-                                                <br />
-                                                <span className="text-destructive font-semibold">Important: This operation cannot be easily undone.</span>
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-4 py-4">
-                                            <div className="space-y-2">
-                                                <Label>File Prefix</Label>
-                                                <Input
-                                                    placeholder="e.g. character_name_v1"
-                                                    value={renamePrefix}
-                                                    onChange={(e) => setRenamePrefix(e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button variant="ghost" onClick={() => setIsBatchRenameDialogOpen(false)}>Cancel</Button>
-                                            <Button
-                                                variant="destructive"
-                                                onClick={handleBatchRename}
-                                                disabled={isProcessing || !renamePrefix}
-                                            >
-                                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                                Execute Rename
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
                             </div>
-                        </PopoverContent>
-                    </Popover>
+                            <p className="text-sm text-muted-foreground">{images.length} images with prompts</p>
+                        </div>
+                        {progress && (
+                            <div className="flex items-center    ml-4 pl-4 bg-[linear-gradient(to_bottom,#12182d,#1d2446)] p-2 border border-white/20  rounded-lg animate-in fade-in slide-in-from-left-2 duration-100">
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2 text-xs font-medium text-primary">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        <span>处理中 {progress.current}/{progress.total}</span>
+                                    </div>
+                                    <div className="w-32 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-primary transition-all duration-300 ease-out"
+                                            style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => cancelRef.current?.abort()}
+                                    className="h-8 px-2 text-xs text-muted-foreground bg-black/10 ml-3 border border-white/10 hover:text-destructive hover:bg-destructive/10"
+                                >
+                                    <X className="h-3.5 w-3.5 " />
+                                    停止
+                                </Button>
+                            </div>
+                        )}
 
-                    <Button
-                        variant="outline"
-                        disabled={isProcessing}
-                        onClick={handleOptimizeAll}
-                        className="text-foreground"
-                    >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                        Optimize All
-                    </Button>
+                    </div>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="outline"
-                                disabled={isProcessing}
-                                className="text-foreground"
-                            >
-                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4 " />}
-                                Translate All
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleBatchTranslate('en')}>
-                                Translate to English
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleBatchTranslate('zh')}>
-                                Translate to Chinese
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <div className="w-[1px] h-6 bg-border mx-2 mb-2" />
-                    <Button
-                        variant="outline"
-                        disabled={isProcessing}
-                        onClick={handleExport}
-                        className="text-foreground"
-                    >
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 " />}
-                        Export
-                    </Button>
-                </div>
-            </div>
-
-            {
-                isPromptPanelOpen && (
-                    <div className="p-5 bg-card border border-border rounded-2xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                                <Wand2 className="h-4 w-4 text-primary" />
-                                System prompt for this collection
-                            </h3>
+                    <div className="flex  items-center gap-2">
+                        {/* View Mode Toggle */}
+                        <div className="flex items-center bg-muted/50 rounded-lg p-1 border border-white/10 mr-2 h-10">
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                onClick={() => setIsPromptPanelOpen(false)}
-                                title="Collapse"
+                                onClick={() => setViewMode('list')}
+                                className={`h-8 w-8 rounded-md ${viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                                title="List View"
                             >
-                                <ChevronUp className="h-4 w-4" />
+                                <List className="h-4 w-4" />
                             </Button>
-
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setViewMode('grid')}
+                                className={`h-8 w-8 rounded-md ${viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                                title="Grid View"
+                            >
+                                <LayoutGrid className="h-4 w-4" />
+                            </Button>
                         </div>
-                        <AutosizeTextarea
-                            value={systemPrompt}
-                            onChange={(e) => {
-                                setSystemPrompt(e.target.value);
-                                setIsSystemPromptDirty(true);
-                            }}
-                            className="w-full bg-background border-border text-foreground text-sm p-4 focus:border-primary/50 rounded-xl min-h-[80px]"
-                            placeholder="What is in this image? Describe the main objects and context."
-                        />
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 pt-2">
-                            {PROMPT_MODIFIERS.map(m => (
-                                <div key={m.id} className="flex items-start gap-2.5 group cursor-pointer" onClick={() => handleModifierChange(m.text, !systemPrompt.includes(m.text))}>
-                                    <Checkbox
-                                        id={m.id}
-                                        checked={systemPrompt.includes(m.text)}
-                                        className="mt-0.5 border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                                        onClick={(e) => e.stopPropagation()}
-                                        onCheckedChange={(checked) => handleModifierChange(m.text, !!checked)}
-                                    />
-                                    <Label
-                                        htmlFor={m.id}
-                                        className="text-[12px] text-muted-foreground group-hover:text-foreground leading-relaxed cursor-pointer transition-colors"
+                        {viewMode === 'grid' && (
+                            <div className="flex items-center gap-3 mr-4 w-[120px] animate-in fade-in slide-in-from-right-4">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Size</span>
+                                <Slider
+                                    value={[gridColumns]}
+                                    onValueChange={(vals) => setGridColumns(vals[0])}
+                                    min={2}
+                                    max={10}
+                                    step={1}
+                                    className="w-full"
+                                />
+                            </div>
+                        )}
 
-                                        onClick={(e) => e.stopPropagation()}
+                        <div className="w-[1px] h-6 bg-border mx-2" />
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isProcessing}
+                            onClick={handleSaveAllData}
+                            className="text-primary hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg"
+                        >
+                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save All
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-primary hover:text-primary hover:bg-white/10 h-10 px-4 rounded-lg"
+                            onClick={() => setIsPromptPanelOpen(!isPromptPanelOpen)}
+                        >
+                            AI Settings
+                            <Wand2 className="ml-2 h-4 w-4" />
+                        </Button>
+                        <div className="w-[1px] h-6 bg-border ml-2 mb-2" />
+                        <label className="cursor-pointer">
+
+                            <input type="file" multiple accept="image/*,.txt" className="hidden" onChange={handleUpload} />
+                        </label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    disabled={isProcessing}
+                                    className="text-foreground"
+                                >
+                                    <Scissors className="h-4 w-4 " />
+                                    Crop
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 p-4" align="start">
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Crop Mode</Label>
+                                        <div className="flex gap-2">
+                                            <Select value={cropMode} onValueChange={(v: 'center' | 'longest') => setCropMode(v)}>
+                                                <SelectTrigger className="w-full h-9 bg-background border-border text-xs">
+                                                    <SelectValue placeholder="Mode" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="center">Center Crop (1:1)</SelectItem>
+                                                    <SelectItem value="longest">Scale Longest Side</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Target Size</Label>
+                                        <Select value={targetSize} onValueChange={setTargetSize}>
+                                            <SelectTrigger className="w-full h-9 bg-background border-border text-xs">
+                                                <SelectValue placeholder="Size" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="512">512px</SelectItem>
+                                                <SelectItem value="768">768px</SelectItem>
+                                                <SelectItem value="1024">1024px</SelectItem>
+                                                <SelectItem value="2048">2048px</SelectItem>
+                                                <SelectItem value="original">Original Size</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <Button
+                                        variant="default"
+                                        size="sm"
+                                        disabled={isProcessing}
+                                        onClick={handleBatchCrop}
+                                        className="w-full h-9 text-xs"
                                     >
-                                        {m.label}
-                                    </Label>
+                                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin " /> : <Scissors className="h-4 w-4 " />}
+                                        Apply Batch Crop
+                                    </Button>
+
+                                    <Dialog open={isBatchRenameDialogOpen} onOpenChange={setIsBatchRenameDialogOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="w-full h-9 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                                            >
+                                                <ListOrdered className="h-4 w-4 mr-2" />
+                                                Batch Rename (Files)
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Batch Rename Images</DialogTitle>
+                                                <DialogDescription>
+                                                    All images in this collection will be renamed to <b>prefix_01, prefix_02...</b>
+                                                    <br />
+                                                    <span className="text-destructive font-semibold">Important: This operation cannot be easily undone.</span>
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <div className="space-y-4 py-4">
+                                                <div className="space-y-2">
+                                                    <Label>File Prefix</Label>
+                                                    <Input
+                                                        placeholder="e.g. character_name_v1"
+                                                        value={renamePrefix}
+                                                        onChange={(e) => setRenamePrefix(e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button variant="ghost" onClick={() => setIsBatchRenameDialogOpen(false)}>Cancel</Button>
+                                                <Button
+                                                    variant="destructive"
+                                                    onClick={handleBatchRename}
+                                                    disabled={isProcessing || !renamePrefix}
+                                                >
+                                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                                    Execute Rename
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                 </div>
-                            ))}
-                        </div>
+                            </PopoverContent>
+                        </Popover>
 
-                        <p className="text-[11px] text-muted-foreground italic">
-                            * This prompt will be used for all images in this collection when clicking &quot;Optimize&quot;. Changes are auto-saved.
-                        </p>
+                        <Button
+                            variant="outline"
+                            disabled={isProcessing}
+                            onClick={handleOptimizeAll}
+                            className="text-foreground"
+                        >
+                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                            Optimize All
+                        </Button>
 
-                        <div className="border-t border-border my-4"></div>
-
-
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    disabled={isProcessing}
+                                    className="text-foreground"
+                                >
+                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4 " />}
+                                    Translate All
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleBatchTranslate('en')}>
+                                    Translate to English
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleBatchTranslate('zh')}>
+                                    Translate to Chinese
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <div className="w-[1px] h-6 bg-border mx-2 mb-2" />
+                        <Button
+                            variant="outline"
+                            disabled={isProcessing}
+                            onClick={handleExport}
+                            className="text-foreground"
+                        >
+                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 " />}
+                            Export
+                        </Button>
                     </div>
-                )
-            }
+                </div>
 
-            {/* 批量前缀/触发词 */}
+                {
+                    isPromptPanelOpen && (
+                        <div className="p-5 bg-card border border-border rounded-2xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                    <Wand2 className="h-4 w-4 text-primary" />
+                                    System prompt for this collection
+                                </h3>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                    onClick={() => setIsPromptPanelOpen(false)}
+                                    title="Collapse"
+                                >
+                                    <ChevronUp className="h-4 w-4" />
+                                </Button>
 
-            <h3 className="text-sm font-semibold text-foreground flex items-center">
+                            </div>
+                            <AutosizeTextarea
+                                value={systemPrompt}
+                                onChange={(e) => {
+                                    setSystemPrompt(e.target.value);
+                                    setIsSystemPromptDirty(true);
+                                }}
+                                className="w-full bg-background border-border text-foreground text-sm p-4 focus:border-primary/50 rounded-xl min-h-[80px]"
+                                placeholder="What is in this image? Describe the main objects and context."
+                            />
 
-                Batch Trigger Word
-            </h3>
-            <div className="flex flex-col gap-3">
-                <div className="flex gap-2 flex-wrap min-h-[40px] p-2 border border-border rounded-xl bg-background">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 pt-2">
+                                {PROMPT_MODIFIERS.map(m => (
+                                    <div key={m.id} className="flex items-start gap-2.5 group cursor-pointer" onClick={() => handleModifierChange(m.text, !systemPrompt.includes(m.text))}>
+                                        <Checkbox
+                                            id={m.id}
+                                            checked={systemPrompt.includes(m.text)}
+                                            className="mt-0.5 border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                            onClick={(e) => e.stopPropagation()}
+                                            onCheckedChange={(checked) => handleModifierChange(m.text, !!checked)}
+                                        />
+                                        <Label
+                                            htmlFor={m.id}
+                                            className="text-[12px] text-muted-foreground group-hover:text-foreground leading-relaxed cursor-pointer transition-colors"
+
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            {m.label}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <p className="text-[11px] text-muted-foreground italic">
+                                * This prompt will be used for all images in this collection when clicking &quot;Optimize&quot;. Changes are auto-saved.
+                            </p>
+
+                            <div className="border-t border-border my-4"></div>
+
+
+                        </div>
+                    )
+                }
+
+
+            </div>
+
+            {/* 前缀 */}
+
+            <div className="flex  gap-3">
+                <div className="flex   w-full flex-wrap h-12 min-h-[40px] p-2 border border-border rounded-xl bg-background">
                     {activeTags.map((tag) => (
-                        <div key={tag} className="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium animate-in fade-in zoom-in-95 duration-200">
+                        <div key={tag} className="flex items-center gap-1  bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-sm text-xs font-medium animate-in fade-in zoom-in-95 duration-200">
                             {tag}
                             <button
                                 onClick={() => handleRemoveTag(tag)}
@@ -1118,7 +1520,7 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                                 handleAddPrefix();
                             }
                         }}
-                        className="flex-1 bg-transparent border-none text-foreground text-sm focus-visible:ring-0 px-2 h-7"
+                        className="flex-1 bg-transparent border-none text-foreground text-sm focus-visible:ring-0  h-8"
                         placeholder={activeTags.length === 0 ? "Type prefix and press Enter..." : ""}
                     />
                 </div>
@@ -1126,181 +1528,288 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                     variant="secondary"
                     onClick={handleAddPrefix}
                     disabled={!batchPrefix.trim()}
-                    className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border"
+                    className="w-auto h-12 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border"
                 >
                     <Plus className="h-4 w-4 " />
                     Add Prefix
                 </Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
-                {isProcessing && (
-                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/20 backdrop-blur-[2px] rounded-2xl">
-                        <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3 shadow-xl">
-                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                            <span className="text-sm font-medium text-foreground">
-                                {progress ? `Processing... (${progress.current}/${progress.total})` : "Processing..."}
-                            </span>
+
+            {viewMode === 'list' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
+                    {/* 任务冲突对话框 */}
+                    <Dialog open={isConflictDialogOpen} onOpenChange={setIsConflictDialogOpen}>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                                    <Wand2 className="h-5 w-5 text-primary" />
+                                    任务正在运行中
+                                </DialogTitle>
+                                <DialogDescription className="py-2 text-muted-foreground leading-relaxed">
+                                    当前已有一个批量处理任务正在执行。您可以选择<b>中断</b>当前任务并启动新任务，或者<b>继续</b>等待当前任务完成。
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setIsConflictDialogOpen(false);
+                                        setPendingTask(null);
+                                    }}
+                                    className="sm:flex-1"
+                                >
+                                    继续当前任务
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => {
+                                        setIsConflictDialogOpen(false);
+                                        // 1. 中断当前任务
+                                        cancelRef.current?.abort();
+
+                                        // 2. 延迟启动新任务以确保状态重置
+                                        setTimeout(() => {
+                                            if (pendingTask?.type === 'optimize') {
+                                                startOptimizeAll();
+                                            } else if (pendingTask?.type === 'translate' && pendingTask.lang) {
+                                                startBatchTranslate(pendingTask.lang);
+                                            }
+                                            setPendingTask(null);
+                                        }, 100);
+                                    }}
+                                    className="sm:flex-1"
+                                >
+                                    中断并开启新任务
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    {isProcessing && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/20 backdrop-blur-[2px] rounded-2xl">
+                            <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3 shadow-xl">
+                                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                <span className="text-sm font-medium text-foreground">
+                                    {progress ? `Processing... (${progress.current}/${progress.total})` : "Processing..."}
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Add Image Button as a card */}
-                <label className="flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-border bg-card/40 rounded-2xl p-10 hover:border-primary/50 hover:bg-primary/5 transition-all group min-h-[300px]">
-                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center group-hover:scale-110 group-hover:bg-primary/20 transition-all">
-                        <Plus className="h-8 w-8 text-muted-foreground group-hover:text-primary" />
-                    </div>
-                    <span className="mt-4 text-white text-xl font-medium text-muted-foreground group-hover:text-primary transition-colors">Add</span>
-                    <p className="mt-2 text-sm text-muted-foreground/70 text-center">Support multiple JPG, PNGfiles</p>
-                    <input type="file" multiple accept="image/*,.txt" className="hidden" onChange={handleUpload} />
-                </label>
+                    {/* Add Image Button as a card */}
+                    <label className="flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-border bg-card/40 rounded-2xl p-10 hover:border-primary/50 hover:bg-primary/5 transition-all group min-h-[300px]">
+                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center group-hover:scale-110 group-hover:bg-primary/20 transition-all">
+                            <Plus className="h-8 w-8 text-muted-foreground group-hover:text-primary" />
+                        </div>
+                        <span className="mt-4 text-white text-xl font-medium text-muted-foreground group-hover:text-primary transition-colors">Add</span>
+                        <p className="mt-2 text-sm text-muted-foreground/70 text-center">Support multiple JPG, PNGfiles</p>
+                        <input type="file" multiple accept="image/*,.txt" className="hidden" onChange={handleUpload} />
+                    </label>
 
-                {/* Image Grid Items */}
-                {images.map((img: DatasetImage) => (
-                    <div key={img.id} className="flex flex-col sm:flex-row bg-card border border-border rounded-2xl overflow-hidden group hover:border-primary/30 transition-all duration-300">
-                        {/* Image Section */}
-                        <div className="w-[300px] relative bg-muted/30 min-h-[300px] max-h-[600px] border-b sm:border-b-0 sm:border-r border-border flex items-center justify-center p-4">
-                            <div className=" w-full h-full rounded-2xl ">
-                                <ImageZoom className="w-full h-full">
-                                    <Image
-                                        src={img.url}
-                                        alt=""
-                                        fill
-                                        className="object-contain rounded-2xl"
-                                        sizes="(max-width: 768px) 100vw, 40vw "
-                                    />
-                                </ImageZoom>
+                    {/* Image Grid Items */}
+                    {images.map((img: DatasetImage) => (
+                        <div key={img.id} className="flex flex-col sm:flex-row bg-card border border-border rounded-2xl overflow-hidden group hover:border-primary/30 transition-all duration-300">
+                            {/* Image Section */}
+                            <div className="w-[300px] relative bg-muted/30 min-h-[300px] max-h-[600px] border-b sm:border-b-0 sm:border-r border-border flex items-center justify-center p-4">
+                                <div className=" w-full h-full rounded-2xl ">
+                                    <ImageZoom className="w-full h-full">
+                                        <Image
+                                            src={img.url}
+                                            alt=""
+                                            fill
+                                            className="object-contain rounded-2xl"
+                                            sizes="(max-width: 768px) 100vw, 40vw "
+                                        />
+                                    </ImageZoom>
+                                </div>
+
+                                {img.isOptimizing && (
+                                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                    </div>
+                                )}
+
+
                             </div>
 
-                            {img.isOptimizing && (
-                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
-                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                </div>
-                            )}
+                            {/* Content Section */}
+                            <div className="flex-1 p-5 flex flex-col space-y-4 bg-background/50">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex ml-2 items-center gap-2">
 
-
-                        </div>
-
-                        {/* Content Section */}
-                        <div className="flex-1 p-5 flex flex-col space-y-4 bg-background/50">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-                                    <span className="text-xs font-medium text-muted-foreground tracking-tight truncate max-w-[180px]" title={img.filename}>
-                                        {img.filename}
-                                    </span>
-                                    <ImageSize src={img.url} />
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                                        onClick={() => handleOptimizePrompt(img)}
-                                        disabled={img.isOptimizing}
-                                        title="Optimize with AI"
-                                    >
-                                        <Wand2 className={`h-4 w-4 ${img.isOptimizing ? 'animate-pulse' : ''}`} />
-                                    </Button>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                                                disabled={img.isTranslating}
-                                                title="Translate"
-                                            >
-                                                <Languages className={`h-4 w-4 ${img.isTranslating ? 'animate-pulse' : ''}`} />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => handleTranslatePrompt(img, 'en')}>
-                                                Translate to English
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleTranslatePrompt(img, 'zh')}>
-                                                Translate to Chinese
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                                                title="Crop image"
-                                            >
-                                                <Scissors className="h-4 w-4" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-64 p-4" align="end">
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase text-muted-foreground font-semibold">Crop Mode</Label>
-                                                    <Select value={cropMode} onValueChange={(v: 'center' | 'longest') => setCropMode(v)}>
-                                                        <SelectTrigger className="w-full h-8 bg-background border-border text-xs">
-                                                            <SelectValue placeholder="Mode" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="center">Center Crop (1:1)</SelectItem>
-                                                            <SelectItem value="longest">Scale Longest Side</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase text-muted-foreground font-semibold">Target Size</Label>
-                                                    <Select value={targetSize} onValueChange={setTargetSize}>
-                                                        <SelectTrigger className="w-full h-8 bg-background border-border text-xs">
-                                                            <SelectValue placeholder="Size" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="512">512px</SelectItem>
-                                                            <SelectItem value="768">768px</SelectItem>
-                                                            <SelectItem value="1024">1024px</SelectItem>
-                                                            <SelectItem value="2048">2048px</SelectItem>
-                                                            <SelectItem value="original">Original Size</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-
+                                        <span className="text-md font-medium text-white tracking-tight truncate " title={img.filename}>
+                                            {img.filename}
+                                        </span>
+                                        <ImageSize
+                                            src={img.url} />
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                            onClick={() => handleOptimizePrompt(img)}
+                                            disabled={img.isOptimizing}
+                                            title="Optimize with AI"
+                                        >
+                                            <Wand2 className={`h-4 w-4 ${img.isOptimizing ? 'animate-pulse' : ''}`} />
+                                        </Button>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
                                                 <Button
-                                                    variant="default"
-                                                    size="sm"
-                                                    disabled={isProcessing}
-                                                    onClick={() => handleCropImage(img)}
-                                                    className="w-full h-8 text-xs"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                                    disabled={img.isTranslating}
+                                                    title="Translate"
                                                 >
-                                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin " /> : <Scissors className="h-4 w-4 " />}
-                                                    Apply Crop
+                                                    <Languages className={`h-4 w-4 ${img.isTranslating ? 'animate-pulse' : ''}`} />
                                                 </Button>
-                                            </div>
-                                        </PopoverContent>
-                                    </Popover>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                        onClick={() => handleDeleteImage(img)}
-                                        title="Delete"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => handleTranslatePrompt(img, 'en')}>
+                                                    Translate to English
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleTranslatePrompt(img, 'zh')}>
+                                                    Translate to Chinese
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                                    title="Crop image"
+                                                >
+                                                    <Scissors className="h-4 w-4" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-64 p-4" align="end">
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase text-muted-foreground font-semibold">Crop Mode</Label>
+                                                        <Select value={cropMode} onValueChange={(v: 'center' | 'longest') => setCropMode(v)}>
+                                                            <SelectTrigger className="w-full h-8 bg-background border-border text-xs">
+                                                                <SelectValue placeholder="Mode" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="center">Center Crop (1:1)</SelectItem>
+                                                                <SelectItem value="longest">Scale Longest Side</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
 
-                            <Textarea
-                                value={img.prompt}
-                                onChange={(e) => handlePromptChange(img.id, e.target.value)}
-                                className="w-full placeholder:text-muted-foreground/50 bg-background border-border text-foreground text-sm leading-relaxed p-2 focus:border-primary/50 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none resize-none transition-all duration-200 rounded-xl custom-scrollbar h-[200px]"
-                                placeholder="Write image description here..."
-                                disabled={img.isOptimizing}
-                            />
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase text-muted-foreground font-semibold">Target Size</Label>
+                                                        <Select value={targetSize} onValueChange={setTargetSize}>
+                                                            <SelectTrigger className="w-full h-8 bg-background border-border text-xs">
+                                                                <SelectValue placeholder="Size" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="512">512px</SelectItem>
+                                                                <SelectItem value="768">768px</SelectItem>
+                                                                <SelectItem value="1024">1024px</SelectItem>
+                                                                <SelectItem value="2048">2048px</SelectItem>
+                                                                <SelectItem value="original">Original Size</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+
+                                                    <Button
+                                                        variant="default"
+                                                        size="sm"
+                                                        disabled={isProcessing}
+                                                        onClick={() => handleCropImage(img)}
+                                                        className="w-full h-8 text-xs"
+                                                    >
+                                                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin " /> : <Scissors className="h-4 w-4 " />}
+                                                        Apply Crop
+                                                    </Button>
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                            onClick={() => handleDeleteImage(img)}
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <Textarea
+                                    value={img.prompt}
+                                    onChange={(e) => handlePromptChange(img.id, e.target.value)}
+                                    className="w-full placeholder:text-muted-foreground/50 bg-background border-border text-foreground text-sm leading-relaxed p-2 focus:border-primary/50 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none resize-none transition-all duration-200 rounded-xl custom-scrollbar h-[200px]"
+                                    placeholder="Write image description here..."
+                                    disabled={img.isOptimizing}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                >
+                    <div className="space-y-4">
+                        <div
+                            className="grid gap-4"
+                            style={{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` }}
+                        >
+                            {/* Add Image Button in Grid */}
+                            <label className="flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-border bg-card/40 rounded-xl aspect-square hover:border-primary/50 hover:bg-primary/5 transition-all group relative overflow-hidden">
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <Plus className="h-8 w-8 text-muted-foreground group-hover:text-primary mb-2" />
+                                    <span className="text-xs text-muted-foreground font-medium">Add Image</span>
+                                </div>
+                                <input type="file" multiple accept="image/*,.txt" className="hidden" onChange={handleUpload} />
+                            </label>
+
+                            <SortableContext items={images.map(i => i.id)} strategy={rectSortingStrategy}>
+                                {images.map((img: DatasetImage) => (
+                                    <SortableImage
+                                        key={img.id}
+                                        img={img}
+                                        gridColumns={gridColumns}
+                                        onDelete={handleDeleteImage}
+                                    />
+                                ))}
+                            </SortableContext>
                         </div>
                     </div>
-                ))}
-            </div>
+                    {typeof window !== 'undefined' && createPortal(
+                        <DragOverlay>
+                            {draggedId && draggedSize ? (
+                                <div
+                                    className="aspect-square bg-card border border-border rounded-xl overflow-hidden opacity-80 shadow-2xl cursor-grabbing pointer-events-none"
+                                    style={{
+                                        width: draggedSize.width,
+                                        height: draggedSize.height
+                                    }}
+                                >
+                                    <Image
+                                        src={images.find(i => i.id === draggedId)?.url || ''}
+                                        alt="Dragging"
+                                        fill
+                                        className="object-cover"
+                                    />
+                                </div>
+                            ) : null}
+                        </DragOverlay>,
+                        document.body
+                    )}
+                </DndContext>
+            )}
         </div >
     );
 }

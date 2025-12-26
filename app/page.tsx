@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/common/use-toast";
 import { SETTINGS_STORAGE_KEY } from "@/lib/constants";
 import { PlaygroundV2Page } from "@/pages/playground-v2";
 import { MappingEditorPage } from "@/pages/mapping-editor-page";
-import { Toaster } from "sonner";
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import Image from "next/image";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
@@ -308,7 +307,6 @@ export default function Page() {
                     </div>
                   )}
                 </div>
-                <Toaster richColors position="top-right" />
               </div>
             </div>
           </div>

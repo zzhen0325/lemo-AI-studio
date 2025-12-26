@@ -43,7 +43,7 @@ export default function CollectionList({
         );
     }
     return (
-        <div className={`space-y-6 w-full max-w-8xl ${className || ''}`}>
+        <div className={`space-y-6 w-full p-8 max-w-8xl ${className || ''}`}>
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-foreground">Datasets</h1>
                 <div className="flex gap-2">
