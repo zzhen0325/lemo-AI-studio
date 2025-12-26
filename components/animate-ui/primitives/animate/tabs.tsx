@@ -168,9 +168,11 @@ function TabsTrigger({
   }, [value, registerTrigger]);
 
   const Component = asChild ? Slot : motion.button;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const AnyComponent = Component as any;
 
   return (
-    <Component
+    <AnyComponent
       ref={localRef}
       data-slot="tabs-trigger"
       role="tab"
@@ -319,9 +321,11 @@ function TabsContent({
   const isActive = activeValue === value;
 
   const Component = asChild ? Slot : motion.div;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const AnyComponent = Component as any;
 
   return (
-    <Component
+    <AnyComponent
       role="tabpanel"
       data-slot="tabs-content"
       inert={!isActive}

@@ -1,9 +1,9 @@
-import { 
-  MappingConfig, 
-  EditorSettings, 
-  ImportResult, 
+import {
+  MappingConfig,
+  EditorSettings,
+  ImportResult,
   ExportConfig,
-  STORAGE_KEYS 
+  STORAGE_KEYS
 } from "@/types/features/mapping-editor";
 
 /**
@@ -13,7 +13,7 @@ import {
 export class LocalStorageManager {
   private static instance: LocalStorageManager;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): LocalStorageManager {
     if (!LocalStorageManager.instance) {
@@ -29,7 +29,7 @@ export class LocalStorageManager {
     try {
       const configs = await this.getAllConfigs();
       const existingIndex = configs.findIndex(c => c.id === config.id);
-      
+
       const updatedConfig = {
         ...config,
         updatedAt: new Date().toISOString()
@@ -42,10 +42,10 @@ export class LocalStorageManager {
       }
 
       localStorage.setItem(STORAGE_KEYS.MAPPING_CONFIGS, JSON.stringify(configs));
-      
+
       // 更新最近使用的配置列表
       await this.updateRecentConfigs(config.id);
-      
+
       return config.id;
     } catch (error) {
       console.error('保存配置失败:', error);
@@ -86,12 +86,12 @@ export class LocalStorageManager {
     try {
       const configs = await this.getAllConfigs();
       const filteredConfigs = configs.filter(c => c.id !== id);
-      
+
       localStorage.setItem(STORAGE_KEYS.MAPPING_CONFIGS, JSON.stringify(filteredConfigs));
-      
+
       // 从最近使用列表中移除
       await this.removeFromRecentConfigs(id);
-      
+
       return true;
     } catch (error) {
       console.error('删除配置失败:', error);
@@ -115,13 +115,13 @@ export class LocalStorageManager {
         throw new Error(`配置不存在: ${id}`);
       }
 
-      let exportData: any = { ...config };
+      const exportData: Record<string, unknown> = { ...config } as unknown as Record<string, unknown>;
 
       if (!options.includeWorkflow) {
         delete exportData.workflowApiJSON;
       }
 
-      const jsonString = options.minify 
+      const jsonString = options.minify
         ? JSON.stringify(exportData)
         : JSON.stringify(exportData, null, 2);
 
@@ -245,7 +245,7 @@ export class LocalStorageManager {
     try {
       const recentIds = this.getRecentConfigIds();
       const configs = await this.getAllConfigs();
-      
+
       return recentIds
         .map(id => configs.find(c => c.id === id))
         .filter(Boolean)
@@ -278,10 +278,10 @@ export class LocalStorageManager {
     if ('storage' in navigator && 'estimate' in navigator.storage) {
       return await navigator.storage.estimate();
     }
-    
+
     // 降级方案：估算当前使用的存储
     let totalSize = 0;
-    for (let key in localStorage) {
+    for (const key in localStorage) {
       if (localStorage.hasOwnProperty(key)) {
         totalSize += localStorage[key].length;
       }
@@ -303,7 +303,7 @@ export class LocalStorageManager {
   /**
    * 验证配置格式
    */
-  private validateConfigFormat(data: any): { isValid: boolean; errors: string[] } {
+  private validateConfigFormat(data: unknown): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
     if (!data || typeof data !== 'object') {
@@ -311,15 +311,17 @@ export class LocalStorageManager {
       return { isValid: false, errors };
     }
 
-    if (!data.title || typeof data.title !== 'string') {
+    const d = data as Record<string, unknown>;
+
+    if (!d.title || typeof d.title !== 'string') {
       errors.push('缺少配置标题');
     }
 
-    if (!data.workflowApiJSON || typeof data.workflowApiJSON !== 'object') {
+    if (!d.workflowApiJSON || typeof d.workflowApiJSON !== 'object') {
       errors.push('缺少工作流API JSON数据');
     }
 
-    if (!data.uiConfig || typeof data.uiConfig !== 'object') {
+    if (!d.uiConfig || typeof d.uiConfig !== 'object') {
       errors.push('缺少UI配置数据');
     }
 
@@ -334,7 +336,7 @@ export class LocalStorageManager {
       const recentIds = this.getRecentConfigIds();
       const filteredIds = recentIds.filter(id => id !== configId);
       const newRecentIds = [configId, ...filteredIds].slice(0, 10);
-      
+
       localStorage.setItem(STORAGE_KEYS.RECENT_CONFIGS, JSON.stringify(newRecentIds));
     } catch (error) {
       console.error('更新最近配置失败:', error);
@@ -348,7 +350,7 @@ export class LocalStorageManager {
     try {
       const recentIds = this.getRecentConfigIds();
       const filteredIds = recentIds.filter(id => id !== configId);
-      
+
       localStorage.setItem(STORAGE_KEYS.RECENT_CONFIGS, JSON.stringify(filteredIds));
     } catch (error) {
       console.error('从最近配置中移除失败:', error);

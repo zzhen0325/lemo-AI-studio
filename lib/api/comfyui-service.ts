@@ -10,10 +10,10 @@ import { missingViewComfyFileError, viewComfyFileName } from "@/lib/constants";
 
 // 简单的日志工具类
 const logger = {
-    log: (message: any, ...args: any[]) => console.log(message, ...args),
-    info: (message: any, ...args: any[]) => console.info(message, ...args),
-    error: (message: any, ...args: any[]) => console.error(message, ...args),
-    warn: (message: any, ...args: any[]) => console.warn(message, ...args),
+    log: (message: unknown, ...args: unknown[]) => console.log(message, ...args),
+    info: (message: unknown, ...args: unknown[]) => console.info(message, ...args),
+    error: (message: unknown, ...args: unknown[]) => console.error(message, ...args),
+    warn: (message: unknown, ...args: unknown[]) => console.warn(message, ...args),
 };
 
 export class ComfyUIService {
@@ -58,11 +58,11 @@ export class ComfyUIService {
                             let outputBuffer: Blob;
                             let mimeType: string;
                             if (typeof file === 'string' && textOutputEnabled) {
-                                    outputBuffer = new Blob([file], {
-                                        type: 'text/plain'
-                                    });
-                                    mimeType = 'text/plain'
-                                }
+                                outputBuffer = new Blob([file], {
+                                    type: 'text/plain'
+                                });
+                                mimeType = 'text/plain'
+                            }
                             else {
                                 outputBuffer = await comfyUIAPIService.getOutputFiles({ file });
                                 mimeType =
@@ -123,7 +123,7 @@ export class ComfyUIService {
             const filePath = path.join(process.cwd(), viewComfyFileName);
             const fileContent = await fs.readFile(filePath, "utf8");
             workflow = JSON.parse(fileContent);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (_error) {
             throw missingWorkflowError;
         }

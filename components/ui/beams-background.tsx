@@ -39,6 +39,12 @@ function createBeam(width: number, height: number): Beam {
     };
 }
 
+const OPACITY_MAP = {
+    subtle: 0.7,
+    medium: 0.85,
+    strong: 1,
+};
+
 export function BeamsBackground({
     className,
     children,
@@ -49,11 +55,6 @@ export function BeamsBackground({
     const animationFrameRef = useRef<number>(0);
     const MINIMUM_BEAMS = 20;
 
-    const opacityMap = {
-        subtle: 0.7,
-        medium: 0.85,
-        strong: 1,
-    };
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -106,7 +107,7 @@ export function BeamsBackground({
             const pulsingOpacity =
                 beam.opacity *
                 (0.8 + Math.sin(beam.pulse) * 0.2) *
-                opacityMap[intensity];
+                OPACITY_MAP[intensity];
 
             const gradient = ctx.createLinearGradient(0, 0, 0, beam.length);
 

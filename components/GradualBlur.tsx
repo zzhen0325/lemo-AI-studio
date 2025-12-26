@@ -126,12 +126,12 @@ const useResponsiveDimension = (
   config: Partial<GradualBlurProps>,
   key: keyof GradualBlurProps
 ) => {
-  const [val, setVal] = useState<any>(config[key]);
+  const [val, setVal] = useState<unknown>(config[key]);
   useEffect(() => {
     if (!responsive) return;
     const calc = () => {
       const w = window.innerWidth;
-      let v: any = config[key];
+      let v: unknown = config[key];
       const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
       const k = cap(key as string);
 
@@ -149,7 +149,7 @@ const useResponsiveDimension = (
     window.addEventListener('resize', deb);
     return () => window.removeEventListener('resize', deb);
   }, [responsive, config, key]);
-  return responsive ? val : (config as any)[key];
+  return responsive ? val : (config as Record<string, unknown>)[key as string];
 };
 
 const useIntersectionObserver = (ref: React.RefObject<HTMLDivElement | null>, shouldObserve: boolean = false) => {
@@ -247,13 +247,13 @@ const GradualBlur: React.FC<PropsWithChildren<GradualBlurProps>> = props => {
     };
 
     if (isVertical) {
-      baseStyle.height = responsiveHeight;
-      baseStyle.width = responsiveWidth || '100%';
+      baseStyle.height = responsiveHeight as string | number | undefined;
+      baseStyle.width = (responsiveWidth || '100%') as string | number | undefined;
       baseStyle[config.position] = 0;
       baseStyle.left = 0;
       baseStyle.right = 0;
     } else if (isHorizontal) {
-      baseStyle.width = responsiveWidth || responsiveHeight;
+      baseStyle.width = (responsiveWidth || responsiveHeight) as string | number | undefined;
       baseStyle.height = '100%';
       baseStyle[config.position] = 0;
       baseStyle.top = 0;

@@ -3,12 +3,10 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Layers,
   Info,
-  ArrowRight,
   CheckCircle2,
   Box,
   Hash
@@ -19,12 +17,12 @@ import { WorkflowApiJSON } from "@/lib/workflow-api-parser";
 import { UIComponent } from "@/types/features/mapping-editor";
 
 interface RawWorkflowNode {
-  inputs: Record<string, any>;
+  inputs: Record<string, unknown>;
   class_type: string;
   _meta?: {
     title?: string;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface WorkflowAnalyzerProps {
@@ -151,10 +149,10 @@ export function WorkflowAnalyzer({
                 >
                   <Card
                     className={`transition-all duration-300 border-white/5 bg-white/[0.01] hover:bg-white/[0.03] overflow-hidden relative ${isSelected
-                        ? 'border-white/20 bg-white/5 shadow-2xl ring-1 ring-white/10'
-                        : isMapped
-                          ? 'border-emerald-500/20 bg-emerald-500/[0.02]'
-                          : ''
+                      ? 'border-white/20 bg-white/5 shadow-2xl ring-1 ring-white/10'
+                      : isMapped
+                        ? 'border-emerald-500/20 bg-emerald-500/[0.02]'
+                        : ''
                       }`}
                   >
                     <CardContent className="p-4">
@@ -217,8 +215,8 @@ export function WorkflowAnalyzer({
                                 <div
                                   key={key}
                                   className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all ${isParamSelected
-                                      ? 'bg-white/10 text-white font-medium border border-white/10'
-                                      : 'text-white/40 hover:bg-white/5 hover:text-white/60'
+                                    ? 'bg-white/10 text-white font-medium border border-white/10'
+                                    : 'text-white/40 hover:bg-white/5 hover:text-white/60'
                                     } ${isMapped ? 'bg-emerald-500/[0.03] text-emerald-400 border-white/0' : ''}`}
                                   onClick={(e) => {
                                     e.stopPropagation();

@@ -41,7 +41,6 @@ export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
 
             <nav className="flex-1 px-3 space-y-1">
                 {navItems.map((item) => {
-                    const Icon = item.icon;
                     const isActive = currentTab === item.value;
 
                     return (

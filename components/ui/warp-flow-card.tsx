@@ -1,7 +1,7 @@
 "use client"
 
 import { useFrame, useThree } from "@react-three/fiber"
-import { useRef, useMemo } from "react"
+import { useRef, useMemo, useEffect } from "react"
 import * as THREE from "three"
 
 const vertexShader = `
@@ -37,9 +37,6 @@ const fragmentShader = `
       float t1 = clamp(t * 2.0, 0.0, 1.0);
       float t2 = clamp((t - 0.5) * 2.0, 0.0, 1.0);
       
-      vec4 mix1 = mix(uColor1, uColor2, t1);
-      // If t < 0.5, we just want mix1. If t > 0.5, we want to mix result of mix1 (which is c2) with c3?
-      // Actually simpler:
       if (t < 0.5) {
           return mix(uColor1, uColor2, t * 2.0);
       } else {
@@ -79,10 +76,6 @@ const fragmentShader = `
       
       vec4 col = customPalette(gradientInput);
 
-      // Simple alpha calculation from original code logic (brightness/extrusion concept)
-      // Original: float extrusion = (col.x + col.y + col.z) / 4.0 * 1.5;
-      // We can use the alpha from our input colors directly, but let's keep it opaque for the base effect unless specified.
-      
       gl_FragColor = col;
   }
 `
@@ -104,8 +97,6 @@ const WarpFlowCard = ({
     // Helper to parse hex8 (RRGGBBAA) or hex6 (RRGGBB) to vec4
     const parseColor = (hex: string) => {
         const c = new THREE.Color(hex);
-        // Default alpha 1.0 if not specified (THREE.Color doesn't parse alpha from string standardly in older versions, but let's assume opaque for now as shader material usually expects RGB unless we explicitly handle alpha)
-        // Actually, let's just use vec4 for flexibility but pass 1.0 for alpha for now to match interface.
         return new THREE.Vector4(c.r, c.g, c.b, 1.0);
     }
 
@@ -117,11 +108,12 @@ const WarpFlowCard = ({
             uColor2: { value: parseColor(color2) },
             uColor3: { value: parseColor(color3) },
         }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [],
     )
 
     // Update uniforms when props change
-    useMemo(() => {
+    useEffect(() => {
         uniforms.uColor1.value = parseColor(color1);
         uniforms.uColor2.value = parseColor(color2);
         uniforms.uColor3.value = parseColor(color3);

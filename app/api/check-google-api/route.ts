@@ -29,7 +29,7 @@ export async function GET() {
                 code: response.status
             });
         }
-    } catch (error) {
+    } catch {
         return NextResponse.json({
             status: 'offline',
             message: 'Network connection failed'

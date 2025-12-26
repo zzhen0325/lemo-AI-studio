@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import {
   Plus,
   Play,
@@ -27,7 +28,7 @@ import { ParameterMappingPanel } from "@/components/features/mapping-editor/para
 import { NodeConfigurationDialog } from "@/components/features/mapping-editor/node-configuration-dialog";
 import { MappingList } from "@/components/features/mapping-editor/mapping-list";
 import WorkflowSelectorDialog from "@/components/features/playground-v2/WorkflowSelectorDialog";
-import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
+import type { IViewComfy, IViewComfyWorkflow } from "@/lib/providers/view-comfy-provider";
 
 interface MappingEditorPageProps {
   onNavigate?: (tab: string) => void;
@@ -43,7 +44,7 @@ interface LocalEditorState {
   isLoading: boolean;
 }
 
-export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
+export default function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
   const [editorState, setEditorState] = useState<LocalEditorState>({
     currentConfig: null,
     selectedNode: null,
@@ -60,15 +61,9 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
   const [isNodeDialogOpen, setIsNodeDialogOpen] = useState(false);
   const [workflows, setWorkflows] = useState<IViewComfy[]>([]);
 
-  useEffect(() => {
-    // 初始化编辑器
-    initializeEditor();
-    // 加载工作流列表
-    fetchWorkflows();
-  }, []);
 
 
-  const fetchWorkflows = async () => {
+  const fetchWorkflows = useCallback(async () => {
     try {
       const res = await fetch('/api/view-comfy');
       if (res.ok) {
@@ -78,9 +73,9 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
     } catch (error) {
       console.error("Failed to fetch workflows", error);
     }
-  };
+  }, []);
 
-  const initializeEditor = async () => {
+  const initializeEditor = useCallback(async () => {
     try {
       setEditorState(prev => ({ ...prev, isLoading: true }));
 
@@ -128,7 +123,14 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
       toast.error("初始化编辑器失败");
       setEditorState(prev => ({ ...prev, isLoading: false }));
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // 初始化编辑器
+    initializeEditor();
+    // 加载工作流列表
+    fetchWorkflows();
+  }, [fetchWorkflows, initializeEditor]);
 
   const handleWorkflowUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -191,7 +193,7 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
         return;
       }
 
-      const existingComponents = (workflow.viewComfyJSON as any).mappingConfig?.components || [];
+      const existingComponents = (workflow.viewComfyJSON.mappingConfig?.components || []) as UIComponent[];
 
       const newConfig: MappingConfig = {
         id: workflow.viewComfyJSON.id || `config_${Date.now()}`,
@@ -263,7 +265,7 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
             mappingConfig: {
               components: editorState.currentConfig.uiConfig.components
             }
-          } as any, // using any to bypass strict type check if needed
+          } as unknown as IViewComfyWorkflow,
           workflowApiJSON: editorState.currentConfig.workflowApiJSON
         };
         updatedWorkflows.push(newWorkflow);
@@ -301,7 +303,7 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
       toast.error("保存配置失败");
       setEditorState(prev => ({ ...prev, isLoading: false }));
     }
-  }, [editorState.currentConfig, editorState.isDirty, workflows, fetchWorkflows]);
+  }, [editorState.currentConfig, workflows, fetchWorkflows]);
 
   // Auto-save effect
   useEffect(() => {
@@ -448,7 +450,7 @@ export function MappingEditorPage({ onNavigate }: MappingEditorPageProps) {
     toast.success("组件映射删除成功");
   };
 
-  const handleNodeValueUpdate = (nodeId: string, paramKey: string, value: any) => {
+  const handleNodeValueUpdate = (nodeId: string, paramKey: string, value: unknown) => {
     if (!editorState.currentConfig) return;
 
     const updatedWorkflow = {

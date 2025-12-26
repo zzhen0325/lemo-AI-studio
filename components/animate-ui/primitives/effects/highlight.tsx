@@ -80,11 +80,11 @@ type ParentModeHighlightProps = {
 
 type ControlledParentModeHighlightProps<T extends React.ElementType = 'div'> =
   BaseHighlightProps<T> &
-    ParentModeHighlightProps & {
-      mode: 'parent';
-      controlledItems: true;
-      children: React.ReactNode;
-    };
+  ParentModeHighlightProps & {
+    mode: 'parent';
+    controlledItems: true;
+    children: React.ReactNode;
+  };
 
 type ControlledChildrenModeHighlightProps<T extends React.ElementType = 'div'> =
   BaseHighlightProps<T> & {
@@ -95,12 +95,12 @@ type ControlledChildrenModeHighlightProps<T extends React.ElementType = 'div'> =
 
 type UncontrolledParentModeHighlightProps<T extends React.ElementType = 'div'> =
   BaseHighlightProps<T> &
-    ParentModeHighlightProps & {
-      mode: 'parent';
-      controlledItems?: false;
-      itemsClassName?: string;
-      children: React.ReactElement | React.ReactElement[];
-    };
+  ParentModeHighlightProps & {
+    mode: 'parent';
+    controlledItems?: false;
+    itemsClassName?: string;
+    children: React.ReactElement | React.ReactElement[];
+  };
 
 type UncontrolledChildrenModeHighlightProps<
   T extends React.ElementType = 'div',
@@ -254,8 +254,10 @@ function Highlight<T extends React.ElementType = 'div'>({
 
   const render = (children: React.ReactNode) => {
     if (mode === 'parent') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const AnyComponent = Component as any;
       return (
-        <Component
+        <AnyComponent
           ref={localRef}
           data-slot="motion-highlight-container"
           style={{ position: 'relative', zIndex: 1 }}
@@ -293,7 +295,7 @@ function Highlight<T extends React.ElementType = 'div'>({
             )}
           </AnimatePresence>
           {children}
-        </Component>
+        </AnyComponent>
       );
     }
 
@@ -327,12 +329,12 @@ function Highlight<T extends React.ElementType = 'div'>({
         ? controlledItems
           ? render(children)
           : render(
-              React.Children.map(children, (child, index) => (
-                <HighlightItem key={index} className={props?.itemsClassName}>
-                  {child}
-                </HighlightItem>
-              )),
-            )
+            React.Children.map(children, (child, index) => (
+              <HighlightItem key={index} className={props?.itemsClassName}>
+                {child}
+              </HighlightItem>
+            )),
+          )
         : children}
     </HighlightContext.Provider>
   );
@@ -491,22 +493,22 @@ function HighlightItem<T extends React.ElementType>({
 
   const commonHandlers = hover
     ? {
-        onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
-          setActiveValue(childValue);
-          element.props.onMouseEnter?.(e);
-        },
-        onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
-          setActiveValue(null);
-          element.props.onMouseLeave?.(e);
-        },
-      }
+      onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
+        setActiveValue(childValue);
+        element.props.onMouseEnter?.(e);
+      },
+      onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
+        setActiveValue(null);
+        element.props.onMouseLeave?.(e);
+      },
+    }
     : click
       ? {
-          onClick: (e: React.MouseEvent<HTMLDivElement>) => {
-            setActiveValue(childValue);
-            element.props.onClick?.(e);
-          },
-        }
+        onClick: (e: React.MouseEvent<HTMLDivElement>) => {
+          setActiveValue(childValue);
+          element.props.onClick?.(e);
+        },
+      }
       : {};
 
   if (asChild) {
@@ -554,14 +556,20 @@ function HighlightItem<T extends React.ElementType>({
             )}
           </AnimatePresence>
 
-          <Component
-            data-slot="motion-highlight-item"
-            style={{ position: 'relative', zIndex: 1 }}
-            className={className}
-            {...dataAttributes}
-          >
-            {children}
-          </Component>
+          {(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const AnyComponent = Component as any;
+            return (
+              <AnyComponent
+                data-slot="motion-highlight-item"
+                style={{ position: 'relative', zIndex: 1 }}
+                className={className}
+                {...dataAttributes}
+              >
+                {children}
+              </AnyComponent>
+            );
+          })()}
         </>,
       );
     }
@@ -576,8 +584,11 @@ function HighlightItem<T extends React.ElementType>({
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const AnyComponent = Component as any;
+
   return enabled ? (
-    <Component
+    <AnyComponent
       key={childValue}
       ref={localRef}
       data-slot="motion-highlight-item-container"
@@ -625,7 +636,7 @@ function HighlightItem<T extends React.ElementType>({
           'data-slot': 'motion-highlight-item',
         }),
       })}
-    </Component>
+    </AnyComponent>
   ) : (
     children
   );

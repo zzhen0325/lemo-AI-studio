@@ -1,13 +1,13 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
-import { MeshGradient, PulsingBorder } from "@paper-design/shaders-react"
-import { motion } from "framer-motion"
+import { useEffect, useRef } from "react"
+import { MeshGradient } from "@paper-design/shaders-react"
 
 export default function ShaderShowcase() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [isActive, setIsActive] = useState(false)
+  // const [isActive, setIsActive] = useState(false)
 
   useEffect(() => {
+    /*
     const handleMouseEnter = () => setIsActive(true)
     const handleMouseLeave = () => setIsActive(false)
 
@@ -23,6 +23,7 @@ export default function ShaderShowcase() {
         container.removeEventListener("mouseleave", handleMouseLeave)
       }
     }
+    */
   }, [])
 
   return (
@@ -79,28 +80,26 @@ export default function ShaderShowcase() {
         </defs>
       </svg>
 
-    
+
       <MeshGradient
         className="absolute inset-0 w-full h-full opacity-20"
         colors={["#7effc9ff", "#ffffffff", "#d9ffedff", "#ffe0c1ff"]}
         speed={0.1}
-        wireframe="true"
-        backgroundColor="transparent"
       />
 
-   
+
 
       <main className="absolute bottom-8 left-8 z-20 max-w-2xl">
         <div className="text-left">
-         
 
-         
+
+
         </div>
       </main>
 
-     
-       
-      </div>
-    
+
+
+    </div>
+
   )
 }

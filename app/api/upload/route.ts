@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     const ext = getExtFromName(file.name);
-    if (!AllowedExt.includes(ext as any)) {
+    if (!AllowedExt.includes(ext as typeof AllowedExt[number])) {
       return NextResponse.json({ error: 'Unsupported extension' }, { status: 400 });
     }
 

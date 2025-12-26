@@ -11,7 +11,7 @@ export interface IViewComfyBase {
     inputs: IMultiValueInput[];
     advancedInputs: IMultiValueInput[];
     mappingConfig?: {
-        components: any[]; // To avoid circular dependency, using any or duplicating UIComponent type
+        components: unknown[]; // To avoid circular dependency, using unknown or duplicating UIComponent type
     };
 }
 

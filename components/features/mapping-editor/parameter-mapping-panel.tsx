@@ -6,13 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowRight,
   Plus,
-  Trash2,
   Edit3,
-  Save,
   X,
   Link,
   Settings,
@@ -62,8 +59,6 @@ export function ParameterMappingPanel({
   existingComponents,
   onComponentCreate,
   onComponentUpdate,
-  onComponentDelete,
-  onParameterSelect,
   editingComponentIndex,
   onCancelEdit
 }: ParameterMappingPanelProps) {
@@ -73,12 +68,6 @@ export function ParameterMappingPanel({
   const effectiveEditingIndex = editingComponentIndex !== undefined && editingComponentIndex !== null
     ? editingComponentIndex
     : localEditingIndex;
-
-  const selectedNodeInfo = useMemo(() => {
-    if (!selectedNode || !workflowApiJSON[selectedNode]) return null;
-    const node = workflowApiJSON[selectedNode];
-    return { id: selectedNode, class_type: node.class_type, inputs: node.inputs || {} };
-  }, [selectedNode, workflowApiJSON]);
 
   const selectedParameterInfo = useMemo(() => {
     if (!selectedNode || !selectedParameter || !workflowApiJSON[selectedNode]) return null;
@@ -102,7 +91,7 @@ export function ParameterMappingPanel({
     );
   }, [selectedNode, selectedParameter, existingComponents]);
 
-  const handleDirectMapping = (nodeId: string, parameterKey: string, currentValue: any, targetKey: string) => {
+  const handleDirectMapping = (nodeId: string, parameterKey: string, currentValue: unknown, targetKey: string) => {
     const target = PLAYGROUND_TARGETS.find(t => t.key === targetKey);
     if (!target) return;
     const component: UIComponent = {
