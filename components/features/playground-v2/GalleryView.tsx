@@ -12,6 +12,7 @@ interface HistoryItem {
     id: string;
     url: string;
     timestamp: string;
+    isLoading?: boolean;
     metadata: {
         prompt?: string;
         base_model?: string;
@@ -27,10 +28,33 @@ export default function GalleryView() {
     const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [editingImageUrl, setEditingImageUrl] = useState("");
-    const { setUploadedImages } = usePlaygroundStore();
+    const { setUploadedImages, generationHistory } = usePlaygroundStore();
     const { toast } = useToast();
 
-    // actions moved to child component or used directly for clarity
+    // Combine local history with active generations from store
+    const combinedHistory = React.useMemo(() => {
+        // Map GenerationResult to HistoryItem format
+        const activeGenerations: HistoryItem[] = generationHistory.map(gen => ({
+            id: gen.id,
+            url: gen.imageUrl || '',
+            timestamp: gen.timestamp,
+            isLoading: gen.isLoading,
+            metadata: {
+                prompt: gen.config.prompt,
+                base_model: gen.config.base_model,
+                img_width: gen.config.img_width,
+                img_height: gen.config.image_height,
+                lora: gen.config.lora
+            }
+        }));
+
+        // Filter out items that are already in the fetched history to avoid duplicates
+        // (matching by id or image URL)
+        const persistentUrls = new Set(history.map(h => h.url));
+        const uniqueActive = activeGenerations.filter(gen => gen.url && !persistentUrls.has(gen.url));
+
+        return [...uniqueActive, ...history];
+    }, [history, generationHistory]);
 
     useEffect(() => {
         fetchHistory();
@@ -104,7 +128,7 @@ export default function GalleryView() {
 
     return (
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-transparent p-2">
-            <div className="max-w-9xl mx-auto space-y-10 mt-14">
+            <div className="w-full   mx-auto space-y-10 mt-14 ">
                 {/* <header className="flex flex-col md:flex-row md:items-end justify-between gap-1">
                     <div className="space-y-2">
                         <h1 className="text-5xl font-bold tracking-tight text-white/90">Gallery Archive</h1>
@@ -118,7 +142,7 @@ export default function GalleryView() {
                     </div>
                 </header> */}
 
-                {loading ? (
+                {loading && combinedHistory.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
                         <div className="relative">
                             <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
@@ -126,7 +150,7 @@ export default function GalleryView() {
                         </div>
                         <p className="text-white/40 font-medium animate-pulse tracking-wide">Syncing Archive...</p>
                     </div>
-                ) : history.length === 0 ? (
+                ) : combinedHistory.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-32 bg-white/5 rounded-[10px] border border-white/10 border-dashed space-y-6">
                         <div className="p-6 bg-white/5 rounded-full">
                             <Search className="w-12 h-12 text-white/20" />
@@ -137,12 +161,12 @@ export default function GalleryView() {
                         </div>
                     </div>
                 ) : (
-                    <div className="columns-1 sm:columns-2 lg:columns-4 xl:columns-6 gap-0 rounded-xl overflow-hidden">
-                        {history.map((item) => (
+                    <div className="columns-1 sm:columns-2 lg:columns-4 xl:columns-6 gap-0 rounded-2xl overflow-hidden">
+                        {combinedHistory.map((item) => (
                             <GalleryCard
                                 key={item.id}
                                 item={item}
-                                onClick={() => setSelectedItem(item)}
+                                onClick={() => !item.isLoading && setSelectedItem(item)}
                                 onDownload={handleDownload}
                             />
                         ))}
@@ -195,14 +219,21 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
             onMouseLeave={() => setIsHover(false)}
         >
             {/* Image Container */}
-            <div className="relative w-full">
-                <Image
-                    src={item.url}
-                    alt="Generated masterwork"
-                    width={item.metadata?.img_width || 1024}
-                    height={item.metadata?.img_height || 1024}
-                    className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
-                />
+            <div className="relative w-full min-h-[100px] flex items-center justify-center bg-white/5">
+                {item.isLoading ? (
+                    <div className="w-full flex flex-col items-center justify-center p-8 space-y-3">
+                        <div className="w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                        <span className="text-[10px] text-white/30 font-medium uppercase tracking-widest animate-pulse">Generating</span>
+                    </div>
+                ) : (
+                    <Image
+                        src={item.url}
+                        alt="Generated masterwork"
+                        width={item.metadata?.img_width || 1024}
+                        height={item.metadata?.img_height || 1024}
+                        className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                )}
                 {/* 
                 <ProgressiveBlur
                     className='pointer-events-none absolute bottom-0 left-0 h-[75%] w-full'

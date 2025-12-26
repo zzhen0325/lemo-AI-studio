@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GenerationConfig, UploadedImage, Preset } from '@/components/features/playground-v2/types';
+import { GenerationConfig, UploadedImage, Preset, GenerationResult } from '@/components/features/playground-v2/types';
 import { IViewComfy } from '@/lib/providers/view-comfy-provider';
 import { SelectedLora } from '@/components/features/playground-v2/LoraSelectorDialog';
 
@@ -22,6 +22,10 @@ interface PlaygroundState {
     applyImage: (imageUrl: string) => Promise<void>;
     applyModel: (model: string, configData?: GenerationConfig) => void;
     remix: (result: { config: GenerationConfig, workflow?: IViewComfy, loras?: SelectedLora[] }) => void;
+
+    // Generation History
+    generationHistory: GenerationResult[];
+    setGenerationHistory: (history: GenerationResult[] | ((prev: GenerationResult[]) => GenerationResult[])) => void;
 
     // Presets
     presets: Preset[];
@@ -115,6 +119,12 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
             };
         });
     },
+
+    // Generation History
+    generationHistory: [],
+    setGenerationHistory: (updater) => set((state) => ({
+        generationHistory: typeof updater === 'function' ? updater(state.generationHistory) : updater
+    })),
 
     // Presets
     presets: [],

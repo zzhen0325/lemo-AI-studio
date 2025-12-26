@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, RefObject } from "react";
 import { useToast } from "@/hooks/common/use-toast";
 import { Button } from "@/components/ui/button";
 
@@ -38,15 +38,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePlaygroundStore } from "@/lib/store/playground-store";
 
 
-import { RefObject } from "react";
+import { TabValue } from "@/components/layout/sidebar";
 
 export function PlaygroundV2Page({
   onEditMapping,
   onGenerate,
-
+  currentTab,
 }: {
   onEditMapping?: (workflow: IViewComfy) => void;
   onGenerate?: () => void;
+  currentTab?: TabValue;
   backgroundRefs?: {
     cloud: RefObject<HTMLDivElement | null>;
     tree: RefObject<HTMLDivElement | null>;
@@ -71,6 +72,8 @@ export function PlaygroundV2Page({
     setSelectedLoras,
     presets,
     initPresets,
+    generationHistory,
+    setGenerationHistory,
   } = usePlaygroundStore();
 
   const setConfig = (val: GenerationConfig | ((prev: GenerationConfig) => GenerationConfig)) => {
@@ -91,7 +94,7 @@ export function PlaygroundV2Page({
   const [selectedAIModel, setSelectedAIModel] = useState<AIModel>('gemini');
   const [algorithm] = useState("lemo_2dillustator");
   const [imageFormat] = useState("png");
-  const [generationHistory, setGenerationHistory] = useState<GenerationResult[]>([]);
+  // const [generationHistory, setGenerationHistory] = useState<GenerationResult[]>([]);
   const [isAspectRatioLocked, setIsAspectRatioLocked] = useState(false);
   const [isWorkflowDialogOpen, setIsWorkflowDialogOpen] = useState(false);
   const [isBaseModelDialogOpen, setIsBaseModelDialogOpen] = useState(false);
@@ -652,23 +655,26 @@ export function PlaygroundV2Page({
         />
       </div>
 
-      {/* 动态输入区域 - 初始居中，生成后固定在底部 */}
+      {/* 动态输入区域 - 初始居中，生成后或在 Gallery 时固定在顶部 */}
       <div className={cn(
         "w-full transition-all duration-700 ease-in-out z-50",
-        hasGenerated
-          ? "fixed top-0 left-0 right-0 pt-10  pb-8 px-4 "
+        (hasGenerated || currentTab === TabValue.Gallery)
+          ? "fixed top-0 left-0 right-0 pt-10 pb-8 px-4"
           : "absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
       )}>
+
+        {/* 切换时 */}
         <div className={cn(
-          "flex flex-col items-center  w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
-          hasGenerated ? "max-w-[50vw]  mx-auto mt-20" : "max-w-4xl"
+          "flex flex-col items-center w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
+          (hasGenerated || currentTab === TabValue.Gallery) ? "w-full mx-auto" : "max-w-4xl",
+          (hasGenerated && currentTab !== TabValue.Gallery) && "mt-20"
         )}>
 
 
           <h1
             className={cn(
               "text-[40px] text-white text-center transition-all duration-500 overflow-hidden",
-              hasGenerated ? "h-0 opacity-0 mb-0" : "h-auto opacity-100 mb-4"
+              (hasGenerated || currentTab === TabValue.Gallery) ? "h-0 opacity-0 mb-0" : "h-auto opacity-100 mb-4"
             )}
           >
             Let Your Imagination Soar
@@ -814,7 +820,7 @@ export function PlaygroundV2Page({
         </div>
       </div>
 
-      <div className="absolute top-0 left-0 right-0 pt-24 z-80">
+      <div className=" top-0 left-0 right-0 pt-24 ">
         <ImagePreviewModal
           isOpen={isImageModalOpen}
           onClose={closeImageModal}
