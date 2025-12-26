@@ -1,3 +1,5 @@
+import EtherealToolAdapter from './adapters/EtherealToolAdapter';
+
 export type ToolParamType = 'number' | 'color' | 'boolean';
 
 export interface ToolParameter {
@@ -8,14 +10,17 @@ export interface ToolParameter {
     max?: number;
     step?: number;
     defaultValue: string | number | boolean;
+    category?: string;
 }
 
 export interface WebGLToolConfig {
     id: string;
     name: string;
     description: string;
+    type: 'shader' | 'component';
     thumbnail?: string;
-    fragmentShader: string;
+    fragmentShader?: string;
+    component?: React.ComponentType<any>;
     parameters: ToolParameter[];
 }
 
@@ -24,6 +29,7 @@ export const WEBGL_TOOLS: WebGLToolConfig[] = [
         id: 'deep-sea-flow',
         name: 'Deep Sea Flow',
         description: 'A mesmerizing fluid simulation with deep navy and orange gradients.',
+        type: 'shader',
         fragmentShader: `
 uniform float iTime;
 uniform vec2 iResolution;
@@ -82,7 +88,8 @@ void main() {
                 min: 0.01,
                 max: 0.5,
                 step: 0.01,
-                defaultValue: 0.1
+                defaultValue: 0.1,
+                category: 'Simulation'
             },
             {
                 id: 'waveIntensity',
@@ -91,8 +98,28 @@ void main() {
                 min: 0.1,
                 max: 5.0,
                 step: 0.1,
-                defaultValue: 1.0
+                defaultValue: 1.0,
+                category: 'Simulation'
             }
+        ]
+    },
+    {
+        id: 'ethereal-mesh-gradient',
+        name: 'Ethereal Mesh Gradient',
+        description: 'A flowing, ethereal mesh gradient simulation with adjustable parameters.',
+        type: 'component',
+        component: EtherealToolAdapter,
+        parameters: [
+            { id: 'wireframe', name: 'Wireframe Mode', type: 'boolean', defaultValue: false, category: 'Geometry' },
+            { id: 'density', name: 'Complexity', type: 'number', min: 10, max: 300, step: 1, defaultValue: 205, category: 'Geometry' },
+            { id: 'amplitude', name: 'Displacement', type: 'number', min: 0, max: 0.5, step: 0.01, defaultValue: 0.05, category: 'Simulation' },
+            { id: 'speed', name: 'Flow Velocity', type: 'number', min: 0, max: 0.5, step: 0.01, defaultValue: 0.07, category: 'Simulation' },
+            { id: 'frequency', name: 'Frequency', type: 'number', min: 0, max: 20, step: 0.1, defaultValue: 6.10, category: 'Simulation' },
+            { id: 'color1', name: 'Layer 1 Color', type: 'color', defaultValue: '#5B5B5D', category: 'Palette' },
+            { id: 'color2', name: 'Layer 2 Color', type: 'color', defaultValue: '#B4B1C3', category: 'Palette' },
+            { id: 'color3', name: 'Layer 3 Color', type: 'color', defaultValue: '#BAB9CB', category: 'Palette' },
+            { id: 'color4', name: 'Layer 4 Color', type: 'color', defaultValue: '#000000', category: 'Palette' },
+            { id: 'color5', name: 'Layer 5 Color', type: 'color', defaultValue: '#549291', category: 'Palette' },
         ]
     }
 ];

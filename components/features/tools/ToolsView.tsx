@@ -101,12 +101,21 @@ const ToolsView: React.FC = () => {
                                     >
                                         <div className="aspect-video relative bg-black/40">
                                             {/* 简单预览渲染 */}
-                                            <WebGLRenderer
-                                                shader={tool.fragmentShader}
-                                                uniforms={tool.parameters.reduce((acc, p) => { acc[p.id] = p.defaultValue as number; return acc; }, {} as Record<string, number | number[]>)}
-                                                width={400}
-                                                height={225}
-                                            />
+                                            {tool.type === 'shader' && tool.fragmentShader && (
+                                                <WebGLRenderer
+                                                    shader={tool.fragmentShader}
+                                                    uniforms={tool.parameters.reduce((acc, p) => { acc[p.id] = p.defaultValue as number; return acc; }, {} as Record<string, number | number[]>)}
+                                                    width={400}
+                                                    height={225}
+                                                />
+                                            )}
+                                            {tool.type === 'component' && tool.component && (
+                                                <div className="w-full h-full pointer-events-none">
+                                                    <tool.component
+                                                        {...tool.parameters.reduce((acc, p) => { acc[p.id] = p.defaultValue; return acc; }, {} as Record<string, any>)}
+                                                    />
+                                                </div>
+                                            )}
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                 <Button variant="outline" className="rounded-full border-white/40 text-white">Open Tool</Button>
                                             </div>
@@ -145,14 +154,21 @@ const ToolsView: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div ref={canvasContainerRef} className="flex-1 bg-black overflow-hidden flex items-center justify-center">
-                                <WebGLRenderer
-                                    shader={selectedTool.fragmentShader}
-                                    uniforms={paramValues as Record<string, number>}
-                                    width={1920}
-                                    height={1080}
-                                    className="max-w-full max-h-full aspect-video shadow-2xl"
-                                />
+                            <div ref={canvasContainerRef} className="flex-1 bg-black overflow-hidden flex items-center justify-center relative">
+                                {selectedTool.type === 'shader' && selectedTool.fragmentShader && (
+                                    <WebGLRenderer
+                                        shader={selectedTool.fragmentShader}
+                                        uniforms={paramValues as Record<string, number>}
+                                        width={1920}
+                                        height={1080}
+                                        className="max-w-full max-h-full aspect-video shadow-2xl"
+                                    />
+                                )}
+                                {selectedTool.type === 'component' && selectedTool.component && (
+                                    <div className="w-full h-full relative">
+                                        <selectedTool.component {...paramValues} />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Bottom Actions */}

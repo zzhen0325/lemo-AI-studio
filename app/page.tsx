@@ -16,6 +16,7 @@ import Image from "next/image";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
 import ToolsView from "@/components/features/tools/ToolsView";
 import DatasetManagerView from "@/components/features/dataset/DatasetManagerView";
+import EtherealGradient from "@/components/common/graphics/EtherealGradient";
 
 import { NewSidebar } from "@/components/layout/NewSidebar";
 
@@ -184,7 +185,15 @@ export default function Page() {
                   {/* Beams Background */}
                   <div ref={beamsRef} className="absolute inset-0 z-0 opacity-0 overflow-hidden ">
                     {renderBeams && (
-                      <Image alt="" src="/images/5.png" fill priority className="absolute inset-0 max-w-none object-cover size-full" />
+                      <EtherealGradient
+                        className="absolute inset-0 size-full"
+                        colors={['#5B5B5D', '#B4B1C3', '#BAB9CB', '#000000', '#549291']}
+                        wireframe={false}
+                        density={205}
+                        amplitude={0.05}
+                        speed={0.07}
+                        frequency={6.10}
+                      />
                     )}
                   </div>
 

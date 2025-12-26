@@ -99,7 +99,7 @@ export function PlaygroundV2Page({
   const [isLoraDialogOpen, setIsLoraDialogOpen] = useState(false);
   const [workflows, setWorkflows] = useState<IViewComfy[]>([]);
   const [isPresetManagerOpen, setIsPresetManagerOpen] = useState(false);
-  const [isPresetExpanded, setIsPresetExpanded] = useState(true);
+  const [isPresetExpanded, setIsPresetExpanded] = useState(false);
 
   useEffect(() => {
     initPresets();
