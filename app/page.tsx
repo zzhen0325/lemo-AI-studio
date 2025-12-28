@@ -173,10 +173,10 @@ export default function Page() {
 
   return (
     <TabContext.Provider value={{ currentTab, setCurrentTab: handleTabChange, deployWindow, setDeployWindow }}>
-      <div className="flex bg-black h-screen w-screen overflow-hidden text-neutral-200 selection:bg-indigo-500/30">
+      <div className="flex flex-col bg-black h-screen w-screen overflow-hidden text-neutral-200 selection:bg-indigo-500/30">
         <NewSidebar currentTab={currentTab} onTabChange={handleTabChange} />
 
-        <main className="flex-1 relative ml-[180px] p-6 h-full flex flex-col overflow-hidden">
+        <main className="flex-1 relative p-6 pt-16 h-full flex flex-col overflow-hidden">
           <div className="flex-1 bg-black/40 backdrop-blur-sm border border-white/30 rounded-[2rem] overflow-hidden relative flex flex-col">
             <div className="relative flex h-full justify-center z-10">
               {/* 视差动画背景 - Logically render only for Playground/Gallery */}
@@ -247,7 +247,6 @@ export default function Page() {
                   <div className={`flex flex-col flex-1 ${currentTab === TabValue.Gallery ? 'max-h-[240px] mt-4' : 'h-full'} overflow-hidden ${([TabValue.Playground, TabValue.ByteArtist, TabValue.Gallery].includes(currentTab)) ? '' : 'hidden'}`}>
                     <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Playground...</div>}>
                       <PlaygroundV2Page
-                        currentTab={currentTab}
                         onEditMapping={handleEditMapping}
                         onGenerate={() => handleBackgroundAnimate('out')}
                         backgroundRefs={{

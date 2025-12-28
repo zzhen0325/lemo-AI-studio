@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TabValue } from "./sidebar";
 import { Toaster } from "sonner";
+import SplitText from "../ui/split-text";
 
 interface NewSidebarProps {
     currentTab: TabValue;
@@ -29,17 +30,16 @@ const navItems = [
 
 export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
     return (
-        <aside
-            className="fixed left-0 top-0 h-screen z-50 flex flex-col mt-6 select-none w-28 "
+        <header
+            className="fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-8 select-none bg-black/20 backdrop-blur-xl"
         >
-            <div className="px-6 mb-4 flex items-center h-10">
-
-                <span className="ml-3 text-white font-bold  text-md whitespace-nowrap">
+            <div className="flex items-center">
+                <span className="text-white font-bold text-lg tracking-wider">
                     LEMO STUDIO
                 </span>
             </div>
 
-            <nav className="flex-1 px-3 space-y-1">
+            <nav className="flex items-center space-x-1">
                 {navItems.map((item) => {
                     const isActive = currentTab === item.value;
 
@@ -48,33 +48,37 @@ export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
                             key={item.value}
                             onClick={() => onTabChange(item.value)}
                             className={cn(
-                                "w-full flex items-center h-10 ml-6  border-b border-white/10 hover:font-bold  transition-all relative group",
+                                "px-4 h-10 flex items-center transition-all relative group text-sm whitespace-nowrap",
                                 isActive
-                                    ? " text-white "
-                                    : "text-white/70  hover:text-white "
+                                    ? "text-white font-medium"
+                                    : "text-white/60 hover:text-white"
                             )}
                         >
-                            {/* <div className="w-[54px] flex-shrink-0 flex items-center justify-center">
-                                <Icon className={cn("size-5 transition-transform", isActive && "scale-110")} />
-                            </div> */}
-
-                            <span className="text-sm whitespace-nowrap">
-                                {item.label}
-                            </span>
+                            <SplitText
+                                text={item.label}
+                                className="text-sm"
+                                delay={30}
+                                duration={0.5}
+                                animateOnHover={true}
+                                tag="span"
+                            />
+                            {isActive && (
+                                <span className="absolute bottom-1 left-4 right-4 h-[1px] bg-white/20 rounded-full" />
+                            )}
                         </button>
                     );
                 })}
             </nav>
 
-            <div className="px-6 mt-auto pb-4">
-                <div className="flex items-center text-white/30 text-xs mb-2">
+            <div className="flex items-center gap-4">
+                <div className="text-white/20 text-[10px] tracking-tight">
                     v0.2.0
                 </div>
-                <div className="fixed bottom-80 left-4 z-[9999] pointer-events-auto">
+                <div className="fixed bottom-10 right-4 z-[9999] pointer-events-auto">
                     <Toaster
-                        position="bottom-left"
+                        position="bottom-right"
                         toastOptions={{
-                            className: "sidebar-toast",
+                            className: "navbar-toast",
                             classNames: {
                                 description: "text-white",
                                 title: "text-white font-medium"
@@ -85,8 +89,7 @@ export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
                                 border: '1px solid rgba(255, 255, 255, 0.31)',
                                 color: '#fff',
                                 fontSize: '11px',
-                                width: '160px',
-                                minWidth: '160px',
+                                width: '220px',
                                 borderRadius: '12px',
                                 boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
                             },
@@ -94,6 +97,6 @@ export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
                     />
                 </div>
             </div>
-        </aside>
+        </header>
     );
 }

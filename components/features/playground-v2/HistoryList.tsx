@@ -5,6 +5,7 @@ import { Download, Type, Image as ImageIcon, Box, RefreshCw, Loader2 } from "luc
 import { GenerationResult, GenerationConfig } from '@/components/features/playground-v2/types';
 import { TooltipButton } from "@/components/ui/tooltip-button";
 import { usePlaygroundStore } from '@/lib/store/playground-store';
+import { cn } from "@/lib/utils";
 
 
 interface HistoryListProps {
@@ -13,6 +14,7 @@ interface HistoryListProps {
   onDownload: (imageUrl: string) => void;
   onImageClick: (result: GenerationResult, initialRect?: DOMRect) => void;
   isGenerating?: boolean;
+  variant?: 'default' | 'sidebar';
 }
 
 export default function HistoryList({
@@ -20,6 +22,7 @@ export default function HistoryList({
   onRegenerate,
   onDownload,
   onImageClick,
+  variant = 'default',
 }: HistoryListProps) {
   // Group history by date
   const groupedHistory = React.useMemo(() => {
@@ -57,29 +60,49 @@ export default function HistoryList({
   if (history.length === 0) return null;
 
   return (
-    <div className="relative flex flex-col w-full h-full overflow-y-auto custom-scrollbar px-4 mt-80 pb-32">
+    <div className={cn(
+      "relative flex flex-col w-full h-full overflow-y-auto custom-scrollbar px-4 pb-32",
+      variant === 'default' ? "mt-80" : "mt-4"
+    )}>
       {Object.entries(groupedHistory).map(([title, groupItems]) => (
-        <div key={title} className="flex flex-col mb-8 w-full max-w-[1500px] mx-auto">
-          <h3 className="text-lg font-medium text-white/80 mb-4 pl-1">{title}</h3>
-          <div className="flex flex-wrap gap-4">
+        <div key={title} className={cn(
+          "flex flex-col mb-8 w-full mx-auto",
+          variant === 'default' ? "max-w-[1500px]" : "max-w-full"
+        )}>
+          <h3 className="text-sm font-medium text-white/50 mb-4 pl-1 uppercase tracking-wider">{title}</h3>
+          <div className={cn(
+            "grid gap-4",
+            variant === 'default' ? "flex flex-wrap" : "grid-cols-1 sm:grid-cols-2"
+          )}>
             {groupItems.map((result) => {
-              // Dynamic card width logic based on group count
-              let widthClass = "w-[280px]";
-              const count = groupItems.length;
+              if (variant === 'default') {
+                // Dynamic card width logic based on group count
+                let widthClass = "w-[280px]";
+                const count = groupItems.length;
+                if (count >= 5) widthClass = "w-[280px]";
+                else if (count === 4) widthClass = "w-[300px]";
+                else widthClass = "w-[320px]";
 
-              if (count >= 5) widthClass = "w-[280px]";
-              else if (count === 4) widthClass = "w-[300px]";
-              else widthClass = "w-[320px]";
+                return (
+                  <div key={result.id} className={`${widthClass} shrink-0`}>
+                    <HistoryCard
+                      result={result}
+                      onRegenerate={onRegenerate}
+                      onDownload={onDownload}
+                      onImageClick={onImageClick}
+                    />
+                  </div>
+                );
+              }
 
               return (
-                <div key={result.id} className={`${widthClass} shrink-0`}>
-                  <HistoryCard
-                    result={result}
-                    onRegenerate={onRegenerate}
-                    onDownload={onDownload}
-                    onImageClick={onImageClick}
-                  />
-                </div>
+                <HistoryCard
+                  key={result.id}
+                  result={result}
+                  onRegenerate={onRegenerate}
+                  onDownload={onDownload}
+                  onImageClick={onImageClick}
+                />
               );
             })}
           </div>

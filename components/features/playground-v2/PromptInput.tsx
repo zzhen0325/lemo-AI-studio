@@ -78,7 +78,7 @@ export default function PromptInput({
             onAddImages(files);
           }
         }}
-        className="w-full placeholder:text-white/40 bg-black/90 shadow-none rounded-3xl text-white leading-relaxed tracking-wide p-2 px-4 pt-3 border border-white/20 focus:border-white/20 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none resize-none transition-all duration-200"
+        className="w-full placeholder:text-white/40 bg-transparent text-white leading-relaxed tracking-wide p-2 px-4 pt-3 border-none focus-visible:ring-0 focus-visible:ring-offset-0 outline-none resize-none transition-all duration-200"
       />
 
       {/* 底部模糊遮罩 - 仅在非 Focus 状态且有内容时显示，用于优雅处理文字溢出 */}

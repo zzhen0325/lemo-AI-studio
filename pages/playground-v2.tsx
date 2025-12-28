@@ -17,6 +17,7 @@ import { GoogleApiStatus } from "@/components/features/playground-v2/GoogleApiSt
 import PromptInput from "@/components/features/playground-v2/PromptInput";
 import ControlToolbar from "@/components/features/playground-v2/ControlToolbar";
 import HistoryList from "@/components/features/playground-v2/HistoryList";
+import GalleryView from "@/components/features/playground-v2/GalleryView";
 import ImagePreviewModal from "@/components/features/playground-v2/ImagePreviewModal";
 import ImageEditorModal from "@/components/features/playground-v2/ImageEditorModal";
 import { GenerationConfig, GenerationResult, UploadedImage } from "@/components/features/playground-v2/types";
@@ -25,6 +26,7 @@ import BaseModelSelectorDialog from "@/components/features/playground-v2/BaseMod
 import LoraSelectorDialog, { SelectedLora } from "@/components/features/playground-v2/LoraSelectorDialog";
 import { PresetCarousel } from "@/components/features/playground-v2/PresetCarousel";
 import { PresetManagerDialog } from "@/components/features/playground-v2/PresetManagerDialog";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import type { IMultiValueInput, IInputField } from "@/lib/workflow-api-parser";
 import type { WorkflowApiJSON } from "@/lib/workflow-api-parser";
@@ -38,16 +40,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePlaygroundStore } from "@/lib/store/playground-store";
 
 
-import { TabValue } from "@/components/layout/sidebar";
 
 export function PlaygroundV2Page({
   onEditMapping,
   onGenerate,
-  currentTab,
 }: {
   onEditMapping?: (workflow: IViewComfy) => void;
   onGenerate?: () => void;
-  currentTab?: TabValue;
   backgroundRefs?: {
     cloud: RefObject<HTMLDivElement | null>;
     tree: RefObject<HTMLDivElement | null>;
@@ -86,7 +85,6 @@ export function PlaygroundV2Page({
   const [isMockMode, setIsMockMode] = useState(false);
   const [isSelectorExpanded, setIsSelectorExpanded] = useState(false);
 
-  const [isInputHovered, setIsInputHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedAIModel, setSelectedAIModel] = useState<AIModel>('gemini');
@@ -100,6 +98,7 @@ export function PlaygroundV2Page({
   const [workflows, setWorkflows] = useState<IViewComfy[]>([]);
   const [isPresetManagerOpen, setIsPresetManagerOpen] = useState(false);
   const [isPresetExpanded, setIsPresetExpanded] = useState(false);
+  const [isStackHovered, setIsStackHovered] = useState(false);
 
   useEffect(() => {
     initPresets();
@@ -578,247 +577,267 @@ export function PlaygroundV2Page({
 
   const Inputbg = "relative z-10 flex items-center justify-center w-full text-black flex-col rounded-[30px] bg-black/50  backdrop-blur-xl border border-white/20 p-2 mx-auto";
 
-  const renderThumbnails = () => {
-    const showUploadButton = isInputHovered || uploadedImages.length > 0;
-    if (uploadedImages.length === 0 && !showUploadButton) return null;
+  /**
+   * Refactored to inline into the main input container for aggregation + hover expansion
+   */
 
-    return (
-      <div className="absolute -top-16 left-10 flex gap-1 z-0 pointer-events-none">
-        <AnimatePresence>
-          {uploadedImages.map((image, index) => {
-            const rotations = [-8, 6, -4, 5, -3];
-            const rotation = rotations[index % rotations.length];
-            return (
-              <motion.div
-                key={index}
-                initial={{ y: 20, rotate: rotation }}
-                animate={{ y: 0, rotate: rotation }}
-                exit={{ y: 20, rotate: rotation }}
-                transition={{ duration: 0.1, ease: "easeOut" }}
-                className="relative group pointer-events-auto hover:z-50 p-1 -m-1"
-              >
-                <div className="relative p-2 transition-all duration-100 group-hover:-translate-y-5 group-hover:scale-110">
-                  <Image
-                    src={image.previewUrl}
-                    alt={`上传的图片 ${index + 1}`}
-                    width={80}
-                    height={80}
-                    className="w-20 h-20 object-cover rounded-2xl border-2 border-white/60 bg-black shadow-xl transition-all duration-300 group-hover:border-white group-hover:shadow-2xl"
-                  />
+
+
+  // Input UI Helper to avoid duplication
+  const renderInputUI = (isSidebar: boolean) => (
+    <div className={cn(
+      "flex flex-col items-center w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
+      isSidebar ? "w-full" : "max-w-4xl"
+    )}>
+      {!isSidebar && (
+        <h1 className="text-[40px] text-white text-center mb-4 h-auto opacity-100 transition-all duration-500 overflow-hidden">
+          Turn any idea into a stunning image
+        </h1>
+      )}
+
+      <div
+        className="relative w-full rounded-[10px] transition-all duration-300"
+      >
+        <div className={Inputbg}>
+          <div className="flex items-start gap-0 bg-black/80 border border-white/20 rounded-3xl w-full pl-2">
+            <div
+              className="flex items-center"
+              onMouseEnter={() => setIsStackHovered(true)}
+              onMouseLeave={() => setIsStackHovered(false)}
+            >
+              <div className="relative flex items-center h-[94px] ml-3 z-[200]">
+                <div
+                  className="relative flex items-center transition-all"
+                  style={{ width: uploadedImages.length > 0 ? (isStackHovered ? (uploadedImages.length * 60 + 20) : 64) : 40 }}
+                >
+                  {uploadedImages.map((image, index) => {
+                    const rotations = [-6, 4, -2, 3];
+                    const rotation = rotations[index % rotations.length];
+                    return (
+                      <div
+                        key={index}
+                        style={{
+                          transform: `translateX(${isStackHovered ? (index * 60) : (index * 4)}px) translateY(${isStackHovered ? 0 : (index * 2)}px) rotate(${isStackHovered ? 0 : rotation}deg)`,
+                          zIndex: (uploadedImages.length - index) + 100,
+                          opacity: 1
+                        }}
+                        className="absolute left-0 transition-transform duration-100"
+                      >
+                        <div className="relative group">
+                          <Image
+                            src={image.previewUrl}
+                            alt={`Uploaded ${index + 1}`}
+                            width={56}
+                            height={56}
+                            className="w-14 h-14 object-cover rounded-sm border border-white/40 bg-black shadow-lg transition-transform duration-100"
+                          />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeImage(index); }}
+                            className="absolute -top-2 -right-2 bg-black text-white border border-white/40 rounded-full w-6 h-6 flex items-center justify-center scale-0 group-hover:scale-100 transition-transform duration-100 hover:bg-red-500"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                   <button
-                    onClick={() => removeImage(index)}
-                    className="absolute top-1 right-1 bg-black/60 backdrop-blur-md text-white border border-white/20 rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black hover:scale-110 z-10"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      transform: uploadedImages.length > 0
+                        ? `translateX(${isStackHovered ? (uploadedImages.length * 60 - 0) : 34}px) translateY(16px) scale(0.8)`
+                        : 'none'
+                    }}
+                    className={cn(
+                      "flex items-center justify-center rounded-xl text-white border border-white/60 bg-black/30 backdrop-blur-xl hover:bg-white/90 transition-all group z-[1100]",
+                      uploadedImages.length > 0 ? "w-8 h-8 absolute" : "w-8 h-8 relative"
+                    )}
                   >
-                    <X className="w-4 h-4" />
+                    <Plus className={cn("text-white", uploadedImages.length > 0 ? "w-4 h-4" : "w-5 h-5")} />
                   </button>
                 </div>
-              </motion.div>
-            );
-          })}
-
-          {showUploadButton && (
-            <motion.div
-              key="upload-button"
-              initial={{ y: 20, rotate: ([-8, 6, -4, 5, -3][uploadedImages.length % 5]) }}
-              animate={{ y: 0, rotate: ([-8, 6, -4, 5, -3][uploadedImages.length % 5]) }}
-              exit={{ scale: 0.8 }}
-              transition={{ duration: 0.1, ease: "easeOut" }}
-              className="relative group pointer-events-auto hover:z-50"
-            >
-              <div className="relative transition-all duration-300 group-hover:-translate-y-5 group-hover:scale-110">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-white/40 bg-white/5 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-white/80 hover:bg-white/10 group-hover:shadow-2xl"
-                >
-                  <Plus className="w-8 h-8 text-white/40 group-hover:text-white/80 transition-colors" />
-                </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  };
+            </div>
 
-
-  return (
-    <main className="relative h-screen flex flex-col bg-transparent overflow-hidden">
-      {/* 核心历史与预览区域 - 在输入区域下方（或背景中） */}
-      <div className="flex-1 overflow-hidden relative z-0">
-        <HistoryList
-          history={generationHistory}
-          onRegenerate={handleRegenerate}
-          onDownload={handleDownload}
-          onImageClick={openImageModal}
-        />
-      </div>
-
-      {/* 动态输入区域 - 初始居中，生成后或在 Gallery 时固定在顶部 */}
-      <div className={cn(
-        "w-full transition-all duration-700 ease-in-out z-50",
-        (hasGenerated || currentTab === TabValue.Gallery)
-          ? "fixed top-0 left-0 right-0 max-w-6xl mx-auto pb-8 px-4"
-          : "absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
-      )}>
-
-        {/* 切换时 */}
-        <div className={cn(
-          "flex flex-col items-center w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
-          (hasGenerated || currentTab === TabValue.Gallery) ? "w-full mx-auto" : "max-w-4xl",
-          (hasGenerated && currentTab !== TabValue.Gallery) && "mt-20"
-        )}>
-
-
-          <h1
-            className={cn(
-              "text-[40px] text-white text-center transition-all duration-500 overflow-hidden",
-              (hasGenerated || currentTab === TabValue.Gallery) ? "h-0 opacity-0 mb-0" : "h-auto opacity-100 mb-4"
-            )}
-          >
-            Let Your Imagination Soar
-          </h1>
-          <div
-            className={cn(
-              "relative w-full rounded-[10px] transition-all duration-300",
-              isInputHovered ? "mt-0" : "mt-0"
-            )}
-            onMouseEnter={() => setIsInputHovered(true)}
-            onMouseLeave={() => setIsInputHovered(false)}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              multiple
-              onChange={handleImageUpload}
-            />
-            {renderThumbnails()}
-
-            <div className={Inputbg}>
-              <div className="flex items-start gap-4 w-full">
-                <PromptInput
-                  prompt={config.prompt}
-                  onPromptChange={(val) => setConfig(prev => ({ ...prev, prompt: val }))}
-                  uploadedImages={uploadedImages}
-                  onRemoveImage={removeImage}
-                  isOptimizing={isOptimizing}
-                  onOptimize={handleOptimizePrompt}
-                  selectedAIModel={selectedAIModel}
-                  onAIModelChange={setSelectedAIModel}
-                  onAddImages={handleFilesUpload}
-                />
-
-              </div>
-
-
-
-              <ControlToolbar
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-                config={config}
-                onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))}
-                onWidthChange={handleWidthChange}
-                onHeightChange={handleHeightChange}
-                aspectRatioPresets={aspectRatioPresets}
-                currentAspectRatio={getCurrentAspectRatio()}
-                onAspectRatioChange={(ar: string) => {
-                  const size = (config.base_model === 'Nano banana') ? (config.image_size || '1K') : '1K';
-                  const resolution = AR_MAP[ar]?.[size] || AR_MAP[ar]?.['1K'];
-                  if (resolution) {
-                    setConfig(prev => ({ ...prev, img_width: resolution.w, image_height: resolution.h }));
-                  }
-                }}
-                currentImageSize={(config.image_size as '1K' | '2K' | '4K') || '1K'}
-                onImageSizeChange={(size: '1K' | '2K' | '4K') => {
-                  const ar = getCurrentAspectRatio();
-                  const resolution = AR_MAP[ar]?.[size];
-                  if (resolution) {
-                    setConfig(prev => ({ ...prev, image_size: size, img_width: resolution.w, image_height: resolution.h }));
-                  }
-                }}
-                isAspectRatioLocked={isAspectRatioLocked}
-                onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)}
-                onImageUpload={handleImageUpload}
-                onGenerate={handleGenerate}
-                isGenerating={false}
-                uploadedImagesCount={uploadedImages.length}
-                loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."}
-                onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)}
-                onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)}
-                onOpenLoraSelector={() => setIsLoraDialogOpen(true)}
-                selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title}
-                selectedBaseModelName={config.base_model}
-                selectedLoraNames={selectedLoras.map(l => l.model_name)}
-                workflows={workflows}
-                onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
-                onOptimize={handleOptimizePrompt}
+            <div className="flex-1 mt-1">
+              <PromptInput
+                prompt={config.prompt}
+                onPromptChange={(val) => setConfig(prev => ({ ...prev, prompt: val }))}
+                uploadedImages={uploadedImages}
+                onRemoveImage={removeImage}
                 isOptimizing={isOptimizing}
-                isMockMode={isMockMode}
-                onMockModeChange={setIsMockMode}
-                isSelectorExpanded={isSelectorExpanded}
-                onSelectorExpandedChange={setIsSelectorExpanded}
+                onOptimize={handleOptimizePrompt}
+                selectedAIModel={selectedAIModel}
+                onAIModelChange={setSelectedAIModel}
+                onAddImages={handleFilesUpload}
               />
-              {/* Preset Carousel */}
-              {/* Preset Carousel Toggle & Content */}
-              <div className="w-full px-4 mt-2">
-                <div className="flex justify-center mb-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 gap-1 text-white/30 hover:text-white/60 hover:bg-white/5 rounded-full px-3 transition-all"
-                    onClick={() => setIsPresetExpanded(!isPresetExpanded)}
-                  >
-                    {isPresetExpanded ? (
-                      <>
-                        <ChevronUp className="w-3 h-3" />
-                        <span className="text-xs">收起预设</span>
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="w-3 h-3" />
-                        <span className="text-xs">展开预设</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                <AnimatePresence>
-                  {isPresetExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <PresetCarousel
-                        presets={presets}
-                        onSelectPreset={(preset) => {
-                          setConfig(prev => ({
-                            ...prev,
-                            prompt: preset.prompt,
-                            base_model: preset.base_model,
-                            img_width: preset.width,
-                            image_height: preset.height,
-                            image_size: preset.image_size
-                          }));
-                          setSelectedModel(preset.base_model);
-                          toast({ title: "已应用预设", description: `使用了预设: ${preset.title}` });
-                        }}
-                        onOpenManager={() => setIsPresetManagerOpen(true)}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
             </div>
           </div>
 
-          <GoogleApiStatus className="fixed bottom-4 right-4" />
+          <ControlToolbar
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            config={config}
+            onConfigChange={(newConf) => setConfig(prev => ({ ...prev, ...newConf }))}
+            onWidthChange={handleWidthChange}
+            onHeightChange={handleHeightChange}
+            aspectRatioPresets={aspectRatioPresets}
+            currentAspectRatio={getCurrentAspectRatio()}
+            onAspectRatioChange={(ar: string) => {
+              const size = (config.base_model === 'Nano banana') ? (config.image_size || '1K') : '1K';
+              const resolution = AR_MAP[ar]?.[size] || AR_MAP[ar]?.['1K'];
+              if (resolution) {
+                setConfig(prev => ({ ...prev, img_width: resolution.w, image_height: resolution.h }));
+              }
+            }}
+            currentImageSize={(config.image_size as '1K' | '2K' | '4K') || '1K'}
+            onImageSizeChange={(size: '1K' | '2K' | '4K') => {
+              const ar = getCurrentAspectRatio();
+              const resolution = AR_MAP[ar]?.[size];
+              if (resolution) {
+                setConfig(prev => ({ ...prev, image_size: size, img_width: resolution.w, image_height: resolution.h }));
+              }
+            }}
+            isAspectRatioLocked={isAspectRatioLocked}
+            onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)}
+            onImageUpload={handleImageUpload}
+            onGenerate={handleGenerate}
+            isGenerating={false}
+            uploadedImagesCount={uploadedImages.length}
+            loadingText={selectedModel === "Seed 4.0" ? "Seed 4.0 生成中..." : "生成中..."}
+            onOpenWorkflowSelector={() => setIsWorkflowDialogOpen(true)}
+            onOpenBaseModelSelector={() => setIsBaseModelDialogOpen(true)}
+            onOpenLoraSelector={() => setIsLoraDialogOpen(true)}
+            selectedWorkflowName={selectedWorkflowConfig?.viewComfyJSON.title}
+            selectedBaseModelName={config.base_model}
+            selectedLoraNames={selectedLoras.map(l => l.model_name)}
+            workflows={workflows}
+            onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
+            onOptimize={handleOptimizePrompt}
+            isOptimizing={isOptimizing}
+            isMockMode={isMockMode}
+            onMockModeChange={setIsMockMode}
+            isSelectorExpanded={isSelectorExpanded}
+            onSelectorExpandedChange={setIsSelectorExpanded}
+          />
+
+          <div className="w-full px-4 mt-2">
+            <div className="flex justify-center mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 text-white/30 hover:text-white/60 hover:bg-white/5 rounded-full px-3 transition-all"
+                onClick={() => setIsPresetExpanded(!isPresetExpanded)}
+              >
+                {isPresetExpanded ? (
+                  <>
+                    <ChevronUp className="w-3 h-3" />
+                    <span className="text-xs">收起预设</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3 h-3" />
+                    <span className="text-xs">展开预设</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <AnimatePresence>
+              {isPresetExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <PresetCarousel
+                    presets={presets}
+                    onSelectPreset={(preset) => {
+                      setConfig(prev => ({
+                        ...prev,
+                        prompt: preset.prompt,
+                        base_model: preset.base_model,
+                        img_width: preset.width,
+                        image_height: preset.height,
+                        image_size: preset.image_size
+                      }));
+                      setSelectedModel(preset.base_model);
+                      toast({ title: "已应用预设", description: `使用了预设: ${preset.title}` });
+                    }}
+                    onOpenManager={() => setIsPresetManagerOpen(true)}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
+    </div>
+  );
 
-      <div className=" top-0 left-0 right-0 pt-24 ">
+  return (
+    <main className="relative h-screen flex bg-transparent overflow-hidden">
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
+        multiple
+        onChange={handleImageUpload}
+      />
+
+      {!hasGenerated ? (
+        // Initial centered state
+        <div className="relative flex-1 flex flex-col items-center justify-center p-6 pb-20">
+          <div className="w-full h-full absolute inset-0 z-0 overflow-y-auto custom-scrollbar">
+            <HistoryList
+              history={generationHistory}
+              onRegenerate={handleRegenerate}
+              onDownload={handleDownload}
+              onImageClick={openImageModal}
+            />
+          </div>
+          {renderInputUI(false)}
+        </div>
+      ) : (
+        // Split layout after generation
+        <div className="flex flex-1 w-full h-full overflow-hidden">
+          <ResizablePanelGroup orientation="horizontal" className="w-full h-full">
+            {/* Left Column: Input + History */}
+            <ResizablePanel defaultSize={40} minSize={20}>
+              <div className="h-full flex flex-col border-b border-white/10 z-20">
+                <div className="p-4 pt-4 border-b border-white/5">
+                  {renderInputUI(true)}
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <HistoryList
+                    variant="sidebar"
+                    history={generationHistory}
+                    onRegenerate={handleRegenerate}
+                    onDownload={handleDownload}
+                    onImageClick={openImageModal}
+                  />
+                </div>
+              </div>
+            </ResizablePanel>
+
+            <ResizableHandle withHandle />
+
+            {/* Right Column: Gallery */}
+            <ResizablePanel defaultSize={50} minSize={20}>
+              <div className="h-full overflow-hidden relative">
+                <h1 className="text-white/50 text-xl p-4">Style</h1>
+                <GalleryView />
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
+      )}
+
+      <GoogleApiStatus className="fixed bottom-4 right-4 z-[60]" />
+
+      <div className="top-0 left-0 right-0 pt-24 pointer-events-none">
         <ImagePreviewModal
           isOpen={isImageModalOpen}
           onClose={closeImageModal}
