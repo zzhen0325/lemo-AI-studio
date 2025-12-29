@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GenerationConfig, UploadedImage, Preset, GenerationResult } from '@/components/features/playground-v2/types';
+import { GenerationConfig, UploadedImage, Preset, GenerationResult, StyleStack } from '@/components/features/playground-v2/types';
 import { IViewComfy } from '@/lib/providers/view-comfy-provider';
 import { SelectedLora } from '@/components/features/playground-v2/LoraSelectorDialog';
 
@@ -9,6 +9,7 @@ interface PlaygroundState {
     selectedModel: string;
     selectedWorkflowConfig: IViewComfy | undefined;
     selectedLoras: SelectedLora[];
+    hasGenerated: boolean;
 
     // Actions
     updateConfig: (config: Partial<GenerationConfig>) => void;
@@ -16,6 +17,8 @@ interface PlaygroundState {
     setSelectedModel: (model: string) => void;
     setSelectedWorkflowConfig: (workflow: IViewComfy | undefined) => void;
     setSelectedLoras: (loras: SelectedLora[]) => void;
+    setHasGenerated: (val: boolean) => void;
+    setActiveTab: (tab: string) => void;
 
     // High-level Actions
     applyPrompt: (prompt: string) => void;
@@ -33,10 +36,15 @@ interface PlaygroundState {
     addPreset: (preset: Preset, coverFile?: File) => void;
     removePreset: (id: string) => void;
     updatePreset: (preset: Preset, coverFile?: File) => void;
-}
 
-// Assuming 'toast' is imported or defined elsewhere, e.g., from a UI library like shadcn/ui
-// import { toast } from '@/components/ui/use-toast'; // Example import
+    // Style Stacks
+    styles: StyleStack[];
+    initStyles: () => void;
+    addStyle: (style: StyleStack) => void;
+    updateStyle: (style: StyleStack) => void;
+    deleteStyle: (id: string) => void;
+    addImageToStyle: (styleId: string, imagePath: string) => void;
+}
 
 export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
     config: {
@@ -52,6 +60,7 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
     selectedModel: 'Nano banana',
     selectedWorkflowConfig: undefined,
     selectedLoras: [],
+    hasGenerated: false,
 
     updateConfig: (newConfig) => set((state) => ({
         config: { ...state.config, ...newConfig }
@@ -64,10 +73,13 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
     setSelectedModel: (model) => set({ selectedModel: model }),
     setSelectedWorkflowConfig: (workflow) => set({ selectedWorkflowConfig: workflow }),
     setSelectedLoras: (loras) => set({ selectedLoras: loras }),
+    setHasGenerated: (val) => set({ hasGenerated: val }),
+    setActiveTab: () => {
+        // Placeholder
+    },
 
     applyPrompt: (prompt) => {
         set((state) => ({ config: { ...state.config, prompt } }));
-        // toast({ title: "已应用提示词" }); // Uncomment if toast is available
     },
 
     applyImage: async (imageUrl) => {
@@ -89,10 +101,8 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
                     previewUrl: dataUrl
                 }]
             }));
-            // toast({ title: "图片已添加为参考图" }); // Uncomment if toast is available
         } catch (error) {
             console.error("Failed to apply image", error);
-            // toast({ title: "添加图片失败", variant: "destructive" }); // Uncomment if toast is available
         }
     },
 
@@ -102,7 +112,6 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
             return {
                 selectedModel: model,
                 config: newConfig,
-                // 如果切换到通用模型，清理掉选中的工作流配置
                 selectedWorkflowConfig: model === 'Workflow' ? state.selectedWorkflowConfig : undefined
             };
         });
@@ -115,29 +124,24 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
                 selectedModel: finalModel,
                 selectedWorkflowConfig: result.workflow || (finalModel === 'Workflow' ? state.selectedWorkflowConfig : undefined),
                 selectedLoras: result.loras || state.selectedLoras,
-                config: { ...state.config, ...result.config, base_model: finalModel }
+                config: { ...state.config, ...result.config, base_model: finalModel },
+                hasGenerated: true
             };
         });
     },
 
-    // Generation History
     generationHistory: [],
     setGenerationHistory: (updater) => set((state) => ({
         generationHistory: typeof updater === 'function' ? updater(state.generationHistory) : updater
     })),
 
-    // Presets
     presets: [],
-
-    // Initialize Presets (Fetching from API)
     initPresets: async () => {
         try {
             const res = await fetch('/api/presets');
             if (res.ok) {
                 const data = await res.json();
                 set({ presets: data });
-            } else {
-                console.error("Failed to fetch presets");
             }
         } catch (e) {
             console.error("Error fetching presets:", e);
@@ -148,15 +152,8 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
         try {
             const formData = new FormData();
             formData.append('json', JSON.stringify(preset));
-            if (coverFile) {
-                formData.append('cover', coverFile);
-            }
-
-            const res = await fetch('/api/presets', {
-                method: 'POST',
-                body: formData
-            });
-
+            if (coverFile) formData.append('cover', coverFile);
+            const res = await fetch('/api/presets', { method: 'POST', body: formData });
             if (res.ok) {
                 const savedPreset = await res.json();
                 set((state) => ({ presets: [savedPreset, ...state.presets] }));
@@ -179,15 +176,8 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
         try {
             const formData = new FormData();
             formData.append('json', JSON.stringify(preset));
-            if (coverFile) {
-                formData.append('cover', coverFile);
-            }
-
-            const res = await fetch('/api/presets', {
-                method: 'POST', // Reusing POST for update as it overwrites
-                body: formData
-            });
-
+            if (coverFile) formData.append('cover', coverFile);
+            const res = await fetch('/api/presets', { method: 'POST', body: formData });
             if (res.ok) {
                 const savedPreset = await res.json();
                 set((state) => ({
@@ -197,5 +187,83 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
         } catch (e) {
             console.error("Failed to update preset", e);
         }
+    },
+
+    // Style Stacks
+    styles: [],
+
+    initStyles: async () => {
+        try {
+            const res = await fetch('/api/styles');
+            if (res.ok) {
+                const data = await res.json();
+                set({ styles: data });
+            }
+        } catch (e) {
+            console.error("Error fetching styles:", e);
+        }
+    },
+
+    addStyle: async (style: StyleStack) => {
+        try {
+            const res = await fetch('/api/styles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(style)
+            });
+            if (res.ok) {
+                const savedStyle = await res.json();
+                set((state) => ({ styles: [savedStyle, ...state.styles] }));
+            }
+        } catch (e) {
+            console.error("Failed to add style", e);
+        }
+    },
+
+    updateStyle: async (style: StyleStack) => {
+        try {
+            const res = await fetch('/api/styles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(style)
+            });
+            if (res.ok) {
+                const savedStyle = await res.json();
+                set((state) => ({
+                    styles: state.styles.map(s => s.id === savedStyle.id ? savedStyle : s)
+                }));
+            }
+        } catch (e) {
+            console.error("Failed to update style", e);
+        }
+    },
+
+    deleteStyle: async (id: string) => {
+        try {
+            await fetch(`/api/styles?id=${id}`, { method: 'DELETE' });
+            set((state) => ({ styles: state.styles.filter(s => s.id !== id) }));
+        } catch (e) {
+            console.error("Failed to delete style", e);
+        }
+    },
+
+    addImageToStyle: async (styleId: string, imagePath: string) => {
+        set((state) => {
+            const style = state.styles.find(s => s.id === styleId);
+            if (!style) return state;
+            if (style.imagePaths.includes(imagePath)) return state;
+            const updatedStyle = {
+                ...style,
+                imagePaths: [...style.imagePaths, imagePath],
+                updatedAt: new Date().toISOString()
+            };
+            const newStyles = state.styles.map(s => s.id === styleId ? updatedStyle : s);
+            fetch('/api/styles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedStyle)
+            }).catch(e => console.error("Failed to sync style image addition", e));
+            return { styles: newStyles };
+        });
     },
 }));

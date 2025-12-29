@@ -37,3 +37,11 @@ export interface Preset {
   height: number;
   image_size?: '1K' | '2K' | '4K';
 }
+
+export interface StyleStack {
+  id: string;
+  name: string;
+  prompt: string;
+  imagePaths: string[]; // 关联的图片路径列表
+  updatedAt: string;
+}

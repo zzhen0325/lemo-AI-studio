@@ -24,9 +24,9 @@ export default function HistoryList({
   onImageClick,
   variant = 'default',
 }: HistoryListProps) {
-  // Group history by date
+  // Group history by date, then by prompt
   const groupedHistory = React.useMemo(() => {
-    const groups: { [key: string]: GenerationResult[] } = {};
+    const dateGroups: { [key: string]: { prompt: string; items: GenerationResult[] }[] } = {};
 
     history.forEach((result) => {
       const date = new Date(result.timestamp);
@@ -46,15 +46,21 @@ export default function HistoryList({
         title = itemDate.toLocaleDateString();
       }
 
-      if (!groups[title]) {
-        groups[title] = [];
+      if (!dateGroups[title]) {
+        dateGroups[title] = [];
       }
-      groups[title].push(result);
+
+      const prompt = result.config.prompt || "No Prompt";
+      const existingPromptGroup = dateGroups[title].find(g => g.prompt === prompt);
+
+      if (existingPromptGroup) {
+        existingPromptGroup.items.push(result);
+      } else {
+        dateGroups[title].push({ prompt, items: [result] });
+      }
     });
 
-    // keys will be in insertion order for string keys in modern JS engines, 
-    // effectively sorting by most recent if 'history' is sorted.
-    return groups;
+    return dateGroups;
   }, [history]);
 
   if (history.length === 0) return null;
@@ -64,47 +70,43 @@ export default function HistoryList({
       "relative flex flex-col w-full h-full overflow-y-auto custom-scrollbar px-4 pb-32",
       variant === 'default' ? "mt-80" : "mt-4"
     )}>
-      {Object.entries(groupedHistory).map(([title, groupItems]) => (
-        <div key={title} className={cn(
-          "flex flex-col mb-8 w-full mx-auto",
+      {Object.entries(groupedHistory).map(([dateTitle, promptGroups]) => (
+        <div key={dateTitle} className={cn(
+          "flex flex-col mb-12 w-full mx-auto",
           variant === 'default' ? "max-w-[1500px]" : "max-w-full"
         )}>
-          <h3 className="text-sm font-medium text-white/50 mb-4 pl-1 uppercase tracking-wider">{title}</h3>
-          <div className={cn(
-            "grid gap-4",
-            variant === 'default' ? "flex flex-wrap" : "grid-cols-1 sm:grid-cols-2"
-          )}>
-            {groupItems.map((result) => {
-              if (variant === 'default') {
-                // Dynamic card width logic based on group count
-                let widthClass = "w-[280px]";
-                const count = groupItems.length;
-                if (count >= 5) widthClass = "w-[280px]";
-                else if (count === 4) widthClass = "w-[300px]";
-                else widthClass = "w-[320px]";
+          <h3 className="text-sm font-medium text-white/50 mb-6 pl-1 uppercase tracking-wider border-l-2 border-white/10 ml-1 pl-3">{dateTitle}</h3>
 
-                return (
-                  <div key={result.id} className={`${widthClass} shrink-0`}>
+          <div className="space-y-10">
+            {promptGroups.map((group, groupIdx) => (
+              <div key={`${dateTitle}-${groupIdx}`} className="flex flex-col">
+                <div className="flex items-start gap-2 mb-4 group/prompt">
+                  <div className="mt-1 p-1 rounded-md bg-white/5 border border-white/10 text-white/40 group-hover/prompt:text-white/60 transition-colors">
+                    <Type className="w-3 h-3" />
+                  </div>
+                  <p className="text-sm text-white/70 leading-relaxed line-clamp-2 italic font-light group-hover/prompt:text-white transition-colors cursor-default" title={group.prompt}>
+                    {group.prompt}
+                  </p>
+                </div>
+
+                <div
+                  className="grid gap-4"
+                  style={{
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${variant === 'default' ? '280px' : '200px'}, 1fr))`
+                  }}
+                >
+                  {group.items.map((result) => (
                     <HistoryCard
+                      key={result.id}
                       result={result}
                       onRegenerate={onRegenerate}
                       onDownload={onDownload}
                       onImageClick={onImageClick}
                     />
-                  </div>
-                );
-              }
-
-              return (
-                <HistoryCard
-                  key={result.id}
-                  result={result}
-                  onRegenerate={onRegenerate}
-                  onDownload={onDownload}
-                  onImageClick={onImageClick}
-                />
-              );
-            })}
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ))}

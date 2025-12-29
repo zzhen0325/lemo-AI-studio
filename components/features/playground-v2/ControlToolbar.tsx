@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Wand2, ImagePlus, ChevronDown, Link, Unlink, Sparkles } from "lucide-react";
+import { Loader2, Wand2, ChevronDown, Link, Unlink, Sparkles } from "lucide-react";
 
 
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import {
 
 
 } from "@/components/ui/dropdown-menu";
-import { GenerationConfig } from '@/components/features/playground-v2/types';
+import { GenerationConfig, UploadedImage } from '@/components/features/playground-v2/types';
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 
 
@@ -33,7 +33,6 @@ interface ControlToolbarProps {
   currentAspectRatio: string;
   isAspectRatioLocked: boolean;
   onToggleAspectRatioLock: () => void;
-  onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onGenerate: () => void;
   isGenerating: boolean;
   loadingText?: string;
@@ -49,12 +48,13 @@ interface ControlToolbarProps {
   onAspectRatioChange: (ar: string) => void;
   currentImageSize: '1K' | '2K' | '4K';
   onImageSizeChange: (size: '1K' | '2K' | '4K') => void;
-  onOptimize: () => void;
-  isOptimizing: boolean;
   isMockMode?: boolean;
   onMockModeChange?: (val: boolean) => void;
   isSelectorExpanded?: boolean;
   onSelectorExpandedChange?: (expanded: boolean) => void;
+  onDescribe?: () => void;
+  isDescribing?: boolean;
+  uploadedImages: UploadedImage[];
 }
 
 
@@ -70,7 +70,6 @@ export default function ControlToolbar({
   currentAspectRatio,
   isAspectRatioLocked,
   onToggleAspectRatioLock,
-  onImageUpload,
   onGenerate,
   isGenerating,
   loadingText = "生成中...",
@@ -82,8 +81,6 @@ export default function ControlToolbar({
   selectedLoraNames = [],
   workflows = [],
   onWorkflowSelect,
-  onOptimize,
-  isOptimizing,
   onAspectRatioChange,
   currentImageSize,
   onImageSizeChange,
@@ -91,6 +88,9 @@ export default function ControlToolbar({
   onMockModeChange,
   isSelectorExpanded = false,
   onSelectorExpandedChange,
+  onDescribe,
+  isDescribing = false,
+  uploadedImages = [],
 }: ControlToolbarProps) {
 
 
@@ -253,52 +253,38 @@ export default function ControlToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="flex items-center">
-          <input type="file" multiple accept="image/*" onChange={onImageUpload} className="hidden" id="image-upload" />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={Inputbutton2}
-            onClick={() => {
-              const el = document.getElementById('image-upload') as HTMLInputElement | null;
-              el?.click();
-            }}
-          >
-            <ImagePlus className="h-4 w-4" />
-          </Button>
-          <div className="ml-2 flex items-center w-auto">
+        <div className="ml-2 flex items-center w-auto gap-2">
+          {uploadedImages.length > 0 && (
             <Button
               variant="outline"
               size="sm"
-              className={cn(Inputbutton2, isMockMode && "bg-amber-500/20 text-amber-500 border-amber-500/50")}
-              onClick={() => onMockModeChange?.(!isMockMode)}
-              title="Mock Mode"
+              className={cn(Inputbutton2, "px-4 border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10")}
+              onClick={onDescribe}
+              disabled={isGenerating || isDescribing}
             >
-              <Sparkles className={cn("w-2 h-2", isMockMode && "animate-pulse")} />
-              {isMockMode && <span className="ml-1 text-[10px] font-bold">MOCK</span>}
-            </Button>
-          </div>
-          <div className="ml-2 flex items-center w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              className={Inputbutton2}
-              disabled={isOptimizing}
-              onClick={() => {
-                if (!isOptimizing) {
-                  onOptimize();
-                }
-              }}
-            >
-              {isOptimizing ? (
-                <Loader2 className="w-2 h-2 animate-spin " />
+              {isDescribing ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-2 animate-spin text-emerald-400" />
+                  <span className="text-xs font-bold text-emerald-400">Analysing...</span>
+                </>
               ) : (
-                <Sparkles className="w-2 h-2 " />
+                <>
+                  <Sparkles className="w-3 h-3 mr-2 text-emerald-400" />
+                  <span className="text-xs font-bold text-emerald-400">Describe</span>
+                </>
               )}
             </Button>
-          </div>
-
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(Inputbutton2, isMockMode && "bg-amber-500/20 text-amber-500 border-amber-500/50")}
+            onClick={() => onMockModeChange?.(!isMockMode)}
+            title="Mock Mode"
+          >
+            <Sparkles className={cn("w-2 h-2", isMockMode && "animate-pulse")} />
+            {isMockMode && <span className="ml-1 text-[10px] font-bold">MOCK</span>}
+          </Button>
         </div>
 
         <div className="relative ml-auto rounded-full">
@@ -392,7 +378,7 @@ export default function ControlToolbar({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div >
   );
 }
 

@@ -1,12 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Download, Search, Image as ImageIcon, Type, Box, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Download, Search, Image as ImageIcon, Type, Box, RefreshCw, X } from "lucide-react";
 import ImagePreviewModal from './ImagePreviewModal';
 import ImageEditorModal from './ImageEditorModal';
 import { TooltipButton } from "@/components/ui/tooltip-button";
 import { usePlaygroundStore } from '@/lib/store/playground-store';
 import { useToast } from '@/hooks/common/use-toast';
 import { GenerationResult } from './types';
+import { StyleStacksView } from './StyleStacksView';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+    DropdownMenuLabel
+} from "@/components/ui/dropdown-menu";
+import { Layers } from 'lucide-react';
 
 interface HistoryItem {
     id: string;
@@ -22,12 +33,18 @@ interface HistoryItem {
     } | null;
 }
 
-export default function GalleryView() {
+interface GalleryViewProps {
+    variant?: 'full' | 'sidebar';
+}
+
+export default function GalleryView({ variant = 'full' }: GalleryViewProps) {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [editingImageUrl, setEditingImageUrl] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeView, setActiveView] = useState<'gallery' | 'styles'>('gallery');
     const setUploadedImages = usePlaygroundStore(s => s.setUploadedImages);
     const generationHistory = usePlaygroundStore(s => s.generationHistory);
     const { toast } = useToast();
@@ -54,8 +71,19 @@ export default function GalleryView() {
         const persistentUrls = new Set(history.map(h => h.url));
         const uniqueActive = activeGenerations.filter(gen => gen.url && !persistentUrls.has(gen.url));
 
-        return [...uniqueActive, ...history];
-    }, [history, generationHistory]);
+        const combined = [...uniqueActive, ...history];
+
+        // Apply search filter
+        const filtered = searchQuery.trim() === ""
+            ? combined
+            : combined.filter(item =>
+                item.metadata?.prompt?.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+
+        return filtered.sort((a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+    }, [history, generationHistory, searchQuery]);
 
     useEffect(() => {
         fetchHistory();
@@ -128,8 +156,61 @@ export default function GalleryView() {
     };
 
     return (
-        <div className="flex-1 overflow-y-auto custom-scrollbar bg-transparent p-2">
-            <div className="w-full   mx-auto space-y-10 mt-14 ">
+        <div className={cn(
+            "w-full h-full bg-transparent overflow-y-auto custom-scrollbar",
+            variant === 'full' ? "p-4" : "p-2"
+        )}>
+            <div className={cn(
+                "sticky z-20 pb-6 bg-transparent",
+                variant === 'full' ? "top-0" : "top-0"
+            )}>
+                <div className={cn(
+                    "relative group",
+                    variant === 'full' ? "" : ""
+                )}>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30  group-focus-within:text-white/60 transition-colors" />
+                    <input
+                        type="text"
+                        placeholder="Search prompts..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-black/80  border border-white/10 rounded-xl pl-10 pr-10 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-white/20 focus:bg-black/80 transition-all"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery("")}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-white/30 hover:text-white/60 transition-all"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+
+                {/* View Switcher Tabs */}
+                {variant === 'full' && (
+                    <div className="flex items-center gap-2 mt-6 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit">
+                        <button
+                            onClick={() => setActiveView('gallery')}
+                            className={cn(
+                                "px-6 py-2 rounded-xl text-sm font-medium transition-all",
+                                activeView === 'gallery' ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"
+                            )}
+                        >
+                            全部作品
+                        </button>
+                        <button
+                            onClick={() => setActiveView('styles')}
+                            className={cn(
+                                "px-6 py-2 rounded-xl text-sm font-medium transition-all",
+                                activeView === 'styles' ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"
+                            )}
+                        >
+                            风格堆叠
+                        </button>
+                    </div>
+                )}
+            </div>
+            <div className="w-full mx-auto space-y-6">
                 {/* <header className="flex flex-col md:flex-row md:items-end justify-between gap-1">
                     <div className="space-y-2">
                         <h1 className="text-5xl font-bold tracking-tight text-white/90">Gallery Archive</h1>
@@ -151,8 +232,10 @@ export default function GalleryView() {
                         </div>
                         <p className="text-white/40 font-medium animate-pulse tracking-wide">Syncing Archive...</p>
                     </div>
+                ) : activeView === 'styles' ? (
+                    <StyleStacksView />
                 ) : combinedHistory.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-32 bg-white/5 rounded-[10px] border border-white/10 border-dashed space-y-6">
+                    <div className="flex flex-col items-center justify-center py-32 bg-white/5 rounded-xl border border-white/10 border-dashed space-y-1">
                         <div className="p-6 bg-white/5 rounded-full">
                             <Search className="w-12 h-12 text-white/20" />
                         </div>
@@ -162,14 +245,22 @@ export default function GalleryView() {
                         </div>
                     </div>
                 ) : (
-                    <div className="columns-1 sm:columns-2 lg:columns-4 xl:columns-6 gap-0 rounded-2xl overflow-hidden">
+                    <div
+                        className={cn(
+                            "rounded-xl",
+                            variant === 'full'
+                                ? "columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6 gap-0"
+                                : "columns-1 sm:columns-2 gap-0"
+                        )}
+                    >
                         {combinedHistory.map((item) => (
-                            <GalleryCard
-                                key={item.id}
-                                item={item}
-                                onClick={() => !item.isLoading && setSelectedItem(item)}
-                                onDownload={handleDownload}
-                            />
+                            <div key={item.id} className="break-inside-avoid ">
+                                <GalleryCard
+                                    item={item}
+                                    onClick={() => !item.isLoading && setSelectedItem(item)}
+                                    onDownload={handleDownload}
+                                />
+                            </div>
                         ))}
                     </div>
                 )}
@@ -210,6 +301,9 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
     const applyModel = usePlaygroundStore(s => s.applyModel);
     const remix = usePlaygroundStore(s => s.remix);
     const applyImage = usePlaygroundStore(s => s.applyImage);
+    const styles = usePlaygroundStore(s => s.styles);
+    const addImageToStyle = usePlaygroundStore(s => s.addImageToStyle);
+    const { toast } = useToast();
     const performDownload = () => {
         const fakeEvent = { stopPropagation: () => void 0 } as unknown as React.MouseEvent;
         onDownload(fakeEvent, item.url, item.id);
@@ -217,13 +311,13 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
 
     return (
         <div
-            className="break-inside-avoid group relative bg-black /40 border border-white/5 overflow-hidden  hover:border-white/20 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-pointer translate-z-0"
+            className="group relative bg-black /40 border border-white/5 overflow-hidden  hover:border-white/20 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-pointer translate-z-0"
             onClick={onClick}
             onMouseEnter={() => setIsHover(true)}
             onMouseLeave={() => setIsHover(false)}
         >
             {/* Image Container */}
-            <div className="relative w-full min-h-[100px] flex items-center justify-center bg-white/5">
+            <div className="relative w-full  flex items-center justify-center bg-white/5">
                 {item.isLoading ? (
                     <div className="w-full flex flex-col items-center justify-center p-8 space-y-3">
                         <div className="w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -255,6 +349,43 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
 
                 {/* Floating Actions - consistent with HistoryList */}
                 <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1  bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-50 ${isHover ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`} onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <div>
+                                <TooltipButton
+                                    icon={<Layers className="w-4 h-4" />}
+                                    label="Add to Style"
+                                    tooltipContent="添加到风格"
+                                    tooltipSide="top"
+                                    className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
+                                />
+                            </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-black/90 border-white/10 backdrop-blur-2xl rounded-2xl p-2 min-w-[160px]">
+                            <DropdownMenuLabel className="text-white/40 text-[10px] uppercase tracking-wider px-2 py-1">选择风格堆叠</DropdownMenuLabel>
+                            <DropdownMenuSeparator className="bg-white/5" />
+                            {styles.length > 0 ? (
+                                styles.map(style => (
+                                    <DropdownMenuItem
+                                        key={style.id}
+                                        className="text-white hover:bg-white/10 rounded-xl cursor-pointer"
+                                        onClick={() => {
+                                            addImageToStyle(style.id, item.url);
+                                            toast({ title: "已添加", description: `已将图片加入风格: ${style.name}` });
+                                        }}
+                                    >
+                                        {style.name}
+                                    </DropdownMenuItem>
+                                ))
+                            ) : (
+                                <DropdownMenuItem disabled className="text-white/20 text-xs">
+                                    暂无可用风格
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
                     <TooltipButton
                         icon={<Type className="w-4 h-4" />}
                         label="Use Prompt"

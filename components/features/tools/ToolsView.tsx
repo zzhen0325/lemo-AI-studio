@@ -110,11 +110,9 @@ const ToolsView: React.FC = () => {
                                                 />
                                             )}
                                             {tool.type === 'component' && tool.component && (
-                                                <div className="w-full h-full pointer-events-none">
-                                                    <tool.component
-                                                        {...tool.parameters.reduce((acc, p) => { acc[p.id] = p.defaultValue; return acc; }, {} as Record<string, any>)}
-                                                    />
-                                                </div>
+                                                <tool.component
+                                                    {...tool.parameters.reduce((acc, p) => { acc[p.id] = p.defaultValue; return acc; }, {} as Record<string, number | string | boolean | undefined>)}
+                                                />
                                             )}
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                 <Button variant="outline" className="rounded-full border-white/40 text-white">Open Tool</Button>
@@ -165,9 +163,10 @@ const ToolsView: React.FC = () => {
                                     />
                                 )}
                                 {selectedTool.type === 'component' && selectedTool.component && (
-                                    <div className="w-full h-full relative">
-                                        <selectedTool.component {...paramValues} />
-                                    </div>
+                                    <selectedTool.component
+                                        {...paramValues}
+                                        onChange={handleParamChange}
+                                    />
                                 )}
                             </div>
 
@@ -197,6 +196,12 @@ const ToolsView: React.FC = () => {
                                 config={selectedTool}
                                 values={paramValues}
                                 onChange={handleParamChange}
+                                onLoadPreset={(presetValues: Record<string, number | string | boolean>) => setParamValues(presetValues)}
+                                onCaptureScreenshot={async () => {
+                                    const canvas = canvasContainerRef.current?.querySelector('canvas');
+                                    if (!canvas) return null;
+                                    return canvas.toDataURL('image/png');
+                                }}
                             />
                             <div className="mt-auto p-6 border-t border-white/10">
                                 <div className="p-4 bg-white/5 rounded-xl border border-white/10">

@@ -1,6 +1,6 @@
 import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame, extend } from '@react-three/fiber';
-import { shaderMaterial } from '@react-three/drei';
+import { shaderMaterial, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
 // --- Shader Material Definition ---
@@ -149,21 +149,35 @@ interface EtherealGradientProps {
   amplitude?: number;
   speed?: number;
   frequency?: number;
+  scaleX?: number;
+  scaleY?: number;
+  enableOrbit?: boolean;
+  paused?: boolean;
+  camPosX?: number;
+  camPosY?: number;
+  camPosZ?: number;
+  targetX?: number;
+  targetY?: number;
+  targetZ?: number;
+  onChange?: (id: string, value: number | string | boolean) => void;
 }
 
-const WaveMesh: React.FC<EtherealGradientProps> = ({ 
+const WaveMesh: React.FC<EtherealGradientProps> = ({
   colors: inputColors,
   wireframe = false,
   density = 64,
   amplitude = 0.2,
   speed = 0.02,
-  frequency = 3.0
+  frequency = 3.0,
+  scaleX = 1.0,
+  scaleY = 1.0,
+  paused = false
 }) => {
   const materialRef = useRef<any>(null);
 
   // Convert sRGB hex to Linear for higher fidelity color mixing in the shader
-  const colors = useMemo(() => 
-    inputColors.slice(0, 5).map(c => new THREE.Color(c).convertSRGBToLinear()), 
+  const colors = useMemo(() =>
+    inputColors.slice(0, 5).map(c => new THREE.Color(c).convertSRGBToLinear()),
     [inputColors]
   );
 
@@ -174,18 +188,20 @@ const WaveMesh: React.FC<EtherealGradientProps> = ({
 
   useFrame((state) => {
     if (materialRef.current) {
-      materialRef.current.uTime = state.clock.getElapsedTime();
+      if (!paused) {
+        materialRef.current.uTime = state.clock.getElapsedTime();
+      }
       materialRef.current.uAmount = amplitude;
       materialRef.current.uSpeed = speed;
       // Adaptive frequency mapping
-      materialRef.current.uFrequency.set(frequency, frequency * 2.0); 
+      materialRef.current.uFrequency.set(frequency, frequency * 2.0);
       materialRef.current.uColor = colors;
     }
   });
 
   const geometry = useMemo(() => {
-    return new THREE.PlaneGeometry(5, 5, density, density);
-  }, [density]);
+    return new THREE.PlaneGeometry(5 * scaleX, 5 * scaleY, density, density);
+  }, [density, scaleX, scaleY]);
 
   return (
     <mesh rotation={[-Math.PI / 2.2, 0, 0]} geometry={geometry}>
@@ -207,29 +223,68 @@ export default function EtherealGradient({
   density = 64,
   amplitude = 0.2,
   speed = 0.02,
-  frequency = 3.0
+  frequency = 3.0,
+  scaleX = 1.0,
+  scaleY = 1.0,
+  enableOrbit = false,
+  paused = false,
+  camPosX = 0,
+  camPosY = 1.0,
+  camPosZ = 1.8,
+  targetX = 0,
+  targetY = 0,
+  targetZ = 0,
+  onChange
 }: EtherealGradientProps) {
+  const controlsRef = useRef<any>(null);
+
+  const handleOrbitChange = () => {
+    if (!controlsRef.current || !onChange) return;
+    const { object, target } = controlsRef.current;
+
+    // We only update if significant change to avoid feedback loops? 
+    // Actually framer-motion/react state handles this fine.
+    onChange('camPosX', object.position.x);
+    onChange('camPosY', object.position.y);
+    onChange('camPosZ', object.position.z);
+    onChange('targetX', target.x);
+    onChange('targetY', target.y);
+    onChange('targetZ', target.z);
+  };
+
   return (
     <div className={className} style={style}>
       <Canvas
-        camera={{ position: [0, 1.0, 1.8], fov: 35 }}
+        camera={{ position: [camPosX, camPosY, camPosZ], fov: 35 }}
         dpr={[1, 2]}
-        gl={{ 
-          antialias: true, 
-          alpha: true, 
+        gl={{
+          antialias: true,
+          alpha: true,
           stencil: false,
           powerPreference: "high-performance",
           preserveDrawingBuffer: true,
           outputColorSpace: THREE.SRGBColorSpace
         }}
       >
-        <WaveMesh 
+        {enableOrbit && (
+          <OrbitControls
+            ref={controlsRef}
+            enableDamping
+            dampingFactor={0.05}
+            target={[targetX, targetY, targetZ]}
+            onEnd={handleOrbitChange}
+          />
+        )}
+        <WaveMesh
           colors={colors}
           wireframe={wireframe}
           density={density}
           amplitude={amplitude}
           speed={speed}
           frequency={frequency}
+          scaleX={scaleX}
+          scaleY={scaleY}
+          paused={paused}
         />
       </Canvas>
     </div>

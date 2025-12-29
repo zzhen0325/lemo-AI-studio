@@ -35,9 +35,11 @@ import type { CozeWorkflowParams } from "@/types/coze-workflow";
 import { usePostPlayground } from "@/hooks/features/playground/use-post-playground";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { X, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Plus, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlaygroundStore } from "@/lib/store/playground-store";
+import { StylesMarquee } from "@/components/features/playground-v2/StylesMarquee";
+import { DescriptionCardsView } from "@/components/features/playground-v2/DescriptionCardsView";
 
 
 
@@ -81,7 +83,8 @@ export function PlaygroundV2Page({
     }
   };
 
-  const [hasGenerated, setHasGenerated] = useState(false);
+  const hasGenerated = usePlaygroundStore(s => s.hasGenerated);
+  const setHasGenerated = usePlaygroundStore(s => s.setHasGenerated);
   const [isMockMode, setIsMockMode] = useState(false);
   const [isSelectorExpanded, setIsSelectorExpanded] = useState(false);
 
@@ -96,9 +99,11 @@ export function PlaygroundV2Page({
   const [isBaseModelDialogOpen, setIsBaseModelDialogOpen] = useState(false);
   const [isLoraDialogOpen, setIsLoraDialogOpen] = useState(false);
   const [workflows, setWorkflows] = useState<IViewComfy[]>([]);
+  const [isStackHovered, setIsStackHovered] = useState(false);
   const [isPresetManagerOpen, setIsPresetManagerOpen] = useState(false);
   const [isPresetExpanded, setIsPresetExpanded] = useState(false);
-  const [isStackHovered, setIsStackHovered] = useState(false);
+  const [isDescribing, setIsDescribing] = useState(false);
+  const [describeResults, setDescribeResults] = useState<string[]>([]);
 
   useEffect(() => {
     initPresets();
@@ -282,6 +287,60 @@ export function PlaygroundV2Page({
   const handleWidthChange = (newWidth: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newHeight = Math.round(newWidth / ratio); setConfig(prev => ({ ...prev, img_width: newWidth, image_height: newHeight })); } else { setConfig(prev => ({ ...prev, img_width: newWidth })); } };
   const handleHeightChange = (newHeight: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newWidth = Math.round(newHeight * ratio); setConfig(prev => ({ ...prev, image_height: newHeight, img_width: newWidth })); } else { setConfig(prev => ({ ...prev, image_height: newHeight })); } };
   const handleOptimizePrompt = async () => { const optimizedText = await optimizePrompt(config.prompt, selectedAIModel); if (optimizedText) setConfig(prev => ({ ...prev, prompt: optimizedText })); };
+
+  const handleDescribe = async () => {
+    if (uploadedImages.length === 0) {
+      toast({ title: "错误", description: "请先上传图片", variant: "destructive" });
+      return;
+    }
+
+    setIsDescribing(true);
+    try {
+      // 1. Convert the first image to base64 if needed, or use existing base64
+      let base64 = uploadedImages[0].base64;
+      if (!base64 && uploadedImages[0].previewUrl.startsWith('data:')) {
+        base64 = uploadedImages[0].previewUrl.split(',')[1];
+      }
+
+      if (!base64) {
+        throw new Error("无法获取图片数据");
+      }
+
+      // 2. Call the Gemini Describe API
+      const response = await fetch('/api/google-genai-describe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64,
+          systemPrompt: `You are a high-level creative image analysis expert. Precisely describe the visual components of this image and convert them into FOUR distinct generation prompts. 
+          Each prompt should have slightly different focuses (e.g., style, lighting, composition, mood).
+          The output MUST be in CHINESE.
+          Use '|||' as a SEPARATOR between the four prompts.
+          example output: "描述1|||描述2|||描述3|||描述4"
+          Do not include any other text except for the four prompts separated by '|||'.`
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "描述失败");
+
+      const text = data.text || "";
+      const results = text.split('|||').map((s: string) => s.trim()).filter(Boolean);
+
+      if (results.length > 0) {
+        setDescribeResults(results);
+        setHasGenerated(true); // Trigger split layout
+        toast({ title: "描述成功", description: `已生成 ${results.length} 组描述卡片` });
+      } else {
+        throw new Error("解析描述结果失败");
+      }
+    } catch (error) {
+      console.error("Describe Error:", error);
+      toast({ title: "描述失败", description: error instanceof Error ? error.message : "未知错误", variant: "destructive" });
+    } finally {
+      setIsDescribing(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!config.prompt.trim()) {
@@ -575,7 +634,7 @@ export function PlaygroundV2Page({
 
   // 样式定义
 
-  const Inputbg = "relative z-10 flex items-center justify-center w-full text-black flex-col rounded-[30px] bg-black/50  backdrop-blur-xl border border-white/20 p-2 mx-auto";
+  const Inputbg = "relative z-10 flex items-center justify-center w-full text-black flex-col rounded-[30px] bg-black/40 backdrop-blur-xl border border-white/20 p-2 mx-auto";
 
   /**
    * Refactored to inline into the main input container for aggregation + hover expansion
@@ -590,8 +649,8 @@ export function PlaygroundV2Page({
       isSidebar ? "w-full" : "max-w-4xl"
     )}>
       {!isSidebar && (
-        <h1 className="text-[40px] text-white text-center mb-4 h-auto opacity-100 transition-all duration-500 overflow-hidden">
-          Turn any idea into a stunning image
+        <h1 className="text-xl text-white font-medium text-center mb-4 h-auto opacity-100 transition-all duration-500 overflow-hidden">
+          ✨Turn any idea into a stunning image
         </h1>
       )}
 
@@ -629,7 +688,7 @@ export function PlaygroundV2Page({
                             alt={`Uploaded ${index + 1}`}
                             width={56}
                             height={56}
-                            className="w-14 h-14 object-cover rounded-sm border border-white/40 bg-black shadow-lg transition-transform duration-100"
+                            className="w-14 h-14 object-cover rounded-sm  bg-black shadow-lg transition-transform duration-100"
                           />
                           <button
                             onClick={(e) => { e.stopPropagation(); removeImage(index); }}
@@ -641,36 +700,81 @@ export function PlaygroundV2Page({
                       </div>
                     );
                   })}
-                  <button
+                  {/* 上传按钮 */}
+                  <motion.button
                     onClick={() => fileInputRef.current?.click()}
+                    initial={{ rotate: -6 }}
+                    animate={{ rotate: -6 }}
+                    whileHover={{
+                      rotate: 0,
+
+                    }}
+                    transition={{
+                      type: "tween",
+                      ease: "linear",
+                      duration: 0.2
+                    }}
+
+
                     style={{
                       transform: uploadedImages.length > 0
                         ? `translateX(${isStackHovered ? (uploadedImages.length * 60 - 0) : 34}px) translateY(16px) scale(0.8)`
                         : 'none'
                     }}
                     className={cn(
-                      "flex items-center justify-center rounded-xl text-white border border-white/60 bg-black/30 backdrop-blur-xl hover:bg-white/90 transition-all group z-[1100]",
-                      uploadedImages.length > 0 ? "w-8 h-8 absolute" : "w-8 h-8 relative"
+                      "flex items-center justify-center rounded-2xl text-white border border-white/20 bg-white/10 backdrop-blur-xl hover:bg-white/20 transition-all group z-[1100]",
+                      uploadedImages.length > 0 ? "w-8 h-8 absolute top-0 -right-3 " : "w-14 h-14 absolute"
                     )}
                   >
                     <Plus className={cn("text-white", uploadedImages.length > 0 ? "w-4 h-4" : "w-5 h-5")} />
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 mt-1">
-              <PromptInput
-                prompt={config.prompt}
-                onPromptChange={(val) => setConfig(prev => ({ ...prev, prompt: val }))}
-                uploadedImages={uploadedImages}
-                onRemoveImage={removeImage}
-                isOptimizing={isOptimizing}
-                onOptimize={handleOptimizePrompt}
-                selectedAIModel={selectedAIModel}
-                onAIModelChange={setSelectedAIModel}
-                onAddImages={handleFilesUpload}
-              />
+            <div className="flex-1 mt-1 ml-4 flex items-center gap-2">
+              <div className="flex-1">
+                <PromptInput
+                  prompt={config.prompt}
+                  onPromptChange={(val) => setConfig(prev => ({ ...prev, prompt: val }))}
+                  uploadedImages={uploadedImages}
+                  onRemoveImage={removeImage}
+                  isOptimizing={isOptimizing}
+                  onOptimize={handleOptimizePrompt}
+                  selectedAIModel={selectedAIModel}
+                  onAIModelChange={setSelectedAIModel}
+                  onAddImages={handleFilesUpload}
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-10 absolute right-4 w-auto top-4 text-white rounded-2xl hover:bg-white/10 "
+                disabled={isOptimizing}
+                onClick={() => {
+                  if (!isOptimizing) {
+                    handleOptimizePrompt();
+                  }
+                }}
+              >
+                <motion.div
+                  animate={isOptimizing ? {
+                    filter: [
+                      "drop-shadow(0 0 2px rgba(255, 255, 255, 0.4))",
+                      "drop-shadow(0 0 10px rgba(255, 255, 255, 0.8))",
+                      "drop-shadow(0 0 2px rgba(255, 255, 255, 0.4))"
+                    ]
+                  } : {}}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                  className="flex items-center justify-center"
+                >
+                  <Sparkles className="w-2 h-2" />
+                </motion.div>
+              </Button>
             </div>
           </div>
 
@@ -700,7 +804,6 @@ export function PlaygroundV2Page({
             }}
             isAspectRatioLocked={isAspectRatioLocked}
             onToggleAspectRatioLock={() => setIsAspectRatioLocked(!isAspectRatioLocked)}
-            onImageUpload={handleImageUpload}
             onGenerate={handleGenerate}
             isGenerating={false}
             uploadedImagesCount={uploadedImages.length}
@@ -713,20 +816,41 @@ export function PlaygroundV2Page({
             selectedLoraNames={selectedLoras.map(l => l.model_name)}
             workflows={workflows}
             onWorkflowSelect={(wf) => { setSelectedModel("Workflow"); setSelectedWorkflowConfig(wf); applyWorkflowDefaults(wf); }}
-            onOptimize={handleOptimizePrompt}
-            isOptimizing={isOptimizing}
             isMockMode={isMockMode}
             onMockModeChange={setIsMockMode}
             isSelectorExpanded={isSelectorExpanded}
             onSelectorExpandedChange={setIsSelectorExpanded}
+            onDescribe={handleDescribe}
+            isDescribing={isDescribing}
+            uploadedImages={uploadedImages}
           />
+          {/* 
+          预设按钮
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-4 gap-1 text-white/30 hover:text-white/60 hover:bg-white/5 rounded-full px-3 transition-all"
+            onClick={() => setIsPresetExpanded(!isPresetExpanded)}
+          >
+            {isPresetExpanded ? (
+              <>
+                <ChevronUp className="w-3 h-3" />
+                <span className="text-xs">收起预设</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3 h-3" />
+                <span className="text-xs">展开预设</span>
+              </>
+            )}
+          </Button> */}
 
-          <div className="w-full px-4 mt-2">
-            <div className="flex justify-center mb-2">
+          <div className="w-full px-4">
+            {/* <div className="flex justify-center mb-2">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 gap-1 text-white/30 hover:text-white/60 hover:bg-white/5 rounded-full px-3 transition-all"
+                className="h-4 gap-1 text-white/30 hover:text-white/60 hover:bg-white/5 rounded-full px-3 transition-all"
                 onClick={() => setIsPresetExpanded(!isPresetExpanded)}
               >
                 {isPresetExpanded ? (
@@ -737,11 +861,11 @@ export function PlaygroundV2Page({
                 ) : (
                   <>
                     <ChevronDown className="w-3 h-3" />
-                    <span className="text-xs">展开预设</span>
+
                   </>
                 )}
               </Button>
-            </div>
+            </div> */}
 
             <AnimatePresence>
               {isPresetExpanded && (
@@ -773,7 +897,7 @@ export function PlaygroundV2Page({
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 
   return (
@@ -787,53 +911,90 @@ export function PlaygroundV2Page({
         onChange={handleImageUpload}
       />
 
-      {!hasGenerated ? (
-        // Initial centered state
-        <div className="relative flex-1 flex flex-col items-center justify-center p-6 pb-20">
-          <div className="w-full h-full absolute inset-0 z-0 overflow-y-auto custom-scrollbar">
-            <HistoryList
-              history={generationHistory}
-              onRegenerate={handleRegenerate}
-              onDownload={handleDownload}
-              onImageClick={openImageModal}
-            />
-          </div>
-          {renderInputUI(false)}
-        </div>
-      ) : (
-        // Split layout after generation
-        <div className="flex flex-1 w-full h-full overflow-hidden">
-          <ResizablePanelGroup orientation="horizontal" className="w-full h-full">
-            {/* Left Column: Input + History */}
-            <ResizablePanel defaultSize={40} minSize={20}>
-              <div className="h-full flex flex-col border-b border-white/10 z-20">
-                <div className="p-4 pt-4 border-b border-white/5">
-                  {renderInputUI(true)}
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <HistoryList
-                    variant="sidebar"
-                    history={generationHistory}
-                    onRegenerate={handleRegenerate}
-                    onDownload={handleDownload}
-                    onImageClick={openImageModal}
-                  />
-                </div>
-              </div>
-            </ResizablePanel>
+      <AnimatePresence mode="wait">
+        {!hasGenerated ? (
+          // Initial centered state
+          <motion.div
+            key="initial-state"
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 1.05, y: -20 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="relative flex-1 flex flex-col items-center justify-center p-6 -mt-40 pb-20"
+          >
+            <div className="relative z-[10] w-full max-w-4xl">
+              {renderInputUI(false)}
+            </div>
 
-            <ResizableHandle withHandle />
+            {/* Bottom Marquee for Styles */}
+            <div className="absolute bottom-4 left-0 right-0 z-20 overflow-visible">
+              <StylesMarquee />
+            </div>
+          </motion.div>
+        ) : (
+          // Split layout after generation
+          <motion.div
+            key="split-layout"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-1 w-full h-full overflow-hidden"
+          >
+            <ResizablePanelGroup orientation="horizontal" className="w-full h-full">
+              {/* Left Column: Input + History */}
+              <ResizablePanel defaultSize={describeResults.length > 0 ? 50 : 70} minSize={20}>
+                <div className="h-full flex flex-col border-b border-white/10 z-20">
+                  <div className="pt-4 pb-4   border-b  border-white/5">
+                    {renderInputUI(true)}
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <HistoryList
+                      variant="sidebar"
+                      history={generationHistory}
+                      onRegenerate={handleRegenerate}
+                      onDownload={handleDownload}
+                      onImageClick={openImageModal}
+                    />
+                  </div>
+                </div>
+              </ResizablePanel>
 
-            {/* Right Column: Gallery */}
-            <ResizablePanel defaultSize={50} minSize={20}>
-              <div className="h-full overflow-hidden relative">
-                <h1 className="text-white/50 text-xl p-4">Style</h1>
-                <GalleryView />
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
-      )}
+              <ResizableHandle withHandle />
+
+              {/* Middle Column: Describe Results (Optional) */}
+              {describeResults.length > 0 && (
+                <>
+                  <ResizablePanel defaultSize={20} minSize={15}>
+                    <div className="h-full bg-black/20 border-r border-white/10 overflow-hidden relative group">
+                      <button
+                        onClick={() => setDescribeResults([])}
+                        className="absolute top-4 right-4 z-10 p-1 rounded-full bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <DescriptionCardsView
+                        descriptions={describeResults}
+                        onApply={(text) => setConfig(prev => ({ ...prev, prompt: text }))}
+                      />
+                    </div>
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                </>
+              )}
+
+              {/* Right Column: Gallery */}
+              <ResizablePanel defaultSize={30} minSize={10}>
+                <div className="h-full overflow-y-auto custom-scrollbar relative flex flex-col">
+                  <h1 className="text-white/50 text-xl px-4 pt-6 pb-2 sticky top-0 z-10">Gallery</h1>
+                  <div className="flex-1">
+                    <GalleryView variant="sidebar" />
+                  </div>
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <GoogleApiStatus className="fixed bottom-4 right-4 z-[60]" />
 

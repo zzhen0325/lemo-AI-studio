@@ -2,7 +2,6 @@
 
 import React from "react";
 import {
-    SquareTerminal,
     History,
     Palette,
     Layers,
@@ -13,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { TabValue } from "./sidebar";
 import { Toaster } from "sonner";
 import SplitText from "../ui/split-text";
+import { usePlaygroundStore } from "@/lib/store/playground-store";
 
 interface NewSidebarProps {
     currentTab: TabValue;
@@ -21,7 +21,6 @@ interface NewSidebarProps {
 
 const navItems = [
     { label: "Playground", value: TabValue.Playground, icon: Palette },
-    { label: "Mapping Editor", value: TabValue.MappingEditor, icon: SquareTerminal },
     { label: "Gallery", value: TabValue.Gallery, icon: History },
     { label: "Tools", value: TabValue.Tools, icon: Wand2 },
     { label: "Dataset", value: TabValue.DatasetManager, icon: Layers },
@@ -29,12 +28,19 @@ const navItems = [
 ];
 
 export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
+    const setHasGenerated = usePlaygroundStore(s => s.setHasGenerated);
     return (
         <header
             className="fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-8 select-none bg-black/20 backdrop-blur-xl"
         >
-            <div className="flex items-center">
-                <span className="text-white font-bold text-lg tracking-wider">
+            <div
+                className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => {
+                    onTabChange(TabValue.Playground);
+                    setHasGenerated(false);
+                }}
+            >
+                <span className="text-white font-bold text-lg ">
                     LEMO STUDIO
                 </span>
             </div>
@@ -46,7 +52,12 @@ export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
                     return (
                         <button
                             key={item.value}
-                            onClick={() => onTabChange(item.value)}
+                            onClick={() => {
+                                onTabChange(item.value);
+                                if (item.value === TabValue.Playground) {
+                                    setHasGenerated(true);
+                                }
+                            }}
                             className={cn(
                                 "px-4 h-10 flex items-center transition-all relative group text-sm whitespace-nowrap",
                                 isActive

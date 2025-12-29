@@ -3,34 +3,42 @@ import EtherealToolAdapter from './adapters/EtherealToolAdapter';
 export type ToolParamType = 'number' | 'color' | 'boolean';
 
 export interface ToolParameter {
-    id: string;
-    name: string;
-    type: ToolParamType;
-    min?: number;
-    max?: number;
-    step?: number;
-    defaultValue: string | number | boolean;
-    category?: string;
+  id: string;
+  name: string;
+  type: ToolParamType;
+  min?: number;
+  max?: number;
+  step?: number;
+  defaultValue: string | number | boolean;
+  category?: string;
+}
+
+export interface ToolPreset {
+  id: string;
+  name: string;
+  values: Record<string, number | string | boolean>;
+  thumbnail?: string;
+  timestamp: number;
 }
 
 export interface WebGLToolConfig {
-    id: string;
-    name: string;
-    description: string;
-    type: 'shader' | 'component';
-    thumbnail?: string;
-    fragmentShader?: string;
-    component?: React.ComponentType<any>;
-    parameters: ToolParameter[];
+  id: string;
+  name: string;
+  description: string;
+  type: 'shader' | 'component';
+  thumbnail?: string;
+  fragmentShader?: string;
+  component?: React.ComponentType<any>;
+  parameters: ToolParameter[];
 }
 
 export const WEBGL_TOOLS: WebGLToolConfig[] = [
-    {
-        id: 'deep-sea-flow',
-        name: 'Deep Sea Flow',
-        description: 'A mesmerizing fluid simulation with deep navy and orange gradients.',
-        type: 'shader',
-        fragmentShader: `
+  {
+    id: 'deep-sea-flow',
+    name: 'Deep Sea Flow',
+    description: 'A mesmerizing fluid simulation with deep navy and orange gradients.',
+    type: 'shader',
+    fragmentShader: `
 uniform float iTime;
 uniform vec2 iResolution;
 uniform float waveIntensity;
@@ -80,46 +88,56 @@ void main() {
     mainImage(gl_FragColor, gl_FragCoord.xy);
 }
     `,
-        parameters: [
-            {
-                id: 'flowSpeed',
-                name: 'Flow Speed',
-                type: 'number',
-                min: 0.01,
-                max: 0.5,
-                step: 0.01,
-                defaultValue: 0.1,
-                category: 'Simulation'
-            },
-            {
-                id: 'waveIntensity',
-                name: 'Wave Intensity',
-                type: 'number',
-                min: 0.1,
-                max: 5.0,
-                step: 0.1,
-                defaultValue: 1.0,
-                category: 'Simulation'
-            }
-        ]
-    },
-    {
-        id: 'ethereal-mesh-gradient',
-        name: 'Ethereal Mesh Gradient',
-        description: 'A flowing, ethereal mesh gradient simulation with adjustable parameters.',
-        type: 'component',
-        component: EtherealToolAdapter,
-        parameters: [
-            { id: 'wireframe', name: 'Wireframe Mode', type: 'boolean', defaultValue: false, category: 'Geometry' },
-            { id: 'density', name: 'Complexity', type: 'number', min: 10, max: 300, step: 1, defaultValue: 205, category: 'Geometry' },
-            { id: 'amplitude', name: 'Displacement', type: 'number', min: 0, max: 0.5, step: 0.01, defaultValue: 0.05, category: 'Simulation' },
-            { id: 'speed', name: 'Flow Velocity', type: 'number', min: 0, max: 0.5, step: 0.01, defaultValue: 0.07, category: 'Simulation' },
-            { id: 'frequency', name: 'Frequency', type: 'number', min: 0, max: 20, step: 0.1, defaultValue: 6.10, category: 'Simulation' },
-            { id: 'color1', name: 'Layer 1 Color', type: 'color', defaultValue: '#5B5B5D', category: 'Palette' },
-            { id: 'color2', name: 'Layer 2 Color', type: 'color', defaultValue: '#B4B1C3', category: 'Palette' },
-            { id: 'color3', name: 'Layer 3 Color', type: 'color', defaultValue: '#BAB9CB', category: 'Palette' },
-            { id: 'color4', name: 'Layer 4 Color', type: 'color', defaultValue: '#000000', category: 'Palette' },
-            { id: 'color5', name: 'Layer 5 Color', type: 'color', defaultValue: '#549291', category: 'Palette' },
-        ]
-    }
+    parameters: [
+      {
+        id: 'flowSpeed',
+        name: 'Flow Speed',
+        type: 'number',
+        min: 0.01,
+        max: 0.5,
+        step: 0.01,
+        defaultValue: 0.1,
+        category: 'Simulation'
+      },
+      {
+        id: 'waveIntensity',
+        name: 'Wave Intensity',
+        type: 'number',
+        min: 0.1,
+        max: 5.0,
+        step: 0.1,
+        defaultValue: 1.0,
+        category: 'Simulation'
+      }
+    ]
+  },
+  {
+    id: 'ethereal-mesh-gradient',
+    name: 'Ethereal Mesh Gradient',
+    description: 'A flowing, ethereal mesh gradient simulation with adjustable parameters.',
+    type: 'component',
+    component: EtherealToolAdapter,
+    parameters: [
+      { id: 'wireframe', name: 'Wireframe Mode', type: 'boolean', defaultValue: false, category: 'Geometry' },
+      { id: 'density', name: 'Complexity', type: 'number', min: 10, max: 300, step: 1, defaultValue: 205, category: 'Geometry' },
+      { id: 'amplitude', name: 'Displacement', type: 'number', min: 0, max: 0.5, step: 0.01, defaultValue: 0.05, category: 'Simulation' },
+      { id: 'speed', name: 'Flow Velocity', type: 'number', min: 0, max: 0.5, step: 0.01, defaultValue: 0.07, category: 'Simulation' },
+      { id: 'frequency', name: 'Frequency', type: 'number', min: 0, max: 20, step: 0.1, defaultValue: 6.10, category: 'Simulation' },
+      { id: 'paused', name: 'Pause Animation', type: 'boolean', defaultValue: false, category: 'Simulation' },
+      { id: 'camPosX', name: 'Camera X', type: 'number', min: -10, max: 10, step: 0.1, defaultValue: 0, category: 'Camera' },
+      { id: 'camPosY', name: 'Camera Y', type: 'number', min: -10, max: 10, step: 0.1, defaultValue: 1.0, category: 'Camera' },
+      { id: 'camPosZ', name: 'Camera Z', type: 'number', min: -10, max: 10, step: 0.1, defaultValue: 1.8, category: 'Camera' },
+      { id: 'targetX', name: 'Target X', type: 'number', min: -5, max: 5, step: 0.1, defaultValue: 0, category: 'Camera' },
+      { id: 'targetY', name: 'Target Y', type: 'number', min: -5, max: 5, step: 0.1, defaultValue: 0, category: 'Camera' },
+      { id: 'targetZ', name: 'Target Z', type: 'number', min: -5, max: 5, step: 0.1, defaultValue: 0, category: 'Camera' },
+      { id: 'color1', name: 'Layer 1 Color', type: 'color', defaultValue: '#5B5B5D', category: 'Palette' },
+      { id: 'color2', name: 'Layer 2 Color', type: 'color', defaultValue: '#B4B1C3', category: 'Palette' },
+      { id: 'color3', name: 'Layer 3 Color', type: 'color', defaultValue: '#BAB9CB', category: 'Palette' },
+      { id: 'color4', name: 'Layer 4 Color', type: 'color', defaultValue: '#000000', category: 'Palette' },
+      { id: 'color5', name: 'Layer 5 Color', type: 'color', defaultValue: '#549291', category: 'Palette' },
+      { id: 'scaleX', name: 'Stretch X', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 1.0, category: 'Geometry' },
+      { id: 'scaleY', name: 'Stretch Y', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 1.0, category: 'Geometry' },
+      { id: 'enableOrbit', name: 'Enable Orbit', type: 'boolean', defaultValue: false, category: 'Simulation' },
+    ]
+  }
 ];
