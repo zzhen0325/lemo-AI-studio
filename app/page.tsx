@@ -95,13 +95,21 @@ export default function Page() {
                 camPosY={2.7979}
                 camPosZ={-0.8470}
               /> */}
-              <Image
+              <video
+                src="/images/1.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              {/* <Image
                 src="/images/9.webp"
                 alt="Background"
                 fill
                 className="object-cover"
                 style={{ objectPosition: 'center center' }}
-              />
+              /> */}
               <div className="absolute inset-0 z-[5] shadow-[inset_0_0_150px_rgba(88,131,112,1)] pointer-events-none" />
               <GradualBlur
                 preset="bottom"
