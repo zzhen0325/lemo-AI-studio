@@ -155,7 +155,7 @@ export default function ControlToolbar({
     onSelectorExpandedChange?.(false);
   };
 
-  const Inputbutton2 = "h-10 w-auto text-white rounded-2xl bg-black/10 border border-white/20";
+  const Inputbutton2 = "h-10 w-auto text-white rounded-2xl bg-black/30 ";
   const triggerLabel = (() => {
     if (selectValue === 'seed3') return 'Seed 3';
     if (selectValue === 'seed4') return 'Seed 4';
@@ -196,7 +196,7 @@ export default function ControlToolbar({
         {/* 尺寸按钮 */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className={Inputbutton2}>
+            <Button variant="default" className={Inputbutton2}>
               {currentAspectRatio}
               <ChevronDown className="h-4 w-4 opacity-50" />
             </Button>
@@ -256,9 +256,9 @@ export default function ControlToolbar({
         <div className="ml-2 flex items-center w-auto gap-2">
           {uploadedImages.length > 0 && (
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
-              className={cn(Inputbutton2, "px-4 border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10")}
+              className={cn(Inputbutton2, "px-4 hover:border-emerald-500/50 hover:bg-emerald-500/10")}
               onClick={onDescribe}
               disabled={isGenerating || isDescribing}
             >
@@ -276,7 +276,7 @@ export default function ControlToolbar({
             </Button>
           )}
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             className={cn(Inputbutton2, isMockMode && "bg-amber-500/20 text-amber-500 border-amber-500/50")}
             onClick={() => onMockModeChange?.(!isMockMode)}

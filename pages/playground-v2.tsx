@@ -101,7 +101,7 @@ export function PlaygroundV2Page({
   const [workflows, setWorkflows] = useState<IViewComfy[]>([]);
   const [isStackHovered, setIsStackHovered] = useState(false);
   const [isPresetManagerOpen, setIsPresetManagerOpen] = useState(false);
-  const [isPresetExpanded, setIsPresetExpanded] = useState(false);
+  const [isPresetExpanded] = useState(false);
   const [isDescribing, setIsDescribing] = useState(false);
   const [describeResults, setDescribeResults] = useState<string[]>([]);
 
@@ -295,6 +295,25 @@ export function PlaygroundV2Page({
     }
 
     setIsDescribing(true);
+    setHasGenerated(true); // Trigger split layout immediately like generate
+    onGenerate?.();
+
+    // Create a temporary loading card
+    const loadingId = `describe-loading-${Date.now()}`;
+    const loadingCard: GenerationResult = {
+      id: loadingId,
+      imageUrl: uploadedImages[0].previewUrl,
+      config: {
+        ...config,
+        prompt: "Analyzing image...",
+      },
+      timestamp: new Date().toISOString(),
+      isLoading: true,
+    };
+
+    // Insert loading card
+    setGenerationHistory(prev => [loadingCard, ...prev]);
+
     try {
       // 1. Convert the first image to base64 if needed, or use existing base64
       let base64 = uploadedImages[0].base64;
@@ -306,19 +325,52 @@ export function PlaygroundV2Page({
         throw new Error("无法获取图片数据");
       }
 
-      // 2. Call the Gemini Describe API
-      const response = await fetch('/api/google-genai-describe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: base64,
-          systemPrompt: `You are a high-level creative image analysis expert. Precisely describe the visual components of this image and convert them into FOUR distinct generation prompts. 
+      // 2. Read settings and determine API endpoint
+      let describeModel = 'gemini';
+      let deepseekApiKey = '';
+      let doubaoApiKey = '';
+      let doubaoModel = '';
+
+      try {
+        const stored = localStorage.getItem('playground-settings'); // SETTINGS_STORAGE_KEY
+        if (stored) {
+          const s = JSON.parse(stored);
+          if (s.describeModel) describeModel = s.describeModel;
+          if (s.deepseekApiKey) deepseekApiKey = s.deepseekApiKey;
+          if (s.doubaoApiKey) doubaoApiKey = s.doubaoApiKey;
+          if (s.doubaoModel) doubaoModel = s.doubaoModel;
+        }
+      } catch (e) {
+        console.warn("Failed to read settings", e);
+      }
+
+      let apiEndpoint = '/api/google-genai-describe';
+      if (describeModel === 'deepseek') apiEndpoint = '/api/deepseek-describe';
+      if (describeModel === 'doubao') apiEndpoint = '/api/doubao-describe';
+
+      console.log('Describe Debug:', { describeModel, apiEndpoint, hasDoubaoKey: !!doubaoApiKey });
+
+      const payload: any = {
+        imageBase64: base64,
+        systemPrompt: `You are a high-level creative image analysis expert. Precisely describe the visual components of this image and convert them into FOUR distinct generation prompts. 
           Each prompt should have slightly different focuses (e.g., style, lighting, composition, mood).
           The output MUST be in CHINESE.
           Use '|||' as a SEPARATOR between the four prompts.
           example output: "描述1|||描述2|||描述3|||描述4"
           Do not include any other text except for the four prompts separated by '|||'.`
-        })
+      };
+
+      if (describeModel === 'deepseek') {
+        payload.apiKey = deepseekApiKey;
+      } else if (describeModel === 'doubao') {
+        payload.apiKey = doubaoApiKey;
+        payload.model = doubaoModel;
+      }
+
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -328,14 +380,31 @@ export function PlaygroundV2Page({
       const results = text.split('|||').map((s: string) => s.trim()).filter(Boolean);
 
       if (results.length > 0) {
+        // Create history cards for each description result
+        const newHistoryItems: GenerationResult[] = results.map((prompt: string, index: number) => ({
+          id: `describe-${Date.now()}-${index}`,
+          imageUrl: uploadedImages[0].previewUrl, // Use uploaded image as preview
+          config: {
+            ...config,
+            prompt: prompt, // Each card has its own description
+          },
+          timestamp: new Date().toISOString(),
+          isLoading: false,
+        }));
+
+        // Remove loading card and add real results
+        setGenerationHistory(prev => [...newHistoryItems, ...prev.filter(item => item.id !== loadingId)]);
+
+        // Also set describe results for the middle panel
         setDescribeResults(results);
-        setHasGenerated(true); // Trigger split layout
         toast({ title: "描述成功", description: `已生成 ${results.length} 组描述卡片` });
       } else {
         throw new Error("解析描述结果失败");
       }
     } catch (error) {
       console.error("Describe Error:", error);
+      // Remove loading card on error
+      setGenerationHistory(prev => prev.filter(item => item.id !== loadingId));
       toast({ title: "描述失败", description: error instanceof Error ? error.message : "未知错误", variant: "destructive" });
     } finally {
       setIsDescribing(false);
@@ -646,10 +715,13 @@ export function PlaygroundV2Page({
   const renderInputUI = (isSidebar: boolean) => (
     <div className={cn(
       "flex flex-col items-center w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
-      isSidebar ? "w-full" : "max-w-4xl"
+      isSidebar ? "w-full" : "max-w-4xl -mt-36"
     )}>
       {!isSidebar && (
-        <h1 className="text-xl text-white font-medium text-center mb-4 h-auto opacity-100 transition-all duration-500 overflow-hidden">
+        <h1
+          className="text-[6rem] text-white font-medium text-center mb-4 h-auto opacity-100 transition-all duration-300 shadow-xl whitespace-nowrap"
+          style={{ fontFamily: "'InstrumentSerif', serif" }}
+        >
           ✨Turn any idea into a stunning image
         </h1>
       )}
@@ -722,8 +794,8 @@ export function PlaygroundV2Page({
                         : 'none'
                     }}
                     className={cn(
-                      "flex items-center justify-center rounded-2xl text-white border border-white/20 bg-white/10 backdrop-blur-xl hover:bg-white/20 transition-all group z-[1100]",
-                      uploadedImages.length > 0 ? "w-8 h-8 absolute top-0 -right-3 " : "w-14 h-14 absolute"
+                      "flex items-center justify-center rounded-2xl text-white border-2 border-white/20 bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]  hover:translate-y-2 hover:bg-white/20 transition-all group z-[1100]",
+                      uploadedImages.length > 0 ? "w-8 h-8 absolute top-0 -right-3 bg-black/40 backdrop-blur-md " : "w-14 h-14 absolute"
                     )}
                   >
                     <Plus className={cn("text-white", uploadedImages.length > 0 ? "w-4 h-4" : "w-5 h-5")} />

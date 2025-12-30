@@ -27,15 +27,23 @@ export function SettingsView() {
     const [currentTab, setCurrentTab] = useState<SettingsTab>(SettingsTab.General);
     const { toast } = useToast();
     const [apiKey, setApiKey] = useState<string>("");
+    const [deepseekApiKey, setDeepseekApiKey] = useState<string>("");
+    const [doubaoApiKey, setDoubaoApiKey] = useState<string>("");
+    const [doubaoModel, setDoubaoModel] = useState<string>("");
     const [comfyUrl, setComfyUrl] = useState<string>("");
+    const [describeModel, setDescribeModel] = useState<'gemini' | 'deepseek' | 'doubao'>('gemini');
 
     useEffect(() => {
         try {
             const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
             if (stored) {
-                const s = JSON.parse(stored) as { apiKey?: string; comfyUrl?: string };
+                const s = JSON.parse(stored) as { apiKey?: string; deepseekApiKey?: string; doubaoApiKey?: string; doubaoModel?: string; comfyUrl?: string; describeModel?: 'gemini' | 'deepseek' | 'doubao' };
                 if (s.apiKey) setApiKey(s.apiKey);
+                if (s.deepseekApiKey) setDeepseekApiKey(s.deepseekApiKey);
+                if (s.doubaoApiKey) setDoubaoApiKey(s.doubaoApiKey);
+                if (s.doubaoModel) setDoubaoModel(s.doubaoModel);
                 if (s.comfyUrl) setComfyUrl(s.comfyUrl);
+                if (s.describeModel) setDescribeModel(s.describeModel);
             }
         } catch {
             // ignore
@@ -44,9 +52,16 @@ export function SettingsView() {
 
     const handleSaveSettings = () => {
         try {
-            const payload = { apiKey: apiKey.trim(), comfyUrl: comfyUrl.trim() };
+            const payload = {
+                apiKey: apiKey.trim(),
+                deepseekApiKey: deepseekApiKey.trim(),
+                doubaoApiKey: doubaoApiKey.trim(),
+                doubaoModel: doubaoModel.trim(),
+                comfyUrl: comfyUrl.trim(),
+                describeModel
+            };
             localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
-            toast({ title: "设置已保存", description: "已保存 Google API Key 与 ComfyUI 地址" });
+            toast({ title: "设置已保存", description: "已保存所有 API 配置与偏好" });
         } catch (e) {
             toast({ title: "保存失败", description: e instanceof Error ? e.message : "未知错误", variant: "destructive" });
         }
@@ -109,7 +124,7 @@ export function SettingsView() {
                                     <CardHeader className="border-b border-white/5">
                                         <CardTitle className="text-lg font-medium text-white/90 flex items-center gap-2">
                                             <Key className="size-4 text-blue-400" />
-                                            Google API Service
+                                            API Credentials
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-6 space-y-6">
@@ -118,14 +133,48 @@ export function SettingsView() {
                                             <Input
                                                 id="apiKey"
                                                 type="password"
-                                                placeholder="Paste your API key here..."
+                                                placeholder="AIzaSy..."
                                                 value={apiKey}
                                                 onChange={(e) => setApiKey(e.target.value)}
                                                 className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
                                             />
-                                            <p className="text-[11px] text-white/20 italic mt-1">
-                                                Your API key is stored locally in your browser and never sent to our servers.
-                                            </p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <Label htmlFor="deepseekApiKey" className="text-white/60 text-xs font-semibold uppercase tracking-wider">DeepSeek API Key</Label>
+                                            <Input
+                                                id="deepseekApiKey"
+                                                type="password"
+                                                placeholder="sk-..."
+                                                value={deepseekApiKey}
+                                                onChange={(e) => setDeepseekApiKey(e.target.value)}
+                                                className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-3">
+                                                <Label htmlFor="doubaoApiKey" className="text-white/60 text-xs font-semibold uppercase tracking-wider">Doubao API Key</Label>
+                                                <Input
+                                                    id="doubaoApiKey"
+                                                    type="password"
+                                                    placeholder="Volcengine API Key"
+                                                    value={doubaoApiKey}
+                                                    onChange={(e) => setDoubaoApiKey(e.target.value)}
+                                                    className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <Label htmlFor="doubaoModel" className="text-white/60 text-xs font-semibold uppercase tracking-wider">Doubao Model/Endpoint ID</Label>
+                                                <Input
+                                                    id="doubaoModel"
+                                                    type="text"
+                                                    placeholder="ep-2024..."
+                                                    value={doubaoModel}
+                                                    onChange={(e) => setDoubaoModel(e.target.value)}
+                                                    className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
+                                                />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -133,13 +182,55 @@ export function SettingsView() {
                                 <Card className="bg-white/5 border-white/10 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl">
                                     <CardHeader className="border-b border-white/5">
                                         <CardTitle className="text-lg font-medium text-white/90 flex items-center gap-2">
-                                            <Globe className="size-4 text-purple-400" />
-                                            ComfyUI Environment
+                                            <SettingsIcon className="size-4 text-green-400" />
+                                            Service Preferences
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-6 space-y-6">
                                         <div className="space-y-3">
-                                            <Label htmlFor="comfyUrl" className="text-white/60 text-xs font-semibold uppercase tracking-wider">Server Address</Label>
+                                            <Label className="text-white/60 text-xs font-semibold uppercase tracking-wider">Image Description Provider</Label>
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <button
+                                                    onClick={() => setDescribeModel('gemini')}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center p-4 rounded-xl border transition-all",
+                                                        describeModel === 'gemini'
+                                                            ? "bg-blue-500/20 border-blue-500/50 text-white"
+                                                            : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
+                                                    )}
+                                                >
+                                                    <span className="font-semibold">Google Gemini</span>
+                                                    <span className="text-xs opacity-60">Global Standard</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setDescribeModel('deepseek')}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center p-4 rounded-xl border transition-all",
+                                                        describeModel === 'deepseek'
+                                                            ? "bg-blue-500/20 border-blue-500/50 text-white"
+                                                            : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
+                                                    )}
+                                                >
+                                                    <span className="font-semibold">DeepSeek</span>
+                                                    <span className="text-xs opacity-60">Reasoning Core</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setDescribeModel('doubao')}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center p-4 rounded-xl border transition-all",
+                                                        describeModel === 'doubao'
+                                                            ? "bg-blue-500/20 border-blue-500/50 text-white"
+                                                            : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
+                                                    )}
+                                                >
+                                                    <span className="font-semibold">Doubao</span>
+                                                    <span className="text-xs opacity-60">Volcengine Cloud</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <Label htmlFor="comfyUrl" className="text-white/60 text-xs font-semibold uppercase tracking-wider">ComfyUI Server Address</Label>
                                             <Input
                                                 id="comfyUrl"
                                                 type="text"
@@ -148,9 +239,6 @@ export function SettingsView() {
                                                 onChange={(e) => setComfyUrl(e.target.value)}
                                                 className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
                                             />
-                                            <p className="text-[11px] text-white/20 italic mt-1">
-                                                The base URL of your running ComfyUI instance for workflow execution.
-                                            </p>
                                         </div>
                                     </CardContent>
                                 </Card>

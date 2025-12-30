@@ -85,24 +85,25 @@ export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
                 <div className="text-white/20 text-[10px] tracking-tight">
                     v0.2.0
                 </div>
-                <div className="fixed bottom-10 right-4 z-[9999] pointer-events-auto">
+                <div className="fixed top-20 right-6 z-[9999] pointer-events-auto">
                     <Toaster
-                        position="bottom-right"
+                        position="top-right"
                         toastOptions={{
                             className: "navbar-toast",
                             classNames: {
-                                description: "text-white",
+                                description: "text-white/90",
                                 title: "text-white font-medium"
                             },
                             style: {
-                                background: 'linear-gradient(to bottom, rgba(18, 24, 45, 0.95), rgba(29, 36, 70, 0.95)) padding-box, linear-gradient(135deg, rgba(22, 38, 149, 0.3), rgba(58, 94, 251, 0.3)) border-box',
-                                backdropFilter: 'blur(12px)',
-                                border: '1px solid rgba(255, 255, 255, 0.31)',
+                                background: 'rgba(0, 0, 0, 0.85)',
+                                backdropFilter: 'blur(20px)',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
                                 color: '#fff',
-                                fontSize: '11px',
-                                width: '220px',
-                                borderRadius: '12px',
-                                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                                fontSize: '13px',
+                                minWidth: '280px',
+                                borderRadius: '16px',
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1) inset',
+                                padding: '16px',
                             },
                         }}
                     />
