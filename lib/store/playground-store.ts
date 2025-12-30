@@ -20,11 +20,20 @@ interface PlaygroundState {
     setHasGenerated: (val: boolean) => void;
     setActiveTab: (tab: string) => void;
 
+    // UI States
+    isAspectRatioLocked: boolean;
+    setAspectRatioLocked: (locked: boolean) => void;
+    isMockMode: boolean;
+    setMockMode: (mode: boolean) => void;
+    isSelectorExpanded: boolean;
+    setSelectorExpanded: (expanded: boolean) => void;
+
     // High-level Actions
     applyPrompt: (prompt: string) => void;
     applyImage: (imageUrl: string) => Promise<void>;
     applyModel: (model: string, configData?: GenerationConfig) => void;
     remix: (result: { config: GenerationConfig, workflow?: IViewComfy, loras?: SelectedLora[] }) => void;
+    resetState: () => void;
 
     // Generation History
     generationHistory: GenerationResult[];
@@ -61,6 +70,12 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
     selectedWorkflowConfig: undefined,
     selectedLoras: [],
     hasGenerated: false,
+    isAspectRatioLocked: false,
+    setAspectRatioLocked: (locked) => set({ isAspectRatioLocked: locked }),
+    isMockMode: false,
+    setMockMode: (mode) => set({ isMockMode: mode }),
+    isSelectorExpanded: false,
+    setSelectorExpanded: (expanded) => set({ isSelectorExpanded: expanded }),
 
     updateConfig: (newConfig) => set((state) => ({
         config: { ...state.config, ...newConfig }
@@ -127,6 +142,28 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
                 config: { ...state.config, ...result.config, base_model: finalModel },
                 hasGenerated: true
             };
+        });
+    },
+
+    resetState: () => {
+        set({
+            config: {
+                prompt: '',
+                img_width: 1376,
+                image_height: 768,
+                gen_num: 1,
+                base_model: 'Nano banana',
+                image_size: '1K',
+                lora: ''
+            },
+            uploadedImages: [],
+            selectedModel: 'Nano banana',
+            selectedWorkflowConfig: undefined,
+            selectedLoras: [],
+            hasGenerated: false,
+            isAspectRatioLocked: false,
+            isMockMode: false,
+            isSelectorExpanded: false
         });
     },
 

@@ -16,8 +16,11 @@ export interface GenerationResult {
 
   config: GenerationConfig;
   timestamp: string;
+  prompt?: string;
   isLoading?: boolean;
   savedPath?: string;
+  type?: 'image' | 'text';
+  sourceImage?: string;
 }
 
 export interface UploadedImage {

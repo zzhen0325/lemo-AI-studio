@@ -37,19 +37,31 @@ export function usePromptOptimization(options: UsePromptOptimizationOptions): Us
         body: JSON.stringify({ text, systemInstruction: options.systemInstruction }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '优化失败');
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const textError = await response.text();
+        console.error("Non-JSON response received:", textError);
+        throw new Error(`服务请求失败 (${response.status}): 请检查网络或联系管理员`);
       }
 
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `优化失败 (${response.status})`);
+      }
+
       if (data.error) throw new Error(data.error);
       if (!data.optimizedText) throw new Error('未收到优化结果');
 
       toast({ title: '优化完成', description: '提示词已成功优化' });
       return data.optimizedText as string;
     } catch (error) {
-      toast({ title: '优化失败', description: error instanceof Error ? error.message : 'AI优化服务暂时不可用，请稍后重试', variant: 'destructive' });
+      console.error("Prompt Optimization Error:", error);
+      toast({
+        title: '优化失败',
+        description: error instanceof Error ? error.message : 'AI优化服务暂时不可用，请稍后重试',
+        variant: 'destructive'
+      });
       return null;
     } finally {
       setIsOptimizing(false);

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Download, Search, Image as ImageIcon, Type, Box, RefreshCw, X } from "lucide-react";
 import ImagePreviewModal from './ImagePreviewModal';
 import ImageEditorModal from './ImageEditorModal';
+import HistoryList from './HistoryList';
 import { TooltipButton } from "@/components/ui/tooltip-button";
 import { usePlaygroundStore } from '@/lib/store/playground-store';
 import { useToast } from '@/hooks/common/use-toast';
@@ -21,7 +22,7 @@ import { Layers } from 'lucide-react';
 
 interface HistoryItem {
     id: string;
-    url: string;
+    imageUrl: string;
     timestamp: string;
     isLoading?: boolean;
     metadata: {
@@ -31,6 +32,8 @@ interface HistoryItem {
         img_height: number;
         lora?: string;
     } | null;
+    type?: 'image' | 'text';
+    sourceImage?: string;
 }
 
 interface GalleryViewProps {
@@ -44,7 +47,7 @@ export default function GalleryView({ variant = 'full' }: GalleryViewProps) {
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [editingImageUrl, setEditingImageUrl] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeView, setActiveView] = useState<'gallery' | 'styles'>('gallery');
+    const [activeView, setActiveView] = useState<'gallery' | 'styles' | 'prompts'>('gallery');
     const setUploadedImages = usePlaygroundStore(s => s.setUploadedImages);
     const generationHistory = usePlaygroundStore(s => s.generationHistory);
     const { toast } = useToast();
@@ -54,22 +57,24 @@ export default function GalleryView({ variant = 'full' }: GalleryViewProps) {
         // Map GenerationResult to HistoryItem format
         const activeGenerations: HistoryItem[] = generationHistory.map(gen => ({
             id: gen.id,
-            url: gen.imageUrl || '',
+            imageUrl: gen.imageUrl || '',
             timestamp: gen.timestamp,
             isLoading: gen.isLoading,
             metadata: {
-                prompt: gen.config.prompt,
-                base_model: gen.config.base_model,
-                img_width: gen.config.img_width,
-                img_height: gen.config.image_height,
-                lora: gen.config.lora
-            }
+                prompt: gen.prompt || gen.config?.prompt || '',
+                base_model: gen.config?.base_model || '',
+                img_width: gen.config?.img_width || 1024,
+                img_height: gen.config?.image_height || 1024,
+                lora: gen.config?.lora || ''
+            },
+            type: gen.type || 'image',
+            sourceImage: gen.sourceImage
         }));
 
         // Filter out items that are already in the fetched history to avoid duplicates
         // (matching by id or image URL)
-        const persistentUrls = new Set(history.map(h => h.url));
-        const uniqueActive = activeGenerations.filter(gen => gen.url && !persistentUrls.has(gen.url));
+        const persistentUrls = new Set(history.map(h => h.imageUrl));
+        const uniqueActive = activeGenerations.filter(gen => gen.imageUrl && !persistentUrls.has(gen.imageUrl));
 
         const combined = [...uniqueActive, ...history];
 
@@ -199,13 +204,22 @@ export default function GalleryView({ variant = 'full' }: GalleryViewProps) {
                             全部作品
                         </button>
                         <button
+                            onClick={() => setActiveView('prompts')}
+                            className={cn(
+                                "px-6 py-2 rounded-xl text-sm font-medium transition-all",
+                                activeView === 'prompts' ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"
+                            )}
+                        >
+                            提示词
+                        </button>
+                        <button
                             onClick={() => setActiveView('styles')}
                             className={cn(
                                 "px-6 py-2 rounded-xl text-sm font-medium transition-all",
                                 activeView === 'styles' ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"
                             )}
                         >
-                            风格堆叠
+                            Style
                         </button>
                     </div>
                 )}
@@ -234,6 +248,26 @@ export default function GalleryView({ variant = 'full' }: GalleryViewProps) {
                     </div>
                 ) : activeView === 'styles' ? (
                     <StyleStacksView />
+                ) : activeView === 'prompts' ? (
+                    // Display HistoryList for Prompts/Describe mode
+                    <HistoryList
+                        history={combinedHistory.filter(h => h.type === 'text').map(h => ({
+                            ...h,
+                            imageUrl: h.imageUrl,
+                            config: {
+                                prompt: h.metadata?.prompt || '',
+                                base_model: h.metadata?.base_model || '',
+                                img_width: h.metadata?.img_width || 512,
+                                image_height: h.metadata?.img_height || 512,
+                                gen_num: 1,
+                                lora: h.metadata?.lora
+                            }
+                        } as GenerationResult))}
+                        onRegenerate={() => { }} // Not needed for text cards usually, or passed empty
+                        onDownload={() => { }}
+                        onImageClick={() => { }}
+                        variant="default"
+                    />
                 ) : combinedHistory.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-32 bg-white/5 rounded-xl border border-white/10 border-dashed space-y-1">
                         <div className="p-6 bg-white/5 rounded-full">
@@ -253,7 +287,7 @@ export default function GalleryView({ variant = 'full' }: GalleryViewProps) {
                                 : "columns-1 sm:columns-2 gap-0"
                         )}
                     >
-                        {combinedHistory.map((item) => (
+                        {combinedHistory.filter(h => h.type !== 'text').map((item) => (
                             <div key={item.id} className="break-inside-avoid ">
                                 <GalleryCard
                                     item={item}
@@ -271,7 +305,7 @@ export default function GalleryView({ variant = 'full' }: GalleryViewProps) {
                 onClose={() => setSelectedItem(null)}
                 result={selectedItem ? {
                     id: selectedItem.id,
-                    imageUrl: selectedItem.url,
+                    imageUrl: selectedItem.imageUrl,
                     config: {
                         prompt: selectedItem.metadata?.prompt || '',
                         base_model: selectedItem.metadata?.base_model || 'Standard',
@@ -306,7 +340,7 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
     const { toast } = useToast();
     const performDownload = () => {
         const fakeEvent = { stopPropagation: () => void 0 } as unknown as React.MouseEvent;
-        onDownload(fakeEvent, item.url, item.id);
+        onDownload(fakeEvent, item.imageUrl, item.id);
     };
 
     return (
@@ -325,11 +359,12 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                     </div>
                 ) : (
                     <Image
-                        src={item.url}
+                        src={item.imageUrl}
                         alt="Generated masterwork"
                         width={item.metadata?.img_width || 1024}
                         height={item.metadata?.img_height || 1024}
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 25vw, 15vw"
+                        quality={75}
                         className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                 )}
@@ -370,7 +405,7 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                                         key={style.id}
                                         className="text-white hover:bg-white/10 rounded-xl cursor-pointer"
                                         onClick={() => {
-                                            addImageToStyle(style.id, item.url);
+                                            addImageToStyle(style.id, item.imageUrl);
                                             toast({ title: "已添加", description: `已将图片加入风格: ${style.name}` });
                                         }}
                                     >
@@ -393,7 +428,10 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         tooltipSide="top"
                         className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
                         onClick={() => {
-                            if (item.metadata?.prompt) applyPrompt(item.metadata.prompt);
+                            if (item.metadata?.prompt) {
+                                applyPrompt(item.metadata.prompt);
+                                toast({ title: "Prompt Applied", description: "提示词已应用到输入框" });
+                            }
                         }}
                     />
                     <TooltipButton
@@ -402,7 +440,10 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         tooltipContent="Use Image"
                         tooltipSide="top"
                         className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
-                        onClick={() => applyImage(item.url)}
+                        onClick={() => {
+                            applyImage(item.imageUrl);
+                            toast({ title: "Image Applied", description: "图片已应用为参考图" });
+                        }}
                     />
                     <TooltipButton
                         icon={<Box className="w-4 h-4" />}
@@ -411,7 +452,10 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         tooltipSide="top"
                         className="w-8 h-8 rounded-xl text-white/70 hover:text-white hover:bg-white/10"
                         onClick={() => {
-                            if (item.metadata?.base_model) applyModel(item.metadata.base_model);
+                            if (item.metadata?.base_model) {
+                                applyModel(item.metadata.base_model);
+                                toast({ title: "Model Selected", description: `已切换模型为: ${item.metadata.base_model}` });
+                            }
                         }}
                     />
                     <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
@@ -433,6 +477,7 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                                     image_size: '1K'
                                 }
                             });
+                            toast({ title: "Remixing", description: "正在根据此图片重新生成..." });
                         }}
                     />
                     <TooltipButton

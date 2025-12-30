@@ -1,7 +1,7 @@
 "use client"
 import { TabValue, TabContext, } from "@/components/layout/sidebar";
 import { Suspense, useEffect, useState } from "react";
-import Image from "next/image";
+
 import GradualBlur from "@/components/common/graphics/GradualBlur";
 import { PlaygroundV2Page } from "@/pages/playground-v2";
 
@@ -10,6 +10,7 @@ import GalleryView from "@/components/features/playground-v2/GalleryView";
 
 import DatasetManagerView from "@/components/features/dataset/DatasetManagerView";
 import { NewSidebar } from "@/components/layout/NewSidebar";
+import { usePlaygroundStore } from "@/lib/store/playground-store";
 
 import { SettingsView } from "@/components/features/settings/SettingsView";
 
@@ -33,16 +34,31 @@ export default function Page() {
     return () => window.removeEventListener('hashchange', handler);
   }, []);
 
+  const setHasGenerated = usePlaygroundStore(s => s.setHasGenerated);
+  const hasGenerated = usePlaygroundStore(s => s.hasGenerated);
+
   const handleTabChange = (tab: TabValue) => {
+    if (tab === TabValue.History) {
+      setCurrentTab(TabValue.Playground);
+      setHasGenerated(true);
+      if (typeof window !== 'undefined') {
+        window.location.hash = TabValue.Playground;
+      }
+      return;
+    }
+
+    if (tab === TabValue.Playground) {
+      setHasGenerated(false);
+    }
+
     setCurrentTab(tab);
     if (typeof window !== 'undefined') {
       window.location.hash = tab as string;
     }
-    // Ensures state is reset when component is remounted/tab changes
   };
 
   const handleBackgroundAnimate = () => {
-    // Background animation logic removed as we are using Unicorn Studio
+    setHasGenerated(true);
   };
 
   const handleEditMapping = (workflow: IViewComfy) => {
@@ -79,9 +95,9 @@ export default function Page() {
         <main className="flex-1 relative p-6 pt-16 h-full flex flex-col overflow-hidden">
           <div className="flex-1 bg-transparent border border-white/20 rounded-[2rem] overflow-hidden relative flex flex-col">
             {/* 全局 Ethereal 背景 - 仅在 Playground 初始态显示 */}
-            {/* {currentTab === TabValue.Playground && !hasGenerated && ( */}
-            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden animate-in fade-in duration-300">
-              {/* <EtherealGradient
+            {currentTab === TabValue.Playground && !hasGenerated && (
+              <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden animate-in fade-in duration-300">
+                {/* <EtherealGradient
                 className="w-full h-full"
                 colors={["#adb2bd", "#908b98", "#edf4ff", "#d7c6de", "#252429"]}
                 wireframe={false}
@@ -95,32 +111,32 @@ export default function Page() {
                 camPosY={2.7979}
                 camPosZ={-0.8470}
               /> */}
-              <video
-                src="/images/1.mp4"
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              {/* <Image
+                <video
+                  src="/images/1.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                {/* <Image
                 src="/images/9.webp"
                 alt="Background"
                 fill
                 className="object-cover"
                 style={{ objectPosition: 'center center' }}
               /> */}
-              <div className="absolute inset-0 z-[5] shadow-[inset_0_0_150px_rgba(88,131,112,1)] pointer-events-none" />
-              <GradualBlur
-                preset="bottom"
-                height="30%"
-                strength={3}
-                zIndex={10}
-                divCount={2}
-              />
-              {/* <div className="absolute inset-0 bg-neutral-950/60 z-[1]" /> */}
-            </div>
-            {/* )} */}
+                <div className="absolute inset-0 z-[5] shadow-[inset_0_0_150px_rgba(88,131,112,1)] pointer-events-none" />
+                {/* <GradualBlur
+                  preset="bottom"
+                  height="30%"
+                  strength={3}
+                  zIndex={10}
+                  divCount={2}
+                /> */}
+                {/* <div className="absolute inset-0 bg-neutral-950/60 z-[1]" /> */}
+              </div>
+            )}
 
             <div className="relative flex h-full justify-center z-10">
 
@@ -133,7 +149,7 @@ export default function Page() {
                       <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Playground...</div>}>
                         <PlaygroundV2Page
                           onEditMapping={handleEditMapping}
-                          onGenerate={handleBackgroundAnimate}
+                          onGenerate={() => handleBackgroundAnimate()}
                         />
                       </Suspense>
                     </div>

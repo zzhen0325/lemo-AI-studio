@@ -21,7 +21,8 @@ export enum TabValue {
     MappingEditor = 'mapping_editor',
     Gallery = 'gallery',
     Tools = 'tools',
-    DatasetManager = 'dataset_manager'
+    DatasetManager = 'dataset_manager',
+    History = 'history'
 }
 
 export type TabContextValue = {

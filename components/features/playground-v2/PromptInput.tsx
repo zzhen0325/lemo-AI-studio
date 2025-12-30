@@ -24,7 +24,7 @@ export default function PromptInput({
   onAddImages,
 }: PromptInputProps) {
   const [localPrompt, setLocalPrompt] = React.useState(prompt);
-  const debouncedPrompt = useDebounce(localPrompt, 500);
+  const debouncedPrompt = useDebounce(localPrompt, 100);
   const [isFocused, setIsFocused] = React.useState(false);
   const lastSyncPrompt = React.useRef(prompt);
 
@@ -44,6 +44,22 @@ export default function PromptInput({
     }
   }, [debouncedPrompt, onPromptChange]);
 
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setLocalPrompt(val);
+    // Remove immediate onPromptChange to fix input lag caused by parent re-renders
+    // onPromptChange(val); 
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    // 强制进行一次最终同步
+    if (localPrompt !== prompt) {
+      onPromptChange(localPrompt);
+      lastSyncPrompt.current = localPrompt;
+    }
+  };
+
   return (
     <div
       className="w-full relative"
@@ -58,10 +74,10 @@ export default function PromptInput({
         placeholder="请描述您想要生成的图像，例如：黄色的lemo圣诞老人，淡蓝色的背景"
         value={localPrompt}
         onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
+        onBlur={handleBlur}
         minHeight={86}
         maxHeight={isFocused ? undefined : 86}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setLocalPrompt(e.target.value)}
+        onChange={handleChange}
         onPaste={(e: React.ClipboardEvent<HTMLTextAreaElement>) => {
           const items = e.clipboardData?.items;
           if (!items) return;
