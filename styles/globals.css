@@ -8,7 +8,12 @@
   inherits: false;
 }
 
-
+@font-face {
+  font-family: 'InstrumentSerif';
+  src: url('/Font/InstrumentSerif-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
 
 
 
