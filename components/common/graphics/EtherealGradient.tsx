@@ -2,6 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame, extend } from '@react-three/fiber';
 import { shaderMaterial, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import type { OrbitControls as OrbitControlsType } from 'three-stdlib';
 
 // --- Shader Material Definition ---
 
@@ -241,11 +242,11 @@ export default function EtherealGradient({
   targetZ = 0,
   onChange
 }: EtherealGradientProps) {
-  const controlsRef = useRef<unknown>(null);
+  const controlsRef = useRef<OrbitControlsType>(null);
 
   const handleOrbitChange = () => {
     if (!controlsRef.current || !onChange) return;
-    const { object, target } = controlsRef.current as any;
+    const { object, target } = controlsRef.current;
 
     // We only update if significant change to avoid feedback loops? 
     // Actually framer-motion/react state handles this fine.

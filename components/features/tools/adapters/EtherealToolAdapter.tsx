@@ -7,11 +7,15 @@ interface EtherealToolAdapterProps {
     amplitude?: number;
     speed?: number;
     frequency?: number;
-    color1: string;
-    color2: string;
-    color3: string;
-    color4: string;
-    color5: string;
+    color1?: string;
+    color2?: string;
+    color3?: string;
+    color4?: string;
+    color5?: string;
+    scaleX?: number;
+    scaleY?: number;
+    enableOrbit?: boolean;
+    paused?: boolean;
     camPosX?: number;
     camPosY?: number;
     camPosZ?: number;
@@ -25,7 +29,11 @@ interface EtherealToolAdapterProps {
 
 const EtherealToolAdapter: React.FC<EtherealToolAdapterProps> = (props) => {
     const {
-        color1, color2, color3, color4, color5,
+        color1 = '#5B5B5D',
+        color2 = '#B4B1C3',
+        color3 = '#BAB9CB',
+        color4 = '#000000',
+        color5 = '#549291',
         wireframe, density, amplitude, speed, frequency,
         scaleX, scaleY, enableOrbit,
         paused,

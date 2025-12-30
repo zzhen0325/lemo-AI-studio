@@ -32,7 +32,13 @@ export interface ClientImageParams {
     aspectRatio?: string;
     image?: string; // for i2i
     images?: string[]; // Multiple images support
-    options?: ProviderOptions;
+    options?: ProviderOptions & {
+        seed?: number;
+        steps?: number;
+        cfgScale?: number;
+        sampler?: string;
+        scheduler?: string;
+    };
 }
 
 export async function generateText(params: ClientGenerationParams): Promise<{ text: string }> {

@@ -9,9 +9,7 @@ import {
     ImageResult,
     ModelConfig
 } from './types';
-import { GoogleGenAI, Part } from "@google/genai";
 import { generateNonce, generateSign, generateTimestamp, getProxyAgent } from './utils';
-import { RequestInit } from "node-fetch";
 
 export class OpenAICompatibleProvider implements TextProvider {
     private config: ModelConfig;
@@ -44,14 +42,13 @@ export class OpenAICompatibleProvider implements TextProvider {
         };
 
         const agent = getProxyAgent();
-        const fetchOptions: RequestInit = {
+        const fetchOptions: RequestInit & { agent?: unknown } = {
             method: 'POST',
             headers,
             body: JSON.stringify(body),
         };
 
         if (agent) {
-            // @ts-expect-error - node-fetch RequestInit might not have agent in all type definitions
             fetchOptions.agent = agent;
         }
 
@@ -76,13 +73,14 @@ export class OpenAICompatibleProvider implements TextProvider {
 }
 
 export class GoogleGenAIProvider implements TextProvider, VisionProvider, ImageProvider {
-    private client: GoogleGenAI;
+    private apiKey: string;
     private modelId: string;
+    private baseURL = 'https://generativelanguage.googleapis.com/v1beta';
 
     constructor(config: ModelConfig) {
-        console.log(`[GoogleGenAIProvider] Initializing with model: ${config.modelId}, hasApiKey: ${!!config.apiKey}, API Version: v1`);
+        console.log(`[GoogleGenAIProvider] Initializing with model: ${config.modelId}, hasApiKey: ${!!config.apiKey}`);
 
-        this.client = new GoogleGenAI(config.apiKey!);
+        this.apiKey = config.apiKey!;
         this.modelId = config.modelId;
     }
 
@@ -91,18 +89,27 @@ export class GoogleGenAIProvider implements TextProvider, VisionProvider, ImageP
 
         const contents = [];
         if (systemPrompt) {
-            contents.push({ role: "user", parts: [{ text: systemPrompt }, { text: input }] });
+            contents.push({ role: "user", parts: [{ text: systemPrompt + "\n\n" + input }] });
         } else {
             contents.push({ role: "user", parts: [{ text: input }] });
         }
 
+        const url = `${this.baseURL}/models/${this.modelId}:generateContent?key=${this.apiKey}`;
+
         try {
-            const model = this.client.getGenerativeModel({ model: this.modelId });
-            const result = await model.generateContent({
-                contents: contents
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents })
             });
 
-            const text = result.response.text();
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Google GenAI API Error: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             return { text };
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : String(error);
@@ -124,20 +131,29 @@ export class GoogleGenAIProvider implements TextProvider, VisionProvider, ImageP
             }
         }
 
-        const parts: Part[] = [
+        const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
             { inlineData: { mimeType, data: base64Data } }
         ];
 
         if (systemPrompt) parts.push({ text: systemPrompt });
         if (prompt) parts.push({ text: prompt });
 
+        const url = `${this.baseURL}/models/${this.modelId}:generateContent?key=${this.apiKey}`;
+
         try {
-            const model = this.client.getGenerativeModel({ model: this.modelId });
-            const result = await model.generateContent({
-                contents: [{ role: "user", parts }]
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ role: "user", parts }] })
             });
 
-            const text = result.response.text();
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Google GenAI API Error: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             return { text };
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : String(error);
@@ -147,7 +163,7 @@ export class GoogleGenAIProvider implements TextProvider, VisionProvider, ImageP
 
     async generateImage(params: ImageGenerationInput): Promise<ImageResult> {
         const { prompt, aspectRatio, imageSize, image } = params;
-        const parts: Part[] = [];
+        const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [];
 
         if (image || (params.images && params.images.length > 0)) {
             const imageList = image ? [image] : (params.images || []);
@@ -178,15 +194,25 @@ export class GoogleGenAIProvider implements TextProvider, VisionProvider, ImageP
             };
         }
 
+        const url = `${this.baseURL}/models/gemini-3-pro-image-preview:generateContent?key=${this.apiKey}`;
+
         try {
-            const model = this.client.getGenerativeModel({ model: "gemini-3-pro-image-preview" });
-            const result = await model.generateContent({
-                contents: [{ role: "user", parts }],
-                // @ts-expect-error - imageConfig might not be in standard GenerateConfig type yet
-                generationConfig: configParams
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ role: "user", parts }],
+                    generationConfig: configParams
+                })
             });
 
-            const candidate = result.response.candidates?.[0];
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Google GenAI API Error: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            const candidate = data.candidates?.[0];
             const resParts = candidate?.content?.parts;
 
             if (!resParts) throw new Error("No image data returned from Google GenAI");
@@ -253,7 +279,7 @@ export class BytedanceAfrProvider implements ImageProvider {
         formData.append('img_return_format', 'png');
 
         const agent = getProxyAgent();
-        const fetchOptions: RequestInit = {
+        const fetchOptions: RequestInit & { agent?: unknown } = {
             method: 'POST',
             headers: {
                 'get-svc': '1',
@@ -264,7 +290,6 @@ export class BytedanceAfrProvider implements ImageProvider {
         };
 
         if (agent) {
-            // @ts-expect-error - node-fetch RequestInit might not have agent in all type definitions
             fetchOptions.agent = agent;
         }
 

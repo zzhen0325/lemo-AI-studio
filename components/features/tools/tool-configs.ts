@@ -1,5 +1,16 @@
 import EtherealToolAdapter from './adapters/EtherealToolAdapter';
 
+export interface ToolComponentProps {
+  onChange?: (id: string, value: number | string | boolean) => void;
+  color1?: string;
+  color2?: string;
+  color3?: string;
+  color4?: string;
+  color5?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
+
 export type ToolParamType = 'number' | 'color' | 'boolean';
 
 export interface ToolParameter {
@@ -28,7 +39,7 @@ export interface WebGLToolConfig {
   type: 'shader' | 'component';
   thumbnail?: string;
   fragmentShader?: string;
-  component?: React.ComponentType<unknown>;
+  component?: React.ComponentType<ToolComponentProps>;
   parameters: ToolParameter[];
 }
 
@@ -88,28 +99,6 @@ void main() {
     mainImage(gl_FragColor, gl_FragCoord.xy);
 }
     `,
-    exportParameters: (values: Record<string, unknown>) => [
-      {
-        id: 'flowSpeed',
-        name: 'Flow Speed',
-        type: 'number',
-        min: 0.01,
-        max: 0.5,
-        step: 0.01,
-        defaultValue: values.flowSpeed as number || 0.1,
-        category: 'Simulation'
-      },
-      {
-        id: 'waveIntensity',
-        name: 'Wave Intensity',
-        type: 'number',
-        min: 0.1,
-        max: 5.0,
-        step: 0.1,
-        defaultValue: values.waveIntensity as number || 1.0,
-        category: 'Simulation'
-      }
-    ],
     parameters: [
       {
         id: 'flowSpeed',
