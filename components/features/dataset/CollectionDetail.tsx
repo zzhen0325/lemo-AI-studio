@@ -61,6 +61,7 @@ import {
     rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useAIService } from "@/hooks/ai/useAIService";
 
 interface SortableImageProps {
     img: DatasetImage;
@@ -204,6 +205,7 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [gridColumns, setGridColumns] = useState<number>(5);
     const cancelRef = useRef<AbortController | null>(null);
+    const { callVision } = useAIService();
 
     // DnD Logic
     const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -783,19 +785,13 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                         reader.readAsDataURL(blob);
                     });
 
-                    const apiRes = await fetch("/api/google-genai-describe", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            imageBase64: base64,
-                            systemPrompt: systemPrompt
-                        }),
-                        signal: controller.signal
+                    const result = await callVision({
+                        image: base64,
+                        systemPrompt: systemPrompt
                     });
 
-                    if (apiRes.ok) {
-                        const data = await apiRes.json();
-                        const newPrompt = data.text || img.prompt;
+                    if (result.text) {
+                        const newPrompt = result.text;
 
                         // 1. 更新本地状态
                         setImages(prev => prev.map(i => i.id === img.id ? { ...i, prompt: newPrompt, isOptimizing: false } : i));
@@ -866,24 +862,15 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                 reader.readAsDataURL(blob);
             });
 
-            const res = await fetch('/api/google-genai-describe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    imageBase64: base64,
-                    systemPrompt: systemPrompt || undefined,
-                }),
+            const result = await callVision({
+                image: base64,
+                systemPrompt: systemPrompt || undefined,
             });
 
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to optimize');
-            }
-
-            const data = await res.json();
+            if (!result.text) throw new Error('Failed to optimize');
 
             // Add batch prefix if exists
-            let newPrompt = data.text;
+            let newPrompt = result.text;
             if (batchPrefix?.trim()) {
                 const prefix = batchPrefix.trim();
                 if (!newPrompt.toLowerCase().startsWith(prefix.toLowerCase())) {

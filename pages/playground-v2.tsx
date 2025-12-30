@@ -9,6 +9,7 @@ import { usePromptOptimization, AIModel } from "@/hooks/features/PlaygroundV2/us
 
 
 import { useGenerationService } from "@/hooks/features/PlaygroundV2/useGenerationService";
+import { useAIService } from "@/hooks/ai/useAIService";
 import { GoogleApiStatus } from "@/components/features/playground-v2/GoogleApiStatus";
 import PromptInput from "@/components/features/playground-v2/PromptInput";
 import ControlToolbar from "@/components/features/playground-v2/ControlToolbar";
@@ -159,6 +160,26 @@ export function PlaygroundV2Page({
     updateConfig({ ref_image: path });
   }, [uploadedImages, updateConfig]);
 
+  const baseSystemInstruction = `
+  # 角色
+你是备受赞誉的提示词大师Lemo-prompt，专为AI绘图工具flux打造提示词。
+
+## 技能
+### 技能1: 理解用户意图
+利用先进的自然语言处理技术，准确剖析用户输入自然语言背后的真实意图，精准定位用户对于图像生成的核心需求。在描述物品时，避免使用"各种""各类"等概称，要详细列出具体物品。若用户提供图片，你会精准描述图片中的内容信息与构图，并按照图片信息完善提示词。
+
+### 2: 优化构图与细节
+运用专业的构图知识和美学原理，自动为场景增添丰富且合理的细节，精心调整构图，显著提升生成图像的构图完整性、故事性和视觉吸引力。
+
+### 技能3: 概念转化
+熟练运用丰富的视觉语言库，将用户提出的抽象概念快速且准确地转化为可执行的视觉描述，让抽象想法能通过图像生动、直观地呈现。
+
+## 输出格式
+1. 仅输出完整提示词中文版本
+2. 使用精炼且生动的语言表达
+3. 文字控制在200字以内`
+
+
   const applyWorkflowDefaults = (workflow: IViewComfy) => {
     const mappingConfig = workflow.viewComfyJSON.mappingConfig as { components: UIComponent[] } | undefined;
     const newConfig = { ...config };
@@ -243,7 +264,8 @@ export function PlaygroundV2Page({
   const [editingImageUrl, setEditingImageUrl] = useState<string>("");
 
   const { handleGenerate, isGenerating } = useGenerationService();
-  const { optimizePrompt, isOptimizing } = usePromptOptimization({ systemInstruction: `# 角色\n你是备受赞誉的提示词大师Lemo-prompt，专为AI绘图工具flux打造提示词。\n\n## 技能\n### 技能1: 理解用户意图\n利用先进的自然语言处理技术，准确剖析用户输入自然语言背后的真实意图，精准定位用户对于图像生成的核心需求。在描述物品时，避免使用"各种""各类"等概称，要详细列出具体物品。若用户提供图片，你会精准描述图片中的内容信息与构图，并按照图片信息完善提示词。\n\n### 2: 优化构图与细节\n运用专业的构图知识和美学原理，自动为场景增添丰富且合理的细节，精心调整构图，显著提升生成图像的构图完整性、故事性和视觉吸引力。\n\n### 技能3: 概念转化\n熟练运用丰富的视觉语言库，将用户提出的抽象概念快速且准确地转化为可执行的视觉描述，让抽象想法能通过图像生动、直观地呈现。\n\n### 技能4: 描述纬度\n1. **版式分析**：能准确判断版面率（高版面率：留白少、信息密集，适合促销、营销场景；低版面率：留白多、气质高级，适合文艺、静态设计）；识别构图方式（上下构图、左右构图、中心构图、对角线构图、四角构图、曲线（S线）构图、散点式构图、包围式构图）；分辨网格系统（通栏网格、分栏网格、模块网格、基线网格、层级网格）。\n2. **层级关系**：清晰区分主标题、副标题、正文、辅助文字，通过强调层级信息的大小、颜色、字重，使用不同字号、字重、灰度制造视觉主次。\n3. **字体搭配**：根据字体气质分类进行搭配，如轻盈现代（细、无衬线）、厚重力量（黑体、笔画重）、文艺清新（舒展、居中）、柔和可爱（曲线笔画）、古典沉稳（仿宋、书法感）、现代简洁（极简无装饰）。\n4. **色彩搭配**：准确识别并运用单色（一个色相展开，简洁高级）、相似色（色环上相邻色，柔和统一）、互补色（色环对向色，强对比）、Duotone双色调（叠加两种对比色调，印刷感或冲击力）。\n6.**画面内容**：准确描述画面中的主体 and 辅助元素的主要内容和详细细节。\n\n## 限制\n1. 严禁生成涉及暴力、色情、恐怖等不良内容的描述，确保内容积极健康。\n2. 不提供技术参数相关内容，专注于图像内容和风格的描述。\n3. 不提供与图像生成无关的建议，保持回答的针对性。\n4. 描述必须客观、准确，符合实际情况和大众审美标准。\n\n## 输出格式\n1. 输出完整提示词中文版本\n2. 使用精炼且生动的语言表达\n3. 文字控制在500字以内\n4. lemo是一个卡通角色的名字，不要描述lemo的角色特质，可以描述lemo的穿搭动作表情等！！！` });
+  const { callVision } = useAIService();
+  const { optimizePrompt, isOptimizing } = usePromptOptimization({ systemInstruction: baseSystemInstruction });
 
   const handleFilesUpload = async (files: File[] | FileList) => {
     const uploads = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -300,7 +322,10 @@ export function PlaygroundV2Page({
   };
   const handleWidthChange = (newWidth: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newHeight = Math.round(newWidth / ratio); setConfig(prev => ({ ...prev, img_width: newWidth, image_height: newHeight })); } else { setConfig(prev => ({ ...prev, img_width: newWidth })); } };
   const handleHeightChange = (newHeight: number) => { if (isAspectRatioLocked && config.image_height > 0) { const ratio = config.img_width / config.image_height; const newWidth = Math.round(newHeight * ratio); setConfig(prev => ({ ...prev, image_height: newHeight, img_width: newWidth })); } else { setConfig(prev => ({ ...prev, image_height: newHeight })); } };
-  const handleOptimizePrompt = async () => { const optimizedText = await optimizePrompt(config.prompt, selectedAIModel); if (optimizedText) setConfig(prev => ({ ...prev, prompt: optimizedText })); };
+  const handleOptimizePrompt = async () => {
+    const optimizedText = await optimizePrompt(config.prompt, selectedAIModel);
+    if (optimizedText) setConfig(prev => ({ ...prev, prompt: optimizedText }));
+  };
 
   const handleDescribe = async () => {
     if (uploadedImages.length === 0) {
@@ -340,63 +365,30 @@ export function PlaygroundV2Page({
         throw new Error("无法获取图片数据");
       }
 
-      // 2. Read settings and determine API endpoint
-      let describeModel = 'gemini';
-      let deepseekApiKey = '';
-      let doubaoApiKey = '';
-      let doubaoModel = '';
+      // 2. Call unified Vision service
+      const result = await callVision({
+        image: `data:image/png;base64,${base64}`,
+        systemPrompt: `## 角色
+您是一位专业的AI图像标注员，专门为生成式AI模型创建高质量、精准的训练数据集。您的目标是使用自然语言准确、客观地描述图像。
 
-      try {
-        const stored = localStorage.getItem('playground-settings'); // SETTINGS_STORAGE_KEY
-        if (stored) {
-          const s = JSON.parse(stored);
-          if (s.describeModel) describeModel = s.describeModel;
-          if (s.deepseekApiKey) deepseekApiKey = s.deepseekApiKey;
-          if (s.doubaoApiKey) doubaoApiKey = s.doubaoApiKey;
-          if (s.doubaoModel) doubaoModel = s.doubaoModel;
-        }
-      } catch (e) {
-        console.warn("Failed to read settings", e);
-      }
+## 任务
+分析提供的图像，并生成 4 份内容侧重点略有不同的描述。
 
-      let apiEndpoint = '/api/google-genai-describe';
-      if (describeModel === 'deepseek') apiEndpoint = '/api/deepseek-describe';
-      if (describeModel === 'doubao') apiEndpoint = '/api/doubao-describe';
+## 标注指南
+1. **格式：**自然语言，80字左右。
+2. **客观性：**仅描述图像中呈现的主要视觉内容。
+3. **分段：**请一次性返回 4 个结果，每个结果之间使用 '|||' 作为分隔符。
+4. **精确性：**使用精确的术语（例如，不要用“花”，而应使用“红玫瑰”；不要用“枪”，而应使用“AK-47”）。
 
-      console.log('Describe Debug:', { describeModel, apiEndpoint, hasDoubaoKey: !!doubaoApiKey });
+仅返回中文结果
 
-      const payload: {
-        imageBase64: string;
-        systemPrompt: string;
-        apiKey?: string;
-        model?: string;
-      } = {
-        imageBase64: base64,
-        systemPrompt: `You are a high-level creative image analysis expert. Precisely describe the visual components of this image and convert them into FOUR distinct generation prompts. 
-          Each prompt should have slightly different focuses (e.g., style, lighting, composition, mood).
-          The output MUST be in CHINESE.
-          Use '|||' as a SEPARATOR between the four prompts.
-          example output: "描述1|||描述2|||描述3|||描述4"
-          Do not include any other text except for the four prompts separated by '|||'.`
-      };
+## 输出结构优先级
+[主体] -> [动作/姿势] -> [服装] -> [背景] -> [文字信息]
 
-      if (describeModel === 'deepseek') {
-        payload.apiKey = deepseekApiKey;
-      } else if (describeModel === 'doubao') {
-        payload.apiKey = doubaoApiKey;
-        payload.model = doubaoModel;
-      }
-
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+注意：**除了 4 个描述内容及其之间的 '|||' 分隔符外，不要返回任何额外文字。**`
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "描述失败");
-
-      const text = data.text || "";
+      const text = result?.text || "";
       const results = text.split('|||').map((s: string) => s.trim()).filter(Boolean);
 
       if (results.length > 0) {

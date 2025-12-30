@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { geminiService, GenerationRequest } from '@/lib/api/geminiService';
+import { useAIService } from '@/hooks/ai/useAIService';
 import { useToast } from '@/hooks/common/use-toast';
 
 export interface ImageGenerationConfig {
@@ -15,7 +15,7 @@ export interface ImageGenerationResult {
 }
 
 export function useImageGeneration() {
-  const [isGenerating, setIsGenerating] = useState(false);
+  const { callImage, isLoading: isGenerating } = useAIService();
   const [result, setResult] = useState<ImageGenerationResult | null>(null);
   const { toast } = useToast();
 
@@ -29,28 +29,22 @@ export function useImageGeneration() {
       return null;
     }
 
-    setIsGenerating(true);
-    
     try {
-      console.log("🎨 开始图像生成流程");
-      console.log("📋 生成配置:", config);
-
-      const request: GenerationRequest = {
+      const response = await callImage({
+        model: 'gemini-3-pro-image-preview', // Legacy behavior was using geminiService which maps to google-genai
         prompt: config.prompt,
-        referenceImages: config.referenceImages,
+        images: config.referenceImages,
         aspectRatio: config.aspectRatio,
-      };
+      });
 
-      const images = await geminiService.generateImage(request);
-      
-      if (!images || images.length === 0) {
+      if (!response.images || response.images.length === 0) {
         throw new Error("未收到有效图片数据");
       }
 
       // 将base64转换为data URL
-      const imageUrl = images[0].startsWith("data:") 
-        ? images[0] 
-        : `data:image/png;base64,${images[0]}`;
+      const imageUrl = response.images[0].startsWith("data:")
+        ? response.images[0]
+        : `data:image/png;base64,${response.images[0]}`;
 
       const generationResult: ImageGenerationResult = {
         imageUrl,
@@ -59,8 +53,7 @@ export function useImageGeneration() {
       };
 
       setResult(generationResult);
-      
-      console.log("✅ 图像生成成功");
+
       toast({
         title: "生成成功",
         description: "图像已成功生成！",
@@ -68,21 +61,8 @@ export function useImageGeneration() {
 
       return generationResult;
     } catch (error) {
-      console.error("💥 图像生成失败:", error);
-      
-      // 构建包含详细错误信息的消息
-      const errorMessage = error instanceof Error ? error.message : "未知错误";
-      const fullErrorMessage = `💥 图像生成失败: Error: ${errorMessage}`;
-      
-      toast({
-        title: "生成失败",
-        description: fullErrorMessage,
-        variant: "destructive",
-      });
-      
+      // toast is already handled by useAIService, but we can add more context if needed
       return null;
-    } finally {
-      setIsGenerating(false);
     }
   };
 

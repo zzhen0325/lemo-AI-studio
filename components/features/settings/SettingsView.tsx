@@ -7,8 +7,12 @@ import {
     SquareTerminal,
     ChevronRight,
     Key,
-    Globe
+    Globe,
+    Languages,
+    Sparkles
 } from "lucide-react";
+import { REGISTRY } from "@/lib/ai/registry";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -31,19 +35,23 @@ export function SettingsView() {
     const [doubaoApiKey, setDoubaoApiKey] = useState<string>("");
     const [doubaoModel, setDoubaoModel] = useState<string>("");
     const [comfyUrl, setComfyUrl] = useState<string>("");
-    const [describeModel, setDescribeModel] = useState<'gemini' | 'deepseek' | 'doubao'>('gemini');
+    const [describeModel, setDescribeModel] = useState<string>("gemini-1.5-flash");
+    const [translateModel, setTranslateModel] = useState<string>("doubao-pro-4k");
+    const [optimizeModel, setOptimizeModel] = useState<string>("doubao-pro-4k");
 
     useEffect(() => {
         try {
             const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
             if (stored) {
-                const s = JSON.parse(stored) as { apiKey?: string; deepseekApiKey?: string; doubaoApiKey?: string; doubaoModel?: string; comfyUrl?: string; describeModel?: 'gemini' | 'deepseek' | 'doubao' };
+                const s = JSON.parse(stored);
                 if (s.apiKey) setApiKey(s.apiKey);
                 if (s.deepseekApiKey) setDeepseekApiKey(s.deepseekApiKey);
                 if (s.doubaoApiKey) setDoubaoApiKey(s.doubaoApiKey);
                 if (s.doubaoModel) setDoubaoModel(s.doubaoModel);
                 if (s.comfyUrl) setComfyUrl(s.comfyUrl);
                 if (s.describeModel) setDescribeModel(s.describeModel);
+                if (s.translateModel) setTranslateModel(s.translateModel);
+                if (s.optimizeModel) setOptimizeModel(s.optimizeModel);
             }
         } catch {
             // ignore
@@ -58,7 +66,9 @@ export function SettingsView() {
                 doubaoApiKey: doubaoApiKey.trim(),
                 doubaoModel: doubaoModel.trim(),
                 comfyUrl: comfyUrl.trim(),
-                describeModel
+                describeModel,
+                translateModel,
+                optimizeModel
             };
             localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
             toast({ title: "设置已保存", description: "已保存所有 API 配置与偏好" });
@@ -187,58 +197,78 @@ export function SettingsView() {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-6 space-y-6">
-                                        <div className="space-y-3">
-                                            <Label className="text-white/60 text-xs font-semibold uppercase tracking-wider">Image Description Provider</Label>
-                                            <div className="grid grid-cols-3 gap-4">
-                                                <button
-                                                    onClick={() => setDescribeModel('gemini')}
-                                                    className={cn(
-                                                        "flex flex-col items-center justify-center p-4 rounded-xl border transition-all",
-                                                        describeModel === 'gemini'
-                                                            ? "bg-blue-500/20 border-blue-500/50 text-white"
-                                                            : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
-                                                    )}
-                                                >
-                                                    <span className="font-semibold">Google Gemini</span>
-                                                    <span className="text-xs opacity-60">Global Standard</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => setDescribeModel('deepseek')}
-                                                    className={cn(
-                                                        "flex flex-col items-center justify-center p-4 rounded-xl border transition-all",
-                                                        describeModel === 'deepseek'
-                                                            ? "bg-blue-500/20 border-blue-500/50 text-white"
-                                                            : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
-                                                    )}
-                                                >
-                                                    <span className="font-semibold">DeepSeek</span>
-                                                    <span className="text-xs opacity-60">Reasoning Core</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => setDescribeModel('doubao')}
-                                                    className={cn(
-                                                        "flex flex-col items-center justify-center p-4 rounded-xl border transition-all",
-                                                        describeModel === 'doubao'
-                                                            ? "bg-blue-500/20 border-blue-500/50 text-white"
-                                                            : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
-                                                    )}
-                                                >
-                                                    <span className="font-semibold">Doubao</span>
-                                                    <span className="text-xs opacity-60">Volcengine Cloud</span>
-                                                </button>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-3">
+                                                <Label className="text-white/60 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                                                    <SettingsIcon className="size-3" />
+                                                    Image Description Provider
+                                                </Label>
+                                                <Select value={describeModel} onValueChange={setDescribeModel}>
+                                                    <SelectTrigger className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12">
+                                                        <SelectValue placeholder="Select Model" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-zinc-900 border-white/10 text-white">
+                                                        {REGISTRY.filter(m => m.task.includes('vision')).map(model => (
+                                                            <SelectItem key={model.id} value={model.id}>
+                                                                {model.id}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
-                                        </div>
 
-                                        <div className="space-y-3">
-                                            <Label htmlFor="comfyUrl" className="text-white/60 text-xs font-semibold uppercase tracking-wider">ComfyUI Server Address</Label>
-                                            <Input
-                                                id="comfyUrl"
-                                                type="text"
-                                                placeholder="e.g. http://127.0.0.1:8188/"
-                                                value={comfyUrl}
-                                                onChange={(e) => setComfyUrl(e.target.value)}
-                                                className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
-                                            />
+                                            <div className="space-y-3">
+                                                <Label className="text-white/60 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                                                    <Languages className="size-3" />
+                                                    Translation Provider
+                                                </Label>
+                                                <Select value={translateModel} onValueChange={setTranslateModel}>
+                                                    <SelectTrigger className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12">
+                                                        <SelectValue placeholder="Select Model" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-zinc-900 border-white/10 text-white">
+                                                        {REGISTRY.filter(m => m.task.includes('text')).map(model => (
+                                                            <SelectItem key={model.id} value={model.id}>
+                                                                {model.id}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <Label className="text-white/60 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                                                    <Sparkles className="size-3" />
+                                                    Prompt Optimization Provider
+                                                </Label>
+                                                <Select value={optimizeModel} onValueChange={setOptimizeModel}>
+                                                    <SelectTrigger className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12">
+                                                        <SelectValue placeholder="Select Model" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-zinc-900 border-white/10 text-white">
+                                                        {REGISTRY.filter(m => m.task.includes('text')).map(model => (
+                                                            <SelectItem key={model.id} value={model.id}>
+                                                                {model.id}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <Label htmlFor="comfyUrl" className="text-white/60 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                                                    <Globe className="size-3" />
+                                                    ComfyUI Server Address
+                                                </Label>
+                                                <Input
+                                                    id="comfyUrl"
+                                                    type="text"
+                                                    placeholder="e.g. http://127.0.0.1:8188/"
+                                                    value={comfyUrl}
+                                                    onChange={(e) => setComfyUrl(e.target.value)}
+                                                    className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
+                                                />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>

@@ -66,11 +66,11 @@ export default function HistoryList({
       const promptValue = result.prompt || result.config?.prompt || "未知分组";
       const key = type === 'text' ? (result.sourceImage || "Unknown") : promptValue;
 
-      // Find existing group for the same type (image/text), key and within a small time window (e.g. 10s)
+      // Find existing group for the same type (image/text), key and within a small time window (e.g. 1m)
       const existingGroup = dateGroups[title].find(g =>
         g.type === type &&
         g.key === key &&
-        Math.abs(new Date(g.items[0].timestamp).getTime() - new Date(result.timestamp).getTime()) < 10000
+        Math.abs(new Date(g.items[0].timestamp).getTime() - new Date(result.timestamp).getTime()) < 60000
       );
 
       if (existingGroup) {
@@ -221,8 +221,9 @@ function HistoryCard({
       onMouseLeave={() => setIsHover(false)}
     >
       <motion.div
-        layoutId={`image-${result.id}`}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
         className="absolute inset-0 z-0"
       >
         {result.isLoading ? (
@@ -236,7 +237,7 @@ function HistoryCard({
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
             quality={75}
-            className="object-cover cursor-pointer transition-transform duration-700 scale-100 group-hover:scale-105"
+            className="object-cover cursor-pointer scale-100 group-hover:scale-105 transition-transform duration-500"
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               onImageClick(result, rect);

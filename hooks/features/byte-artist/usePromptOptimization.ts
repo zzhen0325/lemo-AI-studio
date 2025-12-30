@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/common/use-toast';
+import { generateText } from '@/lib/ai/client';
 
 export type AIModel = 'gemini' | 'doubao' | 'gpt';
 
@@ -27,46 +28,21 @@ export function usePromptOptimization(options: UsePromptOptimizationOptions): Us
     }
 
     setIsOptimizing(true);
-    
-    try {
-      // 根据模型选择不同的API端点
-      let apiEndpoint = '/api/google-genai-text'; // 默认Gemini
-      
-      switch (model) {
-        case 'gemini':
-          apiEndpoint = '/api/google-genai-text';
-          break;
-        case 'doubao':
-          apiEndpoint = '/api/doubao-text';
-          break;
-        case 'gpt':
-          apiEndpoint = '/api/gpt-text';
-          break;
-      }
 
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text,
-          systemInstruction: options.systemInstruction,
-        }),
+    try {
+      // Map legacy model names to registry IDs
+      let modelId = 'gemini-1.5-flash';
+      if (model === 'doubao') modelId = 'doubao-pro-4k';
+      if (model === 'gpt') modelId = 'deepseek-chat';
+
+      const result = await generateText({
+        model: modelId,
+        input: text,
+        systemPrompt: options.systemInstruction,
+        profileId: 'optimization'
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '优化失败');
-      }
-
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      if (!data.optimizedText) {
+      if (!result.text) {
         throw new Error('未收到优化结果');
       }
 
@@ -75,8 +51,8 @@ export function usePromptOptimization(options: UsePromptOptimizationOptions): Us
         description: "提示词已成功优化",
       });
 
-      return data.optimizedText;
-      
+      return result.text;
+
     } catch (error) {
       console.error("AI优化失败:", error);
       toast({

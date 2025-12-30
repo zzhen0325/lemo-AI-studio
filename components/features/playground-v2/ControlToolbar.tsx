@@ -290,7 +290,6 @@ export default function ControlToolbar({
         <div className="relative ml-auto rounded-full">
           <Button
             onClick={onGenerate}
-            disabled={isGenerating}
             className="relative z-10 w-auto h-10 px-6 rounded-full text-sm font-medium text-[#d0d8fb] flex items-center justify-center gap-2 border-[2px] border-transparent transition-all duration-300 hover:animate-border-rotate"
             style={{
               backgroundImage: `
@@ -381,4 +380,3 @@ export default function ControlToolbar({
     </div >
   );
 }
-

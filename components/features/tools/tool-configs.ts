@@ -28,7 +28,7 @@ export interface WebGLToolConfig {
   type: 'shader' | 'component';
   thumbnail?: string;
   fragmentShader?: string;
-  component?: React.ComponentType<any>;
+  component?: React.ComponentType<unknown>;
   parameters: ToolParameter[];
 }
 
@@ -88,6 +88,28 @@ void main() {
     mainImage(gl_FragColor, gl_FragCoord.xy);
 }
     `,
+    exportParameters: (values: Record<string, unknown>) => [
+      {
+        id: 'flowSpeed',
+        name: 'Flow Speed',
+        type: 'number',
+        min: 0.01,
+        max: 0.5,
+        step: 0.01,
+        defaultValue: values.flowSpeed as number || 0.1,
+        category: 'Simulation'
+      },
+      {
+        id: 'waveIntensity',
+        name: 'Wave Intensity',
+        type: 'number',
+        min: 0.1,
+        max: 5.0,
+        step: 0.1,
+        defaultValue: values.waveIntensity as number || 1.0,
+        category: 'Simulation'
+      }
+    ],
     parameters: [
       {
         id: 'flowSpeed',

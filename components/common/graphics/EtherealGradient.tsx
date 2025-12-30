@@ -173,7 +173,7 @@ const WaveMesh: React.FC<EtherealGradientProps> = ({
   scaleY = 1.0,
   paused = false
 }) => {
-  const materialRef = useRef<any>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
 
   // Convert sRGB hex to Linear for higher fidelity color mixing in the shader
   const colors = useMemo(() =>
@@ -189,12 +189,17 @@ const WaveMesh: React.FC<EtherealGradientProps> = ({
   useFrame((state) => {
     if (materialRef.current) {
       if (!paused) {
+        // @ts-expect-error - uTime is a uniform setter created by shaderMaterial
         materialRef.current.uTime = state.clock.getElapsedTime();
       }
+      // @ts-expect-error - uAmount is a uniform setter created by shaderMaterial
       materialRef.current.uAmount = amplitude;
+      // @ts-expect-error - uSpeed is a uniform setter created by shaderMaterial
       materialRef.current.uSpeed = speed;
       // Adaptive frequency mapping
+      // @ts-expect-error - uFrequency is a uniform setter created by shaderMaterial
       materialRef.current.uFrequency.set(frequency, frequency * 2.0);
+      // @ts-expect-error - uColor is a uniform setter created by shaderMaterial
       materialRef.current.uColor = colors;
     }
   });
@@ -205,7 +210,7 @@ const WaveMesh: React.FC<EtherealGradientProps> = ({
 
   return (
     <mesh rotation={[-Math.PI / 2.2, 0, 0]} geometry={geometry}>
-      {/* @ts-ignore - MeshGradientMaterial is extended via @react-three/fiber */}
+      {/* @ts-expect-error - MeshGradientMaterial is extended via @react-three/fiber */}
       <meshGradientMaterial
         ref={materialRef}
         wireframe={wireframe}
@@ -236,11 +241,11 @@ export default function EtherealGradient({
   targetZ = 0,
   onChange
 }: EtherealGradientProps) {
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<unknown>(null);
 
   const handleOrbitChange = () => {
     if (!controlsRef.current || !onChange) return;
-    const { object, target } = controlsRef.current;
+    const { object, target } = controlsRef.current as any;
 
     // We only update if significant change to avoid feedback loops? 
     // Actually framer-motion/react state handles this fine.

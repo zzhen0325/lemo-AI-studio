@@ -2,14 +2,12 @@
 
 import { useTransition } from "react";
 import { usePlaygroundStore } from "@/lib/store/playground-store";
-import { useImageGeneration } from "./useImageGeneration";
-import { useImageEditing } from "./useImageEditing";
-import { usePostPlayground } from "@/hooks/features/playground/use-post-playground";
-import { fetchByteArtistImage } from "@/lib/api/PlaygroundV2";
+import { useAIService } from "@/hooks/ai/useAIService";
 import { useToast } from "@/hooks/common/use-toast";
 import { GenerationConfig, GenerationResult } from "@/components/features/playground-v2/types";
 import { IMultiValueInput } from "@/lib/workflow-api-parser";
 import { UIComponent } from "@/types/features/mapping-editor";
+import { usePostPlayground } from "@/hooks/features/playground/use-post-playground";
 
 export function useGenerationService() {
     const { toast } = useToast();
@@ -21,23 +19,15 @@ export function useGenerationService() {
     const setGenerationHistory = usePlaygroundStore(s => s.setGenerationHistory);
     const setHasGenerated = usePlaygroundStore(s => s.setHasGenerated);
 
-    const { generateImage } = useImageGeneration();
-    const { editImage } = useImageEditing();
+    const { callImage, isLoading: isAIProcessing } = useAIService();
     const { doPost: runComfyWorkflow } = usePostPlayground();
 
     // Helper: URL to DataURL
     const blobToDataURL = (blob: Blob) => new Promise<string>((resolve) => {
-        const r = new FileReader();
-        r.onloadend = () => resolve(String(r.result));
-        r.readAsDataURL(blob);
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
     });
-
-    const urlToDataURL = async (url: string) => {
-        if (url.startsWith('data:')) return url;
-        const res = await fetch(url);
-        const blob = await res.blob();
-        return blobToDataURL(blob);
-    };
 
     // Helper: Save to outputs
     const saveImageToOutputs = async (dataUrl: string, metadata?: Record<string, unknown>) => {
@@ -63,8 +53,9 @@ export function useGenerationService() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(historyItem),
             });
-        } catch (error) {
-            console.error('Failed to save history:', error);
+        } catch (err) {
+            console.error('Failed to save history:', err);
+            toast({ title: "保存历史失败", description: err instanceof Error ? err.message : "未知错误", variant: "destructive" });
         }
     };
 
@@ -110,19 +101,15 @@ export function useGenerationService() {
                     return;
                 }
 
-                if (selectedModel === "Nano banana") {
-                    await handleNanoBanana(taskId, finalConfig);
-                } else if (selectedModel === "Seed 4.0") {
-                    await handleSeed4(taskId, finalConfig);
-                } else if (selectedModel === "Workflow") {
+                if (selectedModel === "Workflow") {
                     await handleWorkflow(taskId, finalConfig);
                 } else {
-                    await handleByteArtist(taskId, finalConfig);
+                    await handleUnifiedImageGen(taskId, finalConfig);
                 }
-            } catch (error) {
-                console.error("Generation failed:", error);
+            } catch (err) {
+                console.error("Generation failed:", err);
                 setGenerationHistory(prev => prev.filter(item => item.id !== taskId));
-                toast({ title: "生成失败", description: error instanceof Error ? error.message : "未知错误", variant: "destructive" });
+                toast({ title: "生成失败", description: err instanceof Error ? err.message : "未知错误", variant: "destructive" });
             }
         });
     };
@@ -132,57 +119,32 @@ export function useGenerationService() {
         saveHistoryToBackend(result);
     };
 
-    const handleNanoBanana = async (taskId: string, currentConfig: GenerationConfig) => {
+    const handleUnifiedImageGen = async (taskId: string, currentConfig: GenerationConfig) => {
         const currentUploadedImages = usePlaygroundStore.getState().uploadedImages;
-        let genResult;
-        if (currentUploadedImages.length > 0) {
-            genResult = await editImage({
-                instruction: currentConfig.prompt,
-                originalImage: currentUploadedImages[0].base64,
-                referenceImages: currentUploadedImages.slice(1).map(img => img.base64),
-                aspectRatio: "16:9",
-                imageSize: currentConfig.image_size || '1K'
-            });
+
+        let modelId = "lemo_2dillustator"; // Default
+        if (selectedModel === "Nano banana") modelId = "gemini-1.5-flash";
+        if (selectedModel === "Seed 4.0") modelId = "seed4_lemo1230";
+
+        const res = await callImage({
+            model: modelId,
+            prompt: currentConfig.prompt,
+            width: Number(currentConfig.img_width),
+            height: Number(currentConfig.image_height),
+            batchSize: currentConfig.gen_num || 1,
+            image: currentUploadedImages.length > 0 ? currentUploadedImages[0].base64 : undefined,
+            options: {
+                seed: Math.floor(Math.random() * 2147483647)
+            }
+        });
+
+        if (res?.images && res.images.length > 0) {
+            const dataUrl = res.images[0];
+            const savedPath = await saveImageToOutputs(dataUrl, { ...currentConfig, base_model: selectedModel });
+            updateHistoryAndSave(taskId, { id: taskId, imageUrl: dataUrl, savedPath, prompt: currentConfig.prompt, config: { ...currentConfig }, timestamp: new Date().toISOString() });
         } else {
-            genResult = await generateImage({
-                prompt: currentConfig.prompt,
-                aspectRatio: "16:9",
-                imageSize: currentConfig.image_size || '1K'
-            });
+            throw new Error(`${selectedModel} returned empty result`);
         }
-
-        if (genResult) {
-            const dataUrl = await urlToDataURL(genResult.imageUrl);
-            const savedPath = await saveImageToOutputs(dataUrl, { ...currentConfig, base_model: "Nano banana" });
-            updateHistoryAndSave(taskId, { id: taskId, imageUrl: dataUrl, savedPath, prompt: currentConfig.prompt, config: { ...currentConfig }, timestamp: genResult.timestamp });
-        } else {
-            throw new Error("Nano banana returned empty result");
-        }
-    };
-
-    const handleSeed4 = async (taskId: string, currentConfig: GenerationConfig) => {
-        const payload = {
-            conf: {
-                prompt: currentConfig.prompt,
-                width: Number(currentConfig.img_width),
-                height: Number(currentConfig.image_height),
-                batch_size: currentConfig.gen_num || 1,
-                seed: Math.floor(Math.random() * 2147483647),
-                is_random_seed: true
-            },
-            algorithms: "seed4_lemo1230",
-            img_return_format: "png"
-        };
-        const res = await fetch('/api/seed4', { method: 'POST', body: JSON.stringify(payload) });
-        const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.message || "Seed 4 generation failed");
-
-        const imageUrl = data.data?.afr_data?.[0]?.pic;
-        if (!imageUrl) throw new Error("Seed 4 returned no image");
-
-        const dataUrl = await urlToDataURL(imageUrl);
-        const savedPath = await saveImageToOutputs(dataUrl, { ...currentConfig, base_model: "Seed 4.0" });
-        updateHistoryAndSave(taskId, { id: taskId, imageUrl: dataUrl, savedPath, prompt: currentConfig.prompt, config: { ...currentConfig }, timestamp: new Date().toISOString() });
     };
 
     const handleWorkflow = async (taskId: string, currentConfig: GenerationConfig) => {
@@ -233,28 +195,9 @@ export function useGenerationService() {
         });
     };
 
-    const handleByteArtist = async (taskId: string, currentConfig: GenerationConfig) => {
-        const response = await fetchByteArtistImage({
-            conf: {
-                width: currentConfig.img_width,
-                height: currentConfig.image_height,
-                batch_size: currentConfig.gen_num,
-                seed: Math.floor(Math.random() * 2147483647),
-                prompt: currentConfig.prompt
-            },
-            algorithms: "lemo_2dillustator",
-            img_return_format: "png"
-        });
-        const afr = (response as { data: { afr_data: { pic: string }[] } }).data?.afr_data;
-        if (!afr?.[0]?.pic) throw new Error("ByteArtist returned no image");
-
-        const dataUrl = afr[0].pic.startsWith("data:") ? afr[0].pic : `data:image/png;base64,${afr[0].pic}`;
-        const savedPath = await saveImageToOutputs(dataUrl, { ...currentConfig });
-        updateHistoryAndSave(taskId, { id: taskId, imageUrl: dataUrl, savedPath, prompt: currentConfig.prompt, config: { ...currentConfig }, timestamp: new Date().toISOString() });
-    };
 
     return {
         handleGenerate,
-        isGenerating: isPending
+        isGenerating: isPending || isAIProcessing
     };
 }

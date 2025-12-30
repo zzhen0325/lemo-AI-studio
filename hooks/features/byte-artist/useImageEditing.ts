@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { geminiService, EditRequest } from '@/lib/api/geminiService';
+import { useAIService } from '@/hooks/ai/useAIService';
 import { useToast } from '@/hooks/common/use-toast';
 
 export interface ImageEditingConfig {
@@ -16,7 +16,7 @@ export interface ImageEditingResult {
 }
 
 export function useImageEditing() {
-  const [isEditing, setIsEditing] = useState(false);
+  const { callImage, isLoading: isEditing } = useAIService();
   const [result, setResult] = useState<ImageEditingResult | null>(null);
   const { toast } = useToast();
 
@@ -39,33 +39,22 @@ export function useImageEditing() {
       return null;
     }
 
-    setIsEditing(true);
-    
     try {
-      console.log("✏️ 开始图像编辑流程");
-      console.log("📋 编辑配置:", {
-        instruction: config.instruction,
-        hasOriginalImage: !!config.originalImage,
-        referenceImagesCount: config.referenceImages?.length || 0
+      const response = await callImage({
+        model: 'gemini-3-pro-image-preview',
+        prompt: `Edit this image according to the following instruction: ${config.instruction}`,
+        images: [config.originalImage, ...(config.referenceImages || [])],
+        aspectRatio: config.aspectRatio,
       });
 
-      const request: EditRequest = {
-        instruction: config.instruction,
-        originalImage: config.originalImage,
-        referenceImages: config.referenceImages,
-        aspectRatio: config.aspectRatio,
-      };
-
-      const images = await geminiService.editImage(request);
-      
-      if (!images || images.length === 0) {
+      if (!response.images || response.images.length === 0) {
         throw new Error("未收到有效图片数据");
       }
 
       // 将base64转换为data URL
-      const imageUrl = images[0].startsWith("data:") 
-        ? images[0] 
-        : `data:image/png;base64,${images[0]}`;
+      const imageUrl = response.images[0].startsWith("data:")
+        ? response.images[0]
+        : `data:image/png;base64,${response.images[0]}`;
 
       const editingResult: ImageEditingResult = {
         imageUrl,
@@ -74,8 +63,7 @@ export function useImageEditing() {
       };
 
       setResult(editingResult);
-      
-      console.log("✅ 图像编辑成功");
+
       toast({
         title: "编辑成功",
         description: "图像已成功编辑！",
@@ -83,17 +71,7 @@ export function useImageEditing() {
 
       return editingResult;
     } catch (error) {
-      console.error("💥 图像编辑失败:", error);
-      
-      toast({
-        title: "编辑失败",
-        description: error instanceof Error ? error.message : "未知错误",
-        variant: "destructive",
-      });
-      
       return null;
-    } finally {
-      setIsEditing(false);
     }
   };
 

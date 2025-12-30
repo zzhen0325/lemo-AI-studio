@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { useToast } from '@/hooks/common/use-toast';
+import { useAIService } from '@/hooks/ai/useAIService';
 
-export type AIModel = 'gemini' | 'doubao' | 'gpt';
+export type AIModel = 'gemini' | 'doubao' | 'gpt' | 'auto';
 
 interface UsePromptOptimizationOptions {
   systemInstruction: string;
@@ -9,62 +9,55 @@ interface UsePromptOptimizationOptions {
 
 interface UsePromptOptimizationReturn {
   isOptimizing: boolean;
-  optimizePrompt: (text: string, model?: AIModel) => Promise<string | null>;
+  optimizePrompt: (text: string, model?: AIModel, image?: string) => Promise<string | null>;
 }
 
 export function usePromptOptimization(options: UsePromptOptimizationOptions): UsePromptOptimizationReturn {
-  const [isOptimizing, setIsOptimizing] = useState(false);
+  const { callText, callVision, isLoading: isOptimizing } = useAIService();
   const { toast } = useToast();
 
-  const optimizePrompt = async (text: string, model: AIModel = 'gemini'): Promise<string | null> => {
-    if (!text.trim()) {
-      toast({ title: '错误', description: '请先输入提示词内容', variant: 'destructive' });
+  const optimizePrompt = async (text: string, model: AIModel = 'auto', image?: string): Promise<string | null> => {
+    if (!text.trim() && !image) {
+      toast({ title: '错误', description: '请先输入提示词内容或上传图片', variant: 'destructive' });
       return null;
     }
 
-    setIsOptimizing(true);
     try {
-      let apiEndpoint = '/api/google-genai-text';
-      switch (model) {
-        case 'gemini': apiEndpoint = '/api/google-genai-text'; break;
-        case 'doubao': apiEndpoint = '/api/doubao-text'; break;
-        case 'gpt': apiEndpoint = '/api/gpt-text'; break;
+      // Map legacy model names to registry IDs
+      let modelId: string | undefined = undefined;
+      if (model === 'doubao') modelId = 'doubao-pro-4k';
+      if (model === 'gpt') modelId = 'deepseek-chat';
+      if (model === 'gemini') modelId = 'gemini-1.5-flash';
+
+      let resultText = "";
+
+      if (image) {
+        // Use vision service
+        const result = await callVision({
+          model: modelId || 'gemini-1.5-flash', // Default to Gemini for vision
+          image: image,
+          input: text,
+          profileId: 'optimization-with-image'
+        });
+        resultText = result.text;
+      } else {
+        // Use text service
+        const result = await callText({
+          model: modelId, // If undefined, useAIService will pick the optimized model from settings
+          input: text,
+          systemPrompt: options.systemInstruction,
+          profileId: 'optimization'
+        });
+        resultText = result.text;
       }
 
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, systemInstruction: options.systemInstruction }),
-      });
+      if (!resultText) throw new Error('未收到优化结果');
 
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const textError = await response.text();
-        console.error("Non-JSON response received:", textError);
-        throw new Error(`服务请求失败 (${response.status}): 请检查网络或联系管理员`);
-      }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || `优化失败 (${response.status})`);
-      }
-
-      if (data.error) throw new Error(data.error);
-      if (!data.optimizedText) throw new Error('未收到优化结果');
-
-      toast({ title: '优化完成', description: '提示词已成功优化' });
-      return data.optimizedText as string;
+      return resultText;
     } catch (error) {
       console.error("Prompt Optimization Error:", error);
-      toast({
-        title: '优化失败',
-        description: error instanceof Error ? error.message : 'AI优化服务暂时不可用，请稍后重试',
-        variant: 'destructive'
-      });
+      // useAIService already shows a toast, so we just return null here
       return null;
-    } finally {
-      setIsOptimizing(false);
     }
   };
 
