@@ -9,12 +9,13 @@ import {
     Key,
     Globe,
     Languages,
-    Sparkles
+    Sparkles,
+    Cpu
 } from "lucide-react";
 import { REGISTRY } from "@/lib/ai/registry";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -71,226 +72,251 @@ export function SettingsView() {
                 optimizeModel
             };
             localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
-            toast({ title: "设置已保存", description: "已保存所有 API 配置与偏好" });
+            toast({ title: "Configuration Saved", description: "All preferences have been updated successfully." });
         } catch (e) {
-            toast({ title: "保存失败", description: e instanceof Error ? e.message : "未知错误", variant: "destructive" });
+            toast({ title: "Save Failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
         }
     };
 
     const sidebarItems = [
-        { id: SettingsTab.General, label: "General", icon: SettingsIcon },
-        { id: SettingsTab.MappingEditor, label: "Mapping Editor", icon: SquareTerminal },
+        { id: SettingsTab.General, label: "General", description: "Service credentials & preferences", icon: SettingsIcon },
+        { id: SettingsTab.MappingEditor, label: "Mapping Editor", description: "Node mapping configuration", icon: SquareTerminal },
     ];
 
     return (
-        <div className="flex h-full w-full overflow-hidden bg-transparent">
-            {/* Inner Sidebar */}
-            <aside className="w-64 border-r border-white/10 flex flex-col p-4 gap-2 bg-black/20 backdrop-blur-sm">
-                <div className="px-3 py-2 text-xs font-semibold text-white/30 uppercase tracking-widest mb-2">
-                    Configuration
+        <div className="flex h-full w-full overflow-hidden bg-[#09090b] text-zinc-100">
+            {/* Sidebar */}
+            <aside className="w-72 border-r border-white/5 flex flex-col bg-black/40">
+                <div className="p-6 pb-4">
+                    <h2 className="text-sm font-bold text-white/90 uppercase tracking-widest flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                        Settings
+                    </h2>
                 </div>
-                {sidebarItems.map((item) => {
-                    const isActive = currentTab === item.id;
-                    return (
-                        <button
-                            key={item.id}
-                            onClick={() => setCurrentTab(item.id)}
-                            className={cn(
-                                "flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200 group text-sm",
-                                isActive
-                                    ? "bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)]"
-                                    : "text-white/50 hover:bg-white/5 hover:text-white/80"
-                            )}
-                        >
-                            <div className="flex items-center gap-3">
-                                <item.icon className={cn("size-4 transition-colors", isActive ? "text-white" : "text-white/30 group-hover:text-white/60")} />
-                                <span>{item.label}</span>
-                            </div>
-                            {isActive && <ChevronRight className="size-3 text-white/30" />}
-                        </button>
-                    );
-                })}
+                <div className="px-3 flex-1 overflow-y-auto space-y-1">
+                    {sidebarItems.map((item) => {
+                        const isActive = currentTab === item.id;
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => setCurrentTab(item.id)}
+                                className={cn(
+                                    "flex items-center w-full px-3 py-3 rounded-lg transition-all duration-200 group text-left",
+                                    isActive
+                                        ? "bg-zinc-800/50 text-white"
+                                        : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                                )}
+                            >
+                                <div className={cn(
+                                    "p-2 rounded-md mr-3 transition-colors",
+                                    isActive ? "bg-white/10 text-white" : "bg-white/5 text-zinc-500 group-hover:text-zinc-300"
+                                )}>
+                                    <item.icon className="size-4" />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-sm font-medium">{item.label}</div>
+                                    <div className="text-[10px] text-white/30 truncate">{item.description}</div>
+                                </div>
+                                {isActive && <ChevronRight className="size-3 text-white/30 ml-2" />}
+                            </button>
+                        );
+                    })}
+                </div>
             </aside>
 
             {/* Content Area */}
-            <main className="flex-1 overflow-y-auto custom-scrollbar p-8">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={currentTab}
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
-                        transition={{ duration: 0.2 }}
-                        className="h-full"
-                    >
-                        {currentTab === SettingsTab.General && (
-                            <div className="max-w-3xl space-y-8">
-                                <div>
-                                    <h2 className="text-3xl font-medium text-white mb-2" style={{ fontFamily: 'InstrumentSerif-Regular, sans-serif' }}>General Settings</h2>
-                                    <p className="text-white/40 text-sm">Configure your global service connections and storage preferences.</p>
+            <main className="flex-1 h-full overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={currentTab}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="h-full p-8 md:p-12 max-w-5xl mx-auto"
+                        >
+                            {currentTab === SettingsTab.General && (
+                                <div className="space-y-10 pb-20">
+                                    <div className="space-y-2">
+                                        <h1 className="text-3xl font-bold tracking-tight text-white">General Settings</h1>
+                                        <p className="text-zinc-400 text-sm max-w-2xl">
+                                            Manage your API credentials and configure global service providers for AI features.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid gap-8">
+                                        {/* API Credentials Section */}
+                                        <section className="space-y-4">
+                                            <div className="flex items-center gap-2 text-white/80 font-medium pb-2 border-b border-white/5">
+                                                <Key className="size-4 text-emerald-500" />
+                                                <h3>API Credentials</h3>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <Card className="bg-zinc-900/30 border-white/5 hover:bg-zinc-900/50 transition-colors">
+                                                    <CardHeader className="pb-3">
+                                                        <CardTitle className="text-sm font-medium text-white">Google Gemini</CardTitle>
+                                                        <CardDescription className="text-xs text-zinc-500">Required for advanced vision capabilities</CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <Input
+                                                            type="password"
+                                                            placeholder="AIzaSy..."
+                                                            value={apiKey}
+                                                            onChange={(e) => setApiKey(e.target.value)}
+                                                            className="bg-black/40 border-white/5 text-white/90 placeholder:text-zinc-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                                                        />
+                                                    </CardContent>
+                                                </Card>
+
+                                                <Card className="bg-zinc-900/30 border-white/5 hover:bg-zinc-900/50 transition-colors">
+                                                    <CardHeader className="pb-3">
+                                                        <CardTitle className="text-sm font-medium text-white">DeepSeek</CardTitle>
+                                                        <CardDescription className="text-xs text-zinc-500">Required for reasoning tasks</CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <Input
+                                                            type="password"
+                                                            placeholder="sk-..."
+                                                            value={deepseekApiKey}
+                                                            onChange={(e) => setDeepseekApiKey(e.target.value)}
+                                                            className="bg-black/40 border-white/5 text-white/90 placeholder:text-zinc-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                                                        />
+                                                    </CardContent>
+                                                </Card>
+
+                                                <Card className="bg-zinc-900/30 border-white/5 hover:bg-zinc-900/50 transition-colors md:col-span-2">
+                                                    <CardHeader className="pb-3">
+                                                        <CardTitle className="text-sm font-medium text-white">Doubao / Volcengine</CardTitle>
+                                                        <CardDescription className="text-xs text-zinc-500">Configure Volcengine credentials for translation and specialized models</CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs text-zinc-400">API Key</Label>
+                                                            <Input
+                                                                type="password"
+                                                                placeholder="Volcengine API Key"
+                                                                value={doubaoApiKey}
+                                                                onChange={(e) => setDoubaoApiKey(e.target.value)}
+                                                                className="bg-black/40 border-white/5 text-white/90 placeholder:text-zinc-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs text-zinc-400">Model Endpoint ID</Label>
+                                                            <Input
+                                                                type="text"
+                                                                placeholder="ep-2024..."
+                                                                value={doubaoModel}
+                                                                onChange={(e) => setDoubaoModel(e.target.value)}
+                                                                className="bg-black/40 border-white/5 text-white/90 placeholder:text-zinc-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                                                            />
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        </section>
+
+                                        {/* Services Section */}
+                                        <section className="space-y-4">
+                                            <div className="flex items-center gap-2 text-white/80 font-medium pb-2 border-b border-white/5">
+                                                <Cpu className="size-4 text-blue-500" />
+                                                <h3>Service Providers</h3>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <Card className="bg-zinc-900/30 border-white/5">
+                                                    <CardContent className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                        <div className="space-y-3">
+                                                            <Label className="text-xs text-zinc-400 font-medium flex items-center gap-2">
+                                                                <SettingsIcon className="size-3" /> Description Provider
+                                                            </Label>
+                                                            <Select value={describeModel} onValueChange={setDescribeModel}>
+                                                                <SelectTrigger className="bg-black/40 border-white/5 text-white/90 h-10 w-full hover:bg-black/60 focus:ring-emerald-500/20">
+                                                                    <SelectValue placeholder="Select Model" />
+                                                                </SelectTrigger>
+                                                                <SelectContent className="bg-zinc-950 border-white/10 text-zinc-200">
+                                                                    {REGISTRY.filter(m => m.task.includes('vision')).map(model => (
+                                                                        <SelectItem key={model.id} value={model.id}>{model.id}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+
+                                                        <div className="space-y-3">
+                                                            <Label className="text-xs text-zinc-400 font-medium flex items-center gap-2">
+                                                                <Languages className="size-3" /> Translation Provider
+                                                            </Label>
+                                                            <Select value={translateModel} onValueChange={setTranslateModel}>
+                                                                <SelectTrigger className="bg-black/40 border-white/5 text-white/90 h-10 w-full hover:bg-black/60 focus:ring-emerald-500/20">
+                                                                    <SelectValue placeholder="Select Model" />
+                                                                </SelectTrigger>
+                                                                <SelectContent className="bg-zinc-950 border-white/10 text-zinc-200">
+                                                                    {REGISTRY.filter(m => m.task.includes('text')).map(model => (
+                                                                        <SelectItem key={model.id} value={model.id}>{model.id}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+
+                                                        <div className="space-y-3">
+                                                            <Label className="text-xs text-zinc-400 font-medium flex items-center gap-2">
+                                                                <Sparkles className="size-3" /> Optimization Provider
+                                                            </Label>
+                                                            <Select value={optimizeModel} onValueChange={setOptimizeModel}>
+                                                                <SelectTrigger className="bg-black/40 border-white/5 text-white/90 h-10 w-full hover:bg-black/60 focus:ring-emerald-500/20">
+                                                                    <SelectValue placeholder="Select Model" />
+                                                                </SelectTrigger>
+                                                                <SelectContent className="bg-zinc-950 border-white/10 text-zinc-200">
+                                                                    {REGISTRY.filter(m => m.task.includes('text')).map(model => (
+                                                                        <SelectItem key={model.id} value={model.id}>{model.id}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </CardContent>
+                                                    <CardContent className="p-6 pt-0 border-t border-white/5 mt-4">
+                                                        <div className="mt-4 space-y-3">
+                                                            <Label htmlFor="comfyUrl" className="text-xs text-zinc-400 font-medium flex items-center gap-2">
+                                                                <Globe className="size-3" /> ComfyUI Server Address
+                                                            </Label>
+                                                            <Input
+                                                                id="comfyUrl"
+                                                                type="text"
+                                                                placeholder="e.g. http://127.0.0.1:8188/"
+                                                                value={comfyUrl}
+                                                                onChange={(e) => setComfyUrl(e.target.value)}
+                                                                className="bg-black/40 border-white/5 text-white/90 placeholder:text-zinc-600 font-mono text-sm focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                                                            />
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        </section>
+                                    </div>
+
+                                    {/* Footer Action */}
+                                    <div className="sticky bottom-6 flex justify-end">
+                                        <Button
+                                            onClick={handleSaveSettings}
+                                            className="rounded-full px-8 h-12 bg-white text-black hover:bg-white/90 font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                                        >
+                                            Save Changes
+                                        </Button>
+                                    </div>
                                 </div>
+                            )}
 
-                                <Card className="bg-white/5 border-white/10 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl">
-                                    <CardHeader className="border-b border-white/5">
-                                        <CardTitle className="text-lg font-medium text-white/90 flex items-center gap-2">
-                                            <Key className="size-4 text-blue-400" />
-                                            API Credentials
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-6 space-y-6">
-                                        <div className="space-y-3">
-                                            <Label htmlFor="apiKey" className="text-white/60 text-xs font-semibold uppercase tracking-wider">Google API Key</Label>
-                                            <Input
-                                                id="apiKey"
-                                                type="password"
-                                                placeholder="AIzaSy..."
-                                                value={apiKey}
-                                                onChange={(e) => setApiKey(e.target.value)}
-                                                className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
-                                            />
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <Label htmlFor="deepseekApiKey" className="text-white/60 text-xs font-semibold uppercase tracking-wider">DeepSeek API Key</Label>
-                                            <Input
-                                                id="deepseekApiKey"
-                                                type="password"
-                                                placeholder="sk-..."
-                                                value={deepseekApiKey}
-                                                onChange={(e) => setDeepseekApiKey(e.target.value)}
-                                                className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
-                                            />
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-3">
-                                                <Label htmlFor="doubaoApiKey" className="text-white/60 text-xs font-semibold uppercase tracking-wider">Doubao API Key</Label>
-                                                <Input
-                                                    id="doubaoApiKey"
-                                                    type="password"
-                                                    placeholder="Volcengine API Key"
-                                                    value={doubaoApiKey}
-                                                    onChange={(e) => setDoubaoApiKey(e.target.value)}
-                                                    className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
-                                                />
-                                            </div>
-                                            <div className="space-y-3">
-                                                <Label htmlFor="doubaoModel" className="text-white/60 text-xs font-semibold uppercase tracking-wider">Doubao Model/Endpoint ID</Label>
-                                                <Input
-                                                    id="doubaoModel"
-                                                    type="text"
-                                                    placeholder="ep-2024..."
-                                                    value={doubaoModel}
-                                                    onChange={(e) => setDoubaoModel(e.target.value)}
-                                                    className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
-                                                />
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="bg-white/5 border-white/10 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl">
-                                    <CardHeader className="border-b border-white/5">
-                                        <CardTitle className="text-lg font-medium text-white/90 flex items-center gap-2">
-                                            <SettingsIcon className="size-4 text-green-400" />
-                                            Service Preferences
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-6 space-y-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-3">
-                                                <Label className="text-white/60 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
-                                                    <SettingsIcon className="size-3" />
-                                                    Image Description Provider
-                                                </Label>
-                                                <Select value={describeModel} onValueChange={setDescribeModel}>
-                                                    <SelectTrigger className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12">
-                                                        <SelectValue placeholder="Select Model" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-zinc-900 border-white/10 text-white">
-                                                        {REGISTRY.filter(m => m.task.includes('vision')).map(model => (
-                                                            <SelectItem key={model.id} value={model.id}>
-                                                                {model.id}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div className="space-y-3">
-                                                <Label className="text-white/60 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
-                                                    <Languages className="size-3" />
-                                                    Translation Provider
-                                                </Label>
-                                                <Select value={translateModel} onValueChange={setTranslateModel}>
-                                                    <SelectTrigger className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12">
-                                                        <SelectValue placeholder="Select Model" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-zinc-900 border-white/10 text-white">
-                                                        {REGISTRY.filter(m => m.task.includes('text')).map(model => (
-                                                            <SelectItem key={model.id} value={model.id}>
-                                                                {model.id}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div className="space-y-3">
-                                                <Label className="text-white/60 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
-                                                    <Sparkles className="size-3" />
-                                                    Prompt Optimization Provider
-                                                </Label>
-                                                <Select value={optimizeModel} onValueChange={setOptimizeModel}>
-                                                    <SelectTrigger className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12">
-                                                        <SelectValue placeholder="Select Model" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-zinc-900 border-white/10 text-white">
-                                                        {REGISTRY.filter(m => m.task.includes('text')).map(model => (
-                                                            <SelectItem key={model.id} value={model.id}>
-                                                                {model.id}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div className="space-y-3">
-                                                <Label htmlFor="comfyUrl" className="text-white/60 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
-                                                    <Globe className="size-3" />
-                                                    ComfyUI Server Address
-                                                </Label>
-                                                <Input
-                                                    id="comfyUrl"
-                                                    type="text"
-                                                    placeholder="e.g. http://127.0.0.1:8188/"
-                                                    value={comfyUrl}
-                                                    onChange={(e) => setComfyUrl(e.target.value)}
-                                                    className="bg-white/[0.03] border-white/10 text-white rounded-xl h-12 focus:border-white/20 transition-all"
-                                                />
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <div className="flex justify-start">
-                                    <Button
-                                        onClick={handleSaveSettings}
-                                        className="rounded-xl px-8 h-12 bg-white text-black hover:bg-white/90 font-medium transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-                                    >
-                                        Save Changes
-                                    </Button>
+                            {currentTab === SettingsTab.MappingEditor && (
+                                <div className="h-full w-full -m-8 md:-m-12">
+                                    <div className="h-full w-[calc(100%+4rem)] md:w-[calc(100%+6rem)] overflow-hidden">
+                                        <MappingEditorPage />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-
-                        {currentTab === SettingsTab.MappingEditor && (
-                            <div className="h-full -mx-8 -my-8 overflow-hidden">
-                                <MappingEditorPage />
-                            </div>
-                        )}
-                    </motion.div>
-                </AnimatePresence>
+                            )}
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
             </main>
         </div>
     );

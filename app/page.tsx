@@ -13,6 +13,7 @@ import { NewSidebar } from "@/components/layout/NewSidebar";
 import { usePlaygroundStore } from "@/lib/store/playground-store";
 
 import { SettingsView } from "@/components/features/settings/SettingsView";
+import ToolsView from "@/components/features/tools/ToolsView";
 
 export default function Page() {
   const [currentTab, setCurrentTab] = useState<TabValue>(TabValue.Playground);
@@ -39,10 +40,10 @@ export default function Page() {
 
   const handleTabChange = (tab: TabValue) => {
     if (tab === TabValue.History) {
-      setCurrentTab(TabValue.Playground);
+      setCurrentTab(TabValue.History);
       setHasGenerated(true);
       if (typeof window !== 'undefined') {
-        window.location.hash = TabValue.Playground;
+        window.location.hash = TabValue.History;
       }
       return;
     }
@@ -144,7 +145,7 @@ export default function Page() {
                 <div className="flex flex-col flex-1 h-full overflow-hidden transition-all duration-500">
 
                   {/* Playground Tab */}
-                  {(currentTab === TabValue.Playground || currentTab === TabValue.ByteArtist) && (
+                  {(currentTab === TabValue.Playground || currentTab === TabValue.ByteArtist || currentTab === TabValue.History) && (
                     <div className="flex flex-col flex-1 h-full overflow-hidden">
                       <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Playground...</div>}>
                         <PlaygroundV2Page
@@ -173,6 +174,13 @@ export default function Page() {
                   {currentTab === TabValue.DatasetManager && (
                     <div className="flex flex-col flex-1 h-full w-full overflow-hidden animate-in fade-in duration-500">
                       <DatasetManagerView />
+                    </div>
+                  )}
+
+                  {/* Tools Tab */}
+                  {currentTab === TabValue.Tools && (
+                    <div className="flex flex-col flex-1 h-full overflow-hidden animate-in fade-in duration-500">
+                      <ToolsView />
                     </div>
                   )}
                 </div>

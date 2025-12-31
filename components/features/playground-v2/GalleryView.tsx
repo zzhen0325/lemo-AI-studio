@@ -36,18 +36,28 @@ interface HistoryItem {
     sourceImage?: string;
 }
 
+export type GalleryTab = 'gallery' | 'styles' | 'prompts';
+
 interface GalleryViewProps {
     variant?: 'full' | 'sidebar';
+    activeTab?: GalleryTab;
 }
 
-export default function GalleryView({ variant = 'full' }: GalleryViewProps) {
+export default function GalleryView({ variant = 'full', activeTab }: GalleryViewProps) {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [editingImageUrl, setEditingImageUrl] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeView, setActiveView] = useState<'gallery' | 'styles' | 'prompts'>('gallery');
+
+    // Internal state for standalone usage
+    const [internalActiveView, setInternalActiveView] = useState<GalleryTab>('gallery');
+
+    // Use prop if provided, else internal state
+    const activeView = activeTab || internalActiveView;
+    const setActiveView = (view: GalleryTab) => setInternalActiveView(view);
+
     const setUploadedImages = usePlaygroundStore(s => s.setUploadedImages);
     const generationHistory = usePlaygroundStore(s => s.generationHistory);
     const { toast } = useToast();
