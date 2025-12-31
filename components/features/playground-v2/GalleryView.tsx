@@ -448,10 +448,11 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         alt="Generated masterwork"
                         width={item.metadata?.img_width || 1024}
                         height={item.metadata?.img_height || 1024}
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 25vw, 15vw"
+                        sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, (max-width: 1536px) 20vw, 15vw"
                         quality={75}
                         className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
                     />
+
                 )}
                 {/* 
                 <ProgressiveBlur

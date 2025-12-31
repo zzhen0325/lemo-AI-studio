@@ -146,9 +146,11 @@ export default function HistoryList({
                           src={group.sourceImage}
                           alt="Source for describe"
                           fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
                           className="object-cover"
                           quality={75}
                         />
+
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-white/20">
                           <ImageIcon className="w-8 h-8" />
@@ -234,7 +236,7 @@ function HistoryCard({
             alt="Generated image"
             width={result.config?.img_width || 1024}
             height={result.config?.image_height || 1024}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
             quality={95}
             className="h-full w-auto object-contain cursor-pointer scale-100 group-hover:scale-105 transition-transform duration-500"
             onClick={(e) => {

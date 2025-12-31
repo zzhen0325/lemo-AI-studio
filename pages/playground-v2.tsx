@@ -37,7 +37,7 @@ import { StylesMarquee } from "@/components/features/playground-v2/StylesMarquee
 import type { GenerationConfig, GenerationResult } from "@/components/features/playground-v2/types";
 
 import gsap from "gsap";
-import { Flip } from "gsap/Flip";
+import { Flip } from "gsap/all";
 import { useGSAP } from "@gsap/react";
 
 gsap.registerPlugin(Flip, useGSAP);

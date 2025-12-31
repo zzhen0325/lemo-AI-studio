@@ -1,19 +1,41 @@
 "use client"
 import { TabValue, TabContext, } from "@/components/layout/sidebar";
 import { Suspense, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 
 import GradualBlur from "@/components/common/graphics/GradualBlur";
-import { PlaygroundV2Page } from "@/pages/playground-v2";
+
+// 动态导入核心视图
+const PlaygroundV2Page = dynamic(() => import("@/pages/playground-v2").then(m => m.PlaygroundV2Page), {
+  loading: () => <div className="flex items-center justify-center h-full text-white">Loading Playground...</div>,
+  ssr: false
+});
+
+const GalleryView = dynamic(() => import("@/components/features/playground-v2/GalleryView"), {
+  loading: () => <div className="flex items-center justify-center h-full text-white">Loading Gallery...</div>,
+  ssr: false
+});
+
+const DatasetManagerView = dynamic(() => import("@/components/features/dataset/DatasetManagerView"), {
+  loading: () => <div className="flex items-center justify-center h-full text-white">Loading Dataset Manager...</div>,
+  ssr: false
+});
+
+const SettingsView = dynamic(() => import("@/components/features/settings/SettingsView").then(m => m.SettingsView), {
+  loading: () => <div className="flex items-center justify-center h-full text-white">Loading Settings...</div>,
+  ssr: false
+});
+
+const ToolsView = dynamic(() => import("@/components/features/tools/ToolsView"), {
+  loading: () => <div className="flex items-center justify-center h-full text-white">Loading Tools...</div>,
+  ssr: false
+});
+
 
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
-import GalleryView from "@/components/features/playground-v2/GalleryView";
-
-import DatasetManagerView from "@/components/features/dataset/DatasetManagerView";
 import { NewSidebar } from "@/components/layout/NewSidebar";
 import { usePlaygroundStore } from "@/lib/store/playground-store";
 
-import { SettingsView } from "@/components/features/settings/SettingsView";
-import ToolsView from "@/components/features/tools/ToolsView";
 
 export default function Page() {
   const [currentTab, setCurrentTab] = useState<TabValue>(TabValue.Playground);
@@ -158,33 +180,47 @@ export default function Page() {
                     </div>
                   )}
 
+
+
                   {/* Gallery Tab */}
                   {currentTab === TabValue.Gallery && (
                     <div className="flex flex-col flex-1 h-full overflow-hidden animate-in fade-in duration-500">
-                      <GalleryView variant="full" />
+                      <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Gallery...</div>}>
+                        <GalleryView variant="full" />
+                      </Suspense>
                     </div>
                   )}
+
 
                   {/* Settings Tab */}
                   {currentTab === TabValue.Settings && (
                     <div className="flex flex-col flex-1 h-full overflow-hidden animate-in fade-in duration-500">
-                      <SettingsView />
+                      <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Settings...</div>}>
+                        <SettingsView />
+                      </Suspense>
                     </div>
                   )}
+
 
                   {/* Dataset Manager Tab */}
                   {currentTab === TabValue.DatasetManager && (
                     <div className="flex flex-col flex-1 h-full w-full overflow-hidden animate-in fade-in duration-500">
-                      <DatasetManagerView />
+                      <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Dataset...</div>}>
+                        <DatasetManagerView />
+                      </Suspense>
                     </div>
                   )}
+
 
                   {/* Tools Tab */}
                   {currentTab === TabValue.Tools && (
                     <div className="flex flex-col flex-1 h-full overflow-hidden animate-in fade-in duration-500">
-                      <ToolsView />
+                      <Suspense fallback={<div className="flex items-center justify-center h-full text-white">Loading Tools...</div>}>
+                        <ToolsView />
+                      </Suspense>
                     </div>
                   )}
+
                 </div>
               </div>
             </div>

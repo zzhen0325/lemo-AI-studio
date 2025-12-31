@@ -111,7 +111,9 @@ async function scanOutputsDir() {
     }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+    const ifNoneMatch = request.headers.get('if-none-match');
+
     try {
         await ensureOutputsDir();
 
@@ -127,12 +129,31 @@ export async function GET() {
             }
         }
 
+        // Create ETag based on file stats if HISTORY_FILE exists
+        let etag = '';
+        try {
+            const stats = await fs.stat(HISTORY_FILE);
+            etag = `W/"${stats.size}-${stats.mtime.getTime()}"`;
+        } catch {
+            // If file doesn't exist, we'll generate one later or just skip
+        }
+
+        if (etag && ifNoneMatch === etag) {
+            return new Response(null, { status: 304 });
+        }
+
         // Sort by timestamp descending
         const sortedHistory = Array.isArray(history) ? (history as HistoryItem[]).sort((a: HistoryItem, b: HistoryItem) =>
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         ) : [];
 
-        return NextResponse.json({ history: sortedHistory });
+        return NextResponse.json(
+            { history: sortedHistory },
+            {
+                headers: etag ? { 'ETag': etag } : {}
+            }
+        );
+
     } catch (error) {
         console.error('Failed to load history:', error);
         return NextResponse.json({ error: 'Failed to load history' }, { status: 500 });
