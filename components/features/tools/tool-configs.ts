@@ -1,4 +1,5 @@
 import EtherealToolAdapter from './adapters/EtherealToolAdapter';
+import SpiralToolAdapter from './adapters/SpiralToolAdapter';
 
 export interface ToolComponentProps {
   onChange?: (id: string, value: number | string | boolean) => void;
@@ -149,6 +150,29 @@ void main() {
       { id: 'scaleX', name: 'Stretch X', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 1.0, category: 'Geometry' },
       { id: 'scaleY', name: 'Stretch Y', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 1.0, category: 'Geometry' },
       { id: 'enableOrbit', name: 'Enable Orbit', type: 'boolean', defaultValue: false, category: 'Simulation' },
+    ]
+  },
+  {
+    id: 'phyllotaxis-spiral',
+    name: 'Phyllotaxis Spiral',
+    description: 'A mathematical spiral pattern based on the golden angle, featuring animated dots.',
+    type: 'component',
+    component: SpiralToolAdapter,
+    parameters: [
+      { id: 'totalDots', name: 'Total Dots', type: 'number', min: 100, max: 2000, step: 10, defaultValue: 900, category: 'Geometry' },
+      { id: 'dotRadius', name: 'Dot Radius', type: 'number', min: 0.5, max: 10, step: 0.1, defaultValue: 2, category: 'Geometry' },
+      { id: 'margin', name: 'Margin', type: 'number', min: 0, max: 100, step: 1, defaultValue: 2, category: 'Geometry' },
+      { id: 'duration', name: 'Animation Duration', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1, category: 'Simulation' },
+      { id: 'minOpacity', name: 'Min Opacity', type: 'number', min: 0, max: 1, step: 0.05, defaultValue: 0.3, category: 'Appearance' },
+      { id: 'maxOpacity', name: 'Max Opacity', type: 'number', min: 0, max: 1, step: 0.05, defaultValue: 1, category: 'Appearance' },
+      { id: 'minScale', name: 'Min Scale', type: 'number', min: 0.1, max: 2, step: 0.1, defaultValue: 0.5, category: 'Appearance' },
+      { id: 'maxScale', name: 'Max Scale', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.5, category: 'Appearance' },
+      { id: 'useMultipleColors', name: 'Multi-Color Mode', type: 'boolean', defaultValue: false, category: 'Palette' },
+      { id: 'dotColor', name: 'Base Dot Color', type: 'color', defaultValue: '#FFFFFF', category: 'Palette' },
+      { id: 'backgroundColor', name: 'Background Color', type: 'color', defaultValue: '#000000', category: 'Palette' },
+      { id: 'color1', name: 'Phase 1 Color', type: 'color', defaultValue: '#FF0000', category: 'Palette' },
+      { id: 'color2', name: 'Phase 2 Color', type: 'color', defaultValue: '#00FF00', category: 'Palette' },
+      { id: 'color3', name: 'Phase 3 Color', type: 'color', defaultValue: '#0000FF', category: 'Palette' },
     ]
   }
 ];

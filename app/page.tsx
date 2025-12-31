@@ -99,25 +99,27 @@ export default function Page() {
             {currentTab === TabValue.Playground && !hasGenerated && (
               <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden animate-in fade-in duration-300">
                 {/* <EtherealGradient
-                className="w-full h-full"
-                colors={["#adb2bd", "#908b98", "#edf4ff", "#d7c6de", "#252429"]}
-                wireframe={false}
-                density={300}
-                amplitude={0.5}
-                speed={0.11}
-                frequency={4.4}
-                scaleX={4.2}
-                scaleY={1.4}
-                camPosX={-0.3854}
-                camPosY={2.7979}
-                camPosZ={-0.8470}
-              /> */}
+                  className="w-full h-full"
+                  colors={["#adb2bd", "#908b98", "#edf4ff", "#d7c6de", "#252429"]}
+                  wireframe={false}
+                  density={300}
+                  amplitude={0.5}
+                  speed={0.11}
+                  frequency={4.4}
+                  scaleX={4.2}
+                  scaleY={1.4}
+                  camPosX={-0.3854}
+                  camPosY={2.7979}
+                  camPosZ={-0.8470}
+                /> */}
                 <video
                   src="/images/1.mp4"
                   autoPlay
                   loop
                   muted
                   playsInline
+                  poster="/images/1.webp"
+                  preload="metadata"
                   className="w-full h-full object-cover"
                 />
                 {/* <Image

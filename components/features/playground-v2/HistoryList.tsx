@@ -119,10 +119,7 @@ export default function HistoryList({
                     </div>
 
                     <div
-                      className="grid gap-4"
-                      style={{
-                        gridTemplateColumns: `repeat(auto-fill, minmax(${variant === 'default' ? '280px' : '200px'}, 1fr))`
-                      }}
+                      className="flex w-full gap-4 overflow-x-auto pb-4 custom-scrollbar flex-nowrap"
                     >
                       {group.items.map((result) => (
                         <HistoryCard
@@ -216,15 +213,16 @@ function HistoryCard({
 
   return (
     <div
-      className="group relative aspect-[3/4] w-full  overflow-hidden bg-black/15  rounded-lg border border-white/10 transition-all duration-300 hover:border-white/30"
+      className="group relative h-64 shrink-0 overflow-hidden bg-black/15 rounded-lg border border-white/10 transition-all duration-300 hover:border-white/30 w-auto"
       onMouseEnter={() => setIsHover(true)}
       onMouseLeave={() => setIsHover(false)}
     >
+
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="absolute inset-0 z-0"
+        className="relative z-0 h-full w-auto flex items-center"
       >
         {result.isLoading ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-black/20">
@@ -234,10 +232,11 @@ function HistoryCard({
           <Image
             src={mainImage}
             alt="Generated image"
-            fill
+            width={result.config?.img_width || 1024}
+            height={result.config?.image_height || 1024}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
-            quality={75}
-            className="object-cover cursor-pointer scale-100 group-hover:scale-105 transition-transform duration-500"
+            quality={95}
+            className="h-full w-auto object-contain cursor-pointer scale-100 group-hover:scale-105 transition-transform duration-500"
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               onImageClick(result, rect);

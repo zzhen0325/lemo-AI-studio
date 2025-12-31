@@ -107,19 +107,24 @@ const MeshGradientMaterial = shaderMaterial(
       float displacement = snoise(vec3(noiseCoord.x + uTime * 0.02, noiseCoord.y, uTime * uSpeed));
       pos.z += displacement * uAmount;
 
-      // 颜色混合逻辑 - 基于多层噪声的色彩层叠
+      // 颜色混合逻辑 - 基于多层噪声的色彩层叠（优化版）
       vColor = uColor[4]; // 底色
       for(int i = 0; i < 4; i++){
           float noiseFlow = 0.0002 + float(i) * 0.045;
           float noiseSpeed = 0.0001 + float(i) * 0.035;
           float noiseSeed = float(i) * 15.34;
           
-          vec2 noiseFreq = vec2(0.4, 0.8);
-          float noiseFloor = 0.08;
-          float noiseCeiling = 0.62 + float(i) * 0.07;
+          // 提高噪声频率以获得更细腻的渐变
+          vec2 noiseFreq = vec2(0.6, 1.2);
+          // 调整 smoothstep 范围以获得更柔和的过渡
+          float noiseFloor = 0.05;
+          float noiseCeiling = 0.75 + float(i) * 0.06;
 
-          float n = smoothstep(noiseFloor, noiseCeiling, snoise(vec3(noiseCoord * noiseFreq + vec2(uTime * noiseFlow), uTime * noiseSpeed + noiseSeed)));
-          vColor = mix(vColor, uColor[i], n);
+          float noiseValue = snoise(vec3(noiseCoord * noiseFreq + vec2(uTime * noiseFlow), uTime * noiseSpeed + noiseSeed));
+          // 使用双重 smoothstep 获得更平滑的过渡
+          float n = smoothstep(noiseFloor, noiseCeiling, noiseValue);
+          n = smoothstep(0.0, 1.0, n);
+          vColor = mix(vColor, uColor[i], n * 0.95);
       }
 
       gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
@@ -166,7 +171,7 @@ interface EtherealGradientProps {
 const WaveMesh: React.FC<EtherealGradientProps> = ({
   colors: inputColors,
   wireframe = false,
-  density = 64,
+  density = 128,
   amplitude = 0.2,
   speed = 0.02,
   frequency = 3.0,
@@ -226,7 +231,7 @@ export default function EtherealGradient({
   style,
   colors,
   wireframe = false,
-  density = 64,
+  density = 128,
   amplitude = 0.2,
   speed = 0.02,
   frequency = 3.0,
@@ -262,14 +267,17 @@ export default function EtherealGradient({
     <div className={className} style={style}>
       <Canvas
         camera={{ position: [camPosX, camPosY, camPosZ], fov: 35 }}
-        dpr={[1, 2]}
+        dpr={[2, 3]}
         gl={{
           antialias: true,
           alpha: true,
           stencil: false,
+          depth: true,
           powerPreference: "high-performance",
           preserveDrawingBuffer: true,
-          outputColorSpace: THREE.SRGBColorSpace
+          outputColorSpace: THREE.SRGBColorSpace,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.0
         }}
       >
         {enableOrbit && (

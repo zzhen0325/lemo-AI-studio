@@ -224,6 +224,7 @@ export async function DELETE(request: Request) {
         const { searchParams } = new URL(request.url);
         const collectionName = searchParams.get('collection');
         const filename = searchParams.get('filename');
+        const batchFilenames = searchParams.get('filenames'); // comma separated
 
         if (!collectionName) {
             return NextResponse.json({ error: 'Collection name is required' }, { status: 400 });
@@ -231,8 +232,16 @@ export async function DELETE(request: Request) {
 
         const collectionPath = path.join(DATASET_DIR, collectionName);
 
-        if (!filename) {
-            // Delete entire collection
+        // Determine filenames to delete
+        let filenamesToDelete: string[] = [];
+        if (batchFilenames) {
+            filenamesToDelete = batchFilenames.split(',').filter(f => f.trim() !== '');
+        } else if (filename) {
+            filenamesToDelete = [filename];
+        }
+
+        if (filenamesToDelete.length === 0 && !filename && !batchFilenames) {
+            // Delete entire collection if no specific file/batch provided
             try {
                 await fs.rm(collectionPath, { recursive: true, force: true });
                 datasetEvents.emit(DATASET_SYNC_EVENT);
@@ -243,40 +252,40 @@ export async function DELETE(request: Request) {
             }
         }
 
-        const filePath = path.join(collectionPath, filename);
-
-        // Delete image
-        try {
-            await fs.unlink(filePath);
-        } catch (e) {
-            console.warn(`Could not delete image file: ${filePath}`, e);
-        }
-
-        // Update metadata.json
-        try {
+        if (filenamesToDelete.length > 0) {
             const metadata = await getMetadata(collectionPath);
-            let dirty = false;
+            let metadataDirty = false;
 
-            if (metadata.prompts[filename]) {
-                delete metadata.prompts[filename];
-                dirty = true;
+            for (const f of filenamesToDelete) {
+                const filePath = path.join(collectionPath, f);
+                // Delete image
+                try {
+                    await fs.unlink(filePath);
+                } catch (e) {
+                    console.warn(`Could not delete image file: ${filePath}`, e);
+                }
+
+                // Update metadata
+                if (metadata.prompts[f]) {
+                    delete metadata.prompts[f];
+                    metadataDirty = true;
+                }
+                if (metadata.order && metadata.order.includes(f)) {
+                    metadata.order = metadata.order.filter(item => item !== f);
+                    metadataDirty = true;
+                }
             }
 
-            // Remove from order if present
-            if (metadata.order && metadata.order.includes(filename)) {
-                metadata.order = metadata.order.filter(f => f !== filename);
-                dirty = true;
-            }
-
-            if (dirty) {
+            if (metadataDirty) {
                 await saveMetadata(collectionPath, metadata);
             }
-        } catch (e) {
-            console.error("Failed to update metadata on delete", e);
         }
 
         datasetEvents.emit(DATASET_SYNC_EVENT);
-        return NextResponse.json({ success: true, message: 'Deleted successfully' });
+        return NextResponse.json({
+            success: true,
+            message: filenamesToDelete.length > 0 ? `Deleted ${filenamesToDelete.length} files` : 'Deleted successfully'
+        });
     } catch (error) {
         console.error('Dataset Delete Error:', error);
         return NextResponse.json({ error: 'Delete Failed', details: String(error) }, { status: 500 });

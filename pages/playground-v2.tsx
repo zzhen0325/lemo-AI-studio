@@ -902,7 +902,7 @@ export function PlaygroundV2Page({
           // Split Layout Content
           <div className="flex flex-1 w-full h-full overflow-hidden opacity-0 history-enter-container p-0 relative">
             {/* Spiral Background */}
-            <div className="absolute inset-0 z-0 pointer-events-none opacity-50">
+            {/* <div className="absolute inset-0 z-0 pointer-events-none opacity-50">
               <Spiral
                 totalDots={300}
                 dotColor="#ffffff"
@@ -911,12 +911,15 @@ export function PlaygroundV2Page({
                 maxOpacity={0.3}
                 duration={8}
               />
-            </div>
+            </div> */}
 
-            <ResizablePanelGroup orientation="horizontal" className="w-full h-full p-6 z-10 relative">
+            <ResizablePanelGroup orientation="horizontal" className="w-full h-full p-6 z-10 bg-neutral-900  relative">
+              <div className="absolute top-0 left-0 w-full h-full blur-sm opacity-55 ">
+                <Image src="/images/19.jpg" alt="lemo-logo" style={{ width: '100%', height: '100%' }} fill />
+              </div>
               {/* Left Column: Spacer for Input + History */}
               <ResizablePanel defaultSize={70} minSize={20}>
-                <div className="h-full flex flex-col border-b border-white/10 z-20">
+                <div className="h-full flex flex-col  z-20">
                   {/* Spacer for the Input Box which is now fixed/absolute */}
                   <div className="h-[200px] w-full shrink-0" /> {/* Adjust height as needed for input box reservation */}
 
@@ -936,7 +939,7 @@ export function PlaygroundV2Page({
               {/* <ResizableHandle withHandle /> */}
 
               {/* Right Column: Gallery */}
-              <ResizablePanel defaultSize={30} minSize={10} className=" bg-white/20 rounded-3xl">
+              <ResizablePanel defaultSize={30} minSize={10} className=" bg-black/20 backdrop-blur-xl border border-white/10 rounded-3xl">
                 <div className="h-full overflow-y-auto custom-scrollbar relative flex flex-col gallery-view-content">
 
                   {/* Tab Switcher Header */}

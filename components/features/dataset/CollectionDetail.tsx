@@ -67,9 +67,11 @@ interface SortableImageProps {
     img: DatasetImage;
     gridColumns: number;
     onDelete: (img: DatasetImage) => void;
+    isSelected: boolean;
+    onSelect: (id: string, shiftKey?: boolean) => void;
 }
 
-const SortableImage = ({ img, gridColumns, onDelete }: SortableImageProps) => {
+const SortableImage = ({ img, gridColumns, onDelete, isSelected, onSelect }: SortableImageProps) => {
     const {
         attributes,
         listeners,
@@ -93,15 +95,32 @@ const SortableImage = ({ img, gridColumns, onDelete }: SortableImageProps) => {
             style={style}
             {...attributes}
             {...listeners}
-            className="group relative aspect-square bg-card border border-border rounded-xl overflow-hidden hover:ring-2 hover:ring-primary/50 transition-all select-none touch-none"
+            onClick={(e) => {
+                // If it was a drag, dnd-kit usually handles it, but for a simple click:
+                if (!isDragging) {
+                    onSelect(img.id, e.shiftKey);
+                }
+            }}
+            className={`group relative aspect-square bg-card border rounded-xl overflow-hidden transition-all select-none touch-none ${isSelected
+                ? 'ring-2 ring-primary border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]'
+                : 'border-border hover:ring-2 hover:ring-primary/50'
+                }`}
         >
             <Image
                 src={img.url}
                 alt={img.filename}
                 fill
-                className="object-cover"
+                className={`object-cover transition-transform duration-500 ${isSelected ? 'scale-105' : 'group-hover:scale-110'}`}
                 sizes={`(max-width: 768px) 33vw, ${Math.round(100 / gridColumns)}vw`}
             />
+
+            {/* Selection Checkbox (always visible when selected, otherwise on hover) */}
+            <div className={`absolute top-2 left-2 z-10 transition-opacity duration-200 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-primary border-primary' : 'bg-black/20 border-white/50 backdrop-blur-sm'
+                    }`}>
+                    {isSelected && <Plus className="w-3.5 h-3.5 text-primary-foreground rotate-45" />}
+                </div>
+            </div>
 
             {/* Overlay */}
             <div className={`absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3 ${isDragging ? 'opacity-0' : ''}`}>
@@ -204,6 +223,7 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
     const { toast, dismiss } = useToast();
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [gridColumns, setGridColumns] = useState<number>(5);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const cancelRef = useRef<AbortController | null>(null);
     const { callVision } = useAIService();
 
@@ -273,6 +293,11 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
 
             if (res.ok) {
                 setImages(prev => prev.filter(i => i.id !== img.id));
+                setSelectedIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(img.id);
+                    return next;
+                });
                 toast({ title: "Deleted", description: "Image and prompt removed." });
             } else {
                 throw new Error("Delete failed");
@@ -282,6 +307,75 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         } finally {
             setIsProcessing(false);
         }
+    };
+
+    const handleBatchDelete = async () => {
+        if (selectedIds.size === 0) return;
+        if (!window.confirm(`Are you sure you want to delete ${selectedIds.size} images?`)) return;
+
+        setIsProcessing(true);
+        try {
+            const filenames = images
+                .filter(img => selectedIds.has(img.id))
+                .map(img => img.filename)
+                .join(',');
+
+            const res = await fetch(`/api/dataset?collection=${encodeURIComponent(collection.name)}&filenames=${encodeURIComponent(filenames)}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                setImages(prev => prev.filter(img => !selectedIds.has(img.id)));
+                setSelectedIds(new Set());
+                toast({ title: "Deleted", description: "Selected images and prompts removed." });
+            } else {
+                throw new Error("Batch delete failed");
+            }
+        } catch (error) {
+            console.error(error);
+            toast({ title: "Delete failed", variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+
+    const toggleSelect = (id: string, shiftKey?: boolean) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+
+            if (shiftKey && lastSelectedId && lastSelectedId !== id) {
+                const currentIndex = images.findIndex(img => img.id === id);
+                const lastIndex = images.findIndex(img => img.id === lastSelectedId);
+
+                if (currentIndex !== -1 && lastIndex !== -1) {
+                    const start = Math.min(currentIndex, lastIndex);
+                    const end = Math.max(currentIndex, lastIndex);
+
+                    for (let i = start; i <= end; i++) {
+                        next.add(images[i].id);
+                    }
+                    return next;
+                }
+            }
+
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+        setLastSelectedId(id);
+    };
+
+    const selectAll = () => {
+        setSelectedIds(new Set(images.map(img => img.id)));
+    };
+
+    const deselectAll = () => {
+        setSelectedIds(new Set());
     };
 
     const handleSaveAllData = async () => {
@@ -400,14 +494,24 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         if (!batchPrefix.trim()) return;
         const prefix = batchPrefix.trim();
 
+        // If there are selected images, only apply to them. Otherwise apply to all.
+        const targets = selectedIds.size > 0
+            ? images.filter(img => selectedIds.has(img.id))
+            : images;
+
+        if (targets.length === 0) return;
+
         // Add to active tags if not present
         if (!activeTags.includes(prefix)) {
             setActiveTags([...activeTags, prefix]);
         }
 
         const newImages = images.map(img => {
+            const isTarget = selectedIds.size > 0 ? selectedIds.has(img.id) : true;
+            if (!isTarget) return img;
+
             let newPrompt = img.prompt || "";
-            // Check if prompt already starts with prefix (ignoring case or exact match? Let's do exact for now but handle comma)
+            // Check if prompt already starts with prefix
             const regex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(,\\s*)?`, 'i');
             if (regex.test(newPrompt)) return img; // Already has prefix
 
@@ -425,8 +529,10 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         });
         setImages(newImages);
         toast({
-            title: "Prefix Added",
-            description: `Added "${prefix}" to all images.`,
+            title: selectedIds.size > 0 ? "批量打标成功" : "Prefix Added",
+            description: selectedIds.size > 0
+                ? `已为选中的 ${selectedIds.size} 张图片添加了前缀 "${prefix}"。`
+                : `Added "${prefix}" to all images.`,
         });
         setBatchPrefix("");
     };
@@ -730,13 +836,24 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         startOptimizeAll();
     };
 
-    const startOptimizeAll = async () => {
-        if (images.length === 0) {
-            toast({ title: "No images", description: "This collection is empty." });
+    const handleOptimizeSelected = async () => {
+        if (selectedIds.size === 0) return;
+        if (isProcessing) {
+            setPendingTask({ type: 'optimize' });
+            setIsConflictDialogOpen(true);
             return;
         }
-        // Optimize ALL images, effectively regenerating prompts for everything
-        const targets = images;
+        const targets = images.filter(img => selectedIds.has(img.id));
+        startOptimizeAll(targets);
+    };
+
+    const startOptimizeAll = async (specificTargets?: DatasetImage[]) => {
+        const targets = specificTargets || images;
+        if (targets.length === 0) {
+            toast({ title: "无图片", description: "没有可优化的图片。" });
+            return;
+        }
+        // Optimize specified images or ALL images
         setIsProcessing(true);
         setProgress({ current: 0, total: targets.length });
 
@@ -962,16 +1079,28 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
         startBatchTranslate(targetLang);
     };
 
-    const startBatchTranslate = async (targetLang: 'en' | 'zh') => {
-        if (images.length === 0) {
+    const handleTranslateSelected = async (targetLang: 'en' | 'zh') => {
+        if (selectedIds.size === 0) return;
+        if (isProcessing) {
+            setPendingTask({ type: 'translate', lang: targetLang });
+            setIsConflictDialogOpen(true);
+            return;
+        }
+        const targets = images.filter(img => selectedIds.has(img.id));
+        startBatchTranslate(targetLang, targets);
+    };
+
+    const startBatchTranslate = async (targetLang: 'en' | 'zh', specificTargets?: DatasetImage[]) => {
+        const baseTargets = specificTargets || images;
+        if (baseTargets.length === 0) {
             toast({ title: "No images", description: "This collection is empty." });
             return;
         }
 
         // Filter images that have prompts
-        const targets = images.filter(img => img.prompt);
+        const targets = baseTargets.filter(img => img.prompt);
         if (targets.length === 0) {
-            toast({ title: "No prompts", description: "No images have prompts to translate." });
+            toast({ title: "No prompts", description: specificTargets ? "选中的图片都没有提示词。" : "No images have prompts to translate." });
             return;
         }
 
@@ -1216,7 +1345,10 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => setViewMode('list')}
+                                onClick={() => {
+                                    setViewMode('list');
+                                    deselectAll();
+                                }}
                                 className={`h-8 w-8 rounded-md ${viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                                 title="List View"
                             >
@@ -1225,7 +1357,10 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => setViewMode('grid')}
+                                onClick={() => {
+                                    setViewMode('grid');
+                                    deselectAll();
+                                }}
                                 className={`h-8 w-8 rounded-md ${viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                                 title="Grid View"
                             >
@@ -1375,14 +1510,90 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                         </Popover>
 
                         <Button
-                            variant="outline"
-                            disabled={isProcessing}
-                            onClick={handleOptimizeAll}
-                            className="text-foreground"
+                            variant={selectedIds.size > 0 ? "default" : "outline"}
+                            disabled={isProcessing || (selectedIds.size > 0 && !batchPrefix.trim())}
+                            onClick={selectedIds.size > 0 ? handleAddPrefix : handleOptimizeAll}
+                            className={selectedIds.size > 0 ? "bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 rounded-lg" : "text-foreground h-10 px-4 rounded-lg"}
                         >
-                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                            Optimize All
+                            {isProcessing ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : selectedIds.size > 0 ? (
+                                <Plus className="h-4 w-4 mr-2" />
+                            ) : (
+                                <Wand2 className="h-4 w-4 mr-2" />
+                            )}
+                            {selectedIds.size > 0 ? `批量打标 (${selectedIds.size})` : "Optimize All"}
                         </Button>
+
+                        {/* Selection Bar (Shown when images are selected in either mode) */}
+                        {selectedIds.size > 0 && (
+                            <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1 animate-in fade-in slide-in-from-top-2 duration-100">
+                                <span className="text-xs font-medium text-primary mr-2">
+                                    {selectedIds.size} Selected
+                                </span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={selectAll}
+                                    className="h-8 text-[10px] px-2 hover:bg-primary/20"
+                                >
+                                    Select All
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={deselectAll}
+                                    className="h-8 text-[10px] px-2 hover:bg-primary/20"
+                                >
+                                    Deselect
+                                </Button>
+                                <div className="w-[1px] h-4 bg-primary/20 mx-1" />
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleOptimizeSelected}
+                                    disabled={isProcessing}
+                                    className="h-8 text-[10px] px-3 font-bold border-primary/30 text-primary hover:bg-primary/10"
+                                    title="AI Optimize selected images"
+                                >
+                                    {isProcessing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
+                                    Optimize Selected
+                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={isProcessing}
+                                            className="h-8 text-[10px] px-3 font-bold border-primary/30 text-primary hover:bg-primary/10"
+                                            title="Translate selected images"
+                                        >
+                                            {isProcessing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Languages className="h-3 w-3 mr-1" />}
+                                            Translate Selected
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleTranslateSelected('en')}>
+                                            Translate to English
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleTranslateSelected('zh')}>
+                                            Translate to Chinese
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={handleBatchDelete}
+                                    disabled={isProcessing}
+                                    className="h-8 text-[10px] px-3 font-bold shadow-lg"
+                                >
+                                    {isProcessing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                                    Delete Batch
+                                </Button>
+                            </div>
+                        )}
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1596,19 +1807,36 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
 
                     {/* Image Grid Items */}
                     {images.map((img: DatasetImage) => (
-                        <div key={img.id} className="flex flex-col sm:flex-row bg-card border border-border rounded-2xl overflow-hidden group hover:border-primary/30 transition-all duration-300">
+                        <div key={img.id} className={`flex flex-col sm:flex-row bg-card border rounded-2xl overflow-hidden group transition-all duration-100 ${selectedIds.has(img.id)
+                            ? 'border-primary ring-1 ring-primary shadow-[0_0_15px_rgba(var(--primary),0.2)]'
+                            : 'border-border hover:border-primary/30'}`}>
                             {/* Image Section */}
-                            <div className="w-[300px] relative bg-muted/30 min-h-[300px] max-h-[600px] border-b sm:border-b-0 sm:border-r border-border flex items-center justify-center p-4">
+                            <div
+                                className={`w-[300px] relative bg-muted/30 min-h-[300px] max-h-[600px] border-b sm:border-b-0 sm:border-r border-border flex items-center justify-center p-4 cursor-pointer transition-colors ${selectedIds.has(img.id) ? 'bg-primary/5' : ''}`}
+                                onClick={(e) => {
+                                    // Only toggle selection if clicking the background or image area, not the zoom button
+                                    if ((e.target as HTMLElement).closest('.image-zoom-trigger')) return;
+                                    toggleSelect(img.id, e.shiftKey);
+                                }}
+                            >
                                 <div className=" w-full h-full rounded-2xl ">
-                                    <ImageZoom className="w-full h-full">
+                                    <ImageZoom className="w-full h-full image-zoom-trigger">
                                         <Image
                                             src={img.url}
                                             alt=""
                                             fill
-                                            className="object-contain rounded-2xl"
+                                            className={`object-contain rounded-2xl transition-transform duration-100 ${selectedIds.has(img.id) ? 'scale-[0.98]' : ''}`}
                                             sizes="(max-width: 768px) 100vw, 40vw "
                                         />
                                     </ImageZoom>
+                                </div>
+
+                                {/* Selection Checkbox for List Mode */}
+                                <div className={`absolute top-4 left-4 z-10 transition-opacity duration-200 ${selectedIds.has(img.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shadow-lg transition-colors ${selectedIds.has(img.id) ? 'bg-primary border-primary' : 'bg-black/20 border-white/50 backdrop-blur-sm'
+                                        }`}>
+                                        {selectedIds.has(img.id) && <Plus className="w-4 h-4 text-primary-foreground rotate-45" />}
+                                    </div>
                                 </div>
 
                                 {img.isOptimizing && (
@@ -1769,6 +1997,8 @@ export default function CollectionDetail({ collection, onBack }: CollectionDetai
                                         img={img}
                                         gridColumns={gridColumns}
                                         onDelete={handleDeleteImage}
+                                        isSelected={selectedIds.has(img.id)}
+                                        onSelect={toggleSelect}
                                     />
                                 ))}
                             </SortableContext>

@@ -8,6 +8,7 @@ import HistoryList from './HistoryList';
 import { TooltipButton } from "@/components/ui/tooltip-button";
 import { usePlaygroundStore } from '@/lib/store/playground-store';
 import { useToast } from '@/hooks/common/use-toast';
+import { useMediaQuery } from '@/hooks/common/use-media-query';
 import { GenerationResult } from './types';
 import { StyleStacksView } from './StyleStacksView';
 import {
@@ -61,6 +62,25 @@ export default function GalleryView({ variant = 'full', activeTab }: GalleryView
     const setUploadedImages = usePlaygroundStore(s => s.setUploadedImages);
     const generationHistory = usePlaygroundStore(s => s.generationHistory);
     const { toast } = useToast();
+
+    // Responsive column count
+    const isSm = useMediaQuery("(min-width: 640px)");
+    const isMd = useMediaQuery("(min-width: 768px)");
+    const isLg = useMediaQuery("(min-width: 1024px)");
+    const isXl = useMediaQuery("(min-width: 1280px)");
+    const is2Xl = useMediaQuery("(min-width: 1536px)");
+
+    const columnsCount = React.useMemo(() => {
+        if (variant === 'sidebar') {
+            return isSm ? 2 : 1;
+        }
+        if (is2Xl) return 6;
+        if (isXl) return 5;
+        if (isLg) return 4;
+        if (isMd) return 3;
+        if (isSm) return 2;
+        return 1;
+    }, [variant, isSm, isMd, isLg, isXl, is2Xl]);
 
     // Combine local history with active generations from store
     const combinedHistory = React.useMemo(() => {
@@ -289,24 +309,17 @@ export default function GalleryView({ variant = 'full', activeTab }: GalleryView
                         </div>
                     </div>
                 ) : (
-                    <div
-                        className={cn(
-                            "rounded-xl",
-                            variant === 'full'
-                                ? "columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6 gap-0"
-                                : "columns-1 sm:columns-2 gap-0"
+                    <MasonryLayout
+                        items={combinedHistory.filter(h => h.type !== 'text')}
+                        columnsCount={columnsCount}
+                        renderItem={(item) => (
+                            <GalleryCard
+                                item={item}
+                                onClick={() => !item.isLoading && setSelectedItem(item)}
+                                onDownload={handleDownload}
+                            />
                         )}
-                    >
-                        {combinedHistory.filter(h => h.type !== 'text').map((item) => (
-                            <div key={item.id} className="break-inside-avoid ">
-                                <GalleryCard
-                                    item={item}
-                                    onClick={() => !item.isLoading && setSelectedItem(item)}
-                                    onDownload={handleDownload}
-                                />
-                            </div>
-                        ))}
-                    </div>
+                    />
                 )}
             </div>
 
@@ -335,6 +348,68 @@ export default function GalleryView({ variant = 'full', activeTab }: GalleryView
                 onClose={() => setIsEditorOpen(false)}
                 onSave={handleSaveEditedImage}
             />
+        </div>
+    );
+}
+
+interface MasonryColumn<T> {
+    items: T[];
+    height: number;
+}
+
+function MasonryLayout<T extends HistoryItem>({
+    items,
+    columnsCount,
+    renderItem
+}: {
+    items: T[],
+    columnsCount: number,
+    renderItem: (item: T) => React.ReactNode
+}) {
+    const columns = React.useMemo(() => {
+        const cols: MasonryColumn<T>[] = Array.from({ length: columnsCount }, () => ({
+            items: [],
+            height: 0,
+        }));
+
+        items.forEach((item, index) => {
+            let targetColIndex = 0;
+
+            // Algorithm: For the first columnsCount items, force 0, 1, 2... allocation to ensure top LTR
+            if (index < columnsCount) {
+                targetColIndex = index;
+            } else {
+                // Find shortest column to avoid large gaps
+                let minHeight = Infinity;
+                cols.forEach((col, idx) => {
+                    if (col.height < minHeight) {
+                        minHeight = col.height;
+                        targetColIndex = idx;
+                    }
+                });
+            }
+
+            cols[targetColIndex].items.push(item);
+            // Simulate height based on aspect ratio (fallback to 1 if metadata missing)
+            const width = item.metadata?.img_width || 1024;
+            const height = item.metadata?.img_height || 1024;
+            cols[targetColIndex].height += height / width;
+        });
+
+        return cols;
+    }, [items, columnsCount]);
+
+    return (
+        <div className="flex gap-px w-full">
+            {columns.map((column, colIdx) => (
+                <div key={colIdx} className="flex-1 flex flex-col gap-px">
+                    {column.items.map((item) => (
+                        <div key={item.id}>
+                            {renderItem(item)}
+                        </div>
+                    ))}
+                </div>
+            ))}
         </div>
     );
 }
