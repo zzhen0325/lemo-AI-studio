@@ -417,7 +417,7 @@
       "key": "113-KSamplerSelect"
     }
   ],
-  "id": "3ec292028d77c8",
+  "id": "wf_标准文生图",
   "mappingConfig": {
     "components": [
       {
@@ -503,6 +503,48 @@
           "defaultValue": "A banner image for an European - American hairstyle and hair - color generation event with a magazine - like feel and studio atmosphere. In the center of the picture is a model with exquisite makeup, confident demeanor, and elegant temperament, wearing simple and stylish clothing. The model has a fashionable and eye - catching European - American hairstyle and hair color (the specific style can be determined by yourself), with smooth and shiny hair strands. Around the model are neatly arranged icon images of different hairstyles with simple lines and exquisite designs, such as retro bob cut and lazy long straight hair icon images with delicate light and shadow effects and slight gradient colors. The background is a clean, pure, and textured solid - color backdrop; the main title \"Let Hair Lab Work Its Magic!\" at the top is presented in an elegant font with a slight metallic luster texture; the overall image is created in a high - end fashion photography style to achieve a clean and high - class feel, with delicate and natural use of light and shadow to highlight the three - dimensionality and exquisiteness of the model's hairstyle, hair color, and the overall picture."
         },
         "orderIndex": 3
+      },
+      {
+        "id": "pg_map_1767254011997",
+        "type": "number",
+        "label": "Width",
+        "properties": {
+          "defaultValue": 768,
+          "paramName": "width",
+          "placeholder": "Mapped to Width"
+        },
+        "validation": {},
+        "mapping": {
+          "workflowPath": [
+            "142",
+            "inputs",
+            "width"
+          ],
+          "parameterKey": "width",
+          "defaultValue": 768
+        },
+        "orderIndex": 4
+      },
+      {
+        "id": "pg_map_1767254015202",
+        "type": "number",
+        "label": "Height",
+        "properties": {
+          "defaultValue": 1024,
+          "paramName": "height",
+          "placeholder": "Mapped to Height"
+        },
+        "validation": {},
+        "mapping": {
+          "workflowPath": [
+            "142",
+            "inputs",
+            "height"
+          ],
+          "parameterKey": "height",
+          "defaultValue": 1024
+        },
+        "orderIndex": 5
       }
     ]
   }

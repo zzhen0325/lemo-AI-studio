@@ -10,6 +10,7 @@ interface PlaygroundState {
     selectedWorkflowConfig: IViewComfy | undefined;
     selectedLoras: SelectedLora[];
     hasGenerated: boolean;
+    showHistory: boolean;
 
     // Actions
     updateConfig: (config: Partial<GenerationConfig>) => void;
@@ -18,6 +19,7 @@ interface PlaygroundState {
     setSelectedWorkflowConfig: (workflow: IViewComfy | undefined) => void;
     setSelectedLoras: (loras: SelectedLora[]) => void;
     setHasGenerated: (val: boolean) => void;
+    setShowHistory: (val: boolean) => void;
     setActiveTab: (tab: string) => void;
 
     // UI States
@@ -70,6 +72,7 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
     selectedWorkflowConfig: undefined,
     selectedLoras: [],
     hasGenerated: false,
+    showHistory: false,
     isAspectRatioLocked: false,
     setAspectRatioLocked: (locked) => set({ isAspectRatioLocked: locked }),
     isMockMode: false,
@@ -89,6 +92,7 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
     setSelectedWorkflowConfig: (workflow) => set({ selectedWorkflowConfig: workflow }),
     setSelectedLoras: (loras) => set({ selectedLoras: loras }),
     setHasGenerated: (val) => set({ hasGenerated: val }),
+    setShowHistory: (val) => set({ showHistory: val }),
     setActiveTab: () => {
         // Placeholder
     },
@@ -161,6 +165,7 @@ export const usePlaygroundStore = create<PlaygroundState>()((set) => ({
             selectedWorkflowConfig: undefined,
             selectedLoras: [],
             hasGenerated: false,
+            showHistory: false,
             isAspectRatioLocked: false,
             isMockMode: false,
             isSelectorExpanded: false

@@ -20,7 +20,6 @@ interface NewSidebarProps {
 
 const navItems = [
     { label: "Playground", value: TabValue.Playground, icon: Palette },
-    { label: "History", value: TabValue.History, icon: History },
     { label: "Explore", value: TabValue.Gallery, icon: History },
     { label: "Tools", value: TabValue.Tools, icon: Wand2 },
     { label: "Dataset", value: TabValue.DatasetManager, icon: Layers },
@@ -30,7 +29,7 @@ const navItems = [
 export function NewSidebar({ currentTab, onTabChange }: NewSidebarProps) {
     return (
         <header
-            className="fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-8 select-none bg-black/20 backdrop-blur-xl"
+            className="fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-8 select-none"
         >
             <div
                 className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"

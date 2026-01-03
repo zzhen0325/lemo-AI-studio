@@ -102,25 +102,27 @@ export default function HistoryList({
         )}>
           <h3 className="text-sm font-medium text-white/50 mb-6 uppercase tracking-wider border-l-2 border-white/10 ml-1 pl-3">{dateTitle}</h3>
 
-          <div className="space-y-10">
+          <div className="columns-1 sm:columns-2 md:columns-2 lg:columns-3 xl:columns-4 gap-2 space-y-4">
             {groups.map((group, groupIdx) => (
-              <div key={`${dateTitle}-${groupIdx}`} className="flex flex-col">
+
+              // 卡片总背景
+              <div key={`${dateTitle}-${groupIdx}`} className="break-inside-avoid flex flex-col bg-[#1f2b494b] border border-white/20 rounded-3xl overflow-hidden mb-2">
 
                 {group.type === 'image' ? (
                   // Image Generation Group: Standard header + Grid
-                  <>
-                    <div className="flex items-start gap-2 mb-4 group/prompt">
-                      <div className="mt-1 p-1 rounded-md bg-white/5 border border-white/10 text-white/40 group-hover/prompt:text-white/60 transition-colors">
-                        <Type className="w-3 h-3" />
-                      </div>
-                      <p className="text-sm text-white/70 leading-relaxed line-clamp-2 italic font-light group-hover/prompt:text-white transition-colors cursor-default" title={group.key}>
+                  <div className="flex flex-col">
+                    {/* 文字区域 - 提示词在上方 */}
+                    <div className="p-4 bg-black/20  m-2 mb-0 rounded-2xl">
+                      <p className="text-sm text-white line-clamp-4 transition-colors cursor-default" title={group.key}>
                         {group.key}
                       </p>
                     </div>
 
-                    <div
-                      className="flex w-full gap-4 overflow-x-auto pb-4 custom-scrollbar flex-nowrap"
-                    >
+                    {/* 图片区域 - 在下方显示，根据数量决定网格 */}
+                    <div className={cn(
+                      "grid p-2 rounded-2xl h-auto w-full gap-4",
+                      group.items.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                    )}>
                       {group.items.map((result) => (
                         <HistoryCard
                           key={result.id}
@@ -131,58 +133,59 @@ export default function HistoryList({
                         />
                       ))}
                     </div>
-                  </>
+                  </div>
                 ) : (
                   // Text/Describe Group: Unified Grid for Source Image + Text Cards
-                  <div className="grid gap-4 w-full"
-                    style={{
-                      gridTemplateColumns: `repeat(auto-fill, minmax(200px, 1fr))`
-                    }}>
-
-                    {/* Source Image Card - First Item */}
-                    <div className="relative aspect-[3/4] rounded-lg overflow-hidden border border-white/10 bg-black/15 group">
-                      {group.sourceImage ? (
-                        <Image
-                          src={group.sourceImage}
-                          alt="Source for describe"
-                          fill
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
-                          className="object-cover"
-                          quality={75}
-                        />
-
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white/20">
-                          <ImageIcon className="w-8 h-8" />
-                        </div>
-                      )}
-                      <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-xs text-white/80 font-medium border border-white/10 z-10">
-                        Source Image
-                      </div>
-
-                      {/* Use All Button */}
-                      {onBatchUse && group.items.length > 0 && (
-                        <div className="absolute bottom-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <TooltipButton
-                            icon={<Layers className="w-4 h-4" />}
-                            label="Use All"
-                            tooltipContent="Generate all prompts"
-                            tooltipSide="top"
-                            className="w-8 h-8 rounded-lg bg-black/60 hover:bg-emerald-500 text-white/80 hover:text-white border border-white/10"
-                            onClick={() => onBatchUse(group.items, group.sourceImage)}
-                          />
-                        </div>
-                      )}
+                  <div className="flex flex-col">
+                    {/* Describe Group Header */}
+                    <div className="p-4 bg-black/20 border-b border-white/5">
+                      <p className="text-xs text-white/40 uppercase tracking-tighter">Image Analysis</p>
                     </div>
 
-                    {/* Text Cards - Subsequent Items */}
-                    {group.items.map((result) => (
-                      <TextHistoryCard
-                        key={result.id}
-                        result={result}
-                        onRegenerate={onRegenerate}
-                      />
-                    ))}
+                    <div className="p-3 flex flex-col gap-3">
+                      {/* Source Image Card */}
+                      <div className="relative aspect-square rounded-xl overflow-hidden border border-white/10 bg-black/15 group">
+                        {group.sourceImage ? (
+                          <Image
+                            src={group.sourceImage}
+                            alt="Source for describe"
+                            fill
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
+                            className="object-cover"
+                            quality={75}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white/20">
+                            <ImageIcon className="w-8 h-8" />
+                          </div>
+                        )}
+                        <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded-[4px] text-[10px] text-white/80 font-medium border border-white/10 z-10">
+                          Source
+                        </div>
+
+                        {onBatchUse && group.items.length > 0 && (
+                          <div className="absolute bottom-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              className="p-1.5 rounded-lg bg-black/60 hover:bg-emerald-500 text-white/80 hover:text-white border border-white/10 transition-colors"
+                              onClick={() => onBatchUse(group.items, group.sourceImage)}
+                            >
+                              <Layers className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Text Cards */}
+                      <div className="flex flex-col gap-2">
+                        {group.items.map((result) => (
+                          <TextHistoryCard
+                            key={result.id}
+                            result={result}
+                            onRegenerate={onRegenerate}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -215,7 +218,7 @@ function HistoryCard({
 
   return (
     <div
-      className="group relative h-64 shrink-0 overflow-hidden bg-black/15 rounded-lg border border-white/10 transition-all duration-300 hover:border-white/30 w-auto"
+      className="group relative w-full overflow-hidden bg-black/15 rounded-2xl border border-white/10 transition-all duration-300 hover:border-white/30"
       onMouseEnter={() => setIsHover(true)}
       onMouseLeave={() => setIsHover(false)}
     >
@@ -224,7 +227,7 @@ function HistoryCard({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="relative z-0 h-full w-auto flex items-center"
+        className="relative z-0 w-full h-auto"
       >
         {result.isLoading ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-black/20">
@@ -238,7 +241,7 @@ function HistoryCard({
             height={result.config?.image_height || 1024}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
             quality={95}
-            className="h-full w-auto object-contain cursor-pointer scale-100 group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-auto cursor-pointer scale-100 group-hover:scale-105 transition-transform duration-500"
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               onImageClick(result, rect);

@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState, useEffect, useRef, RefObject, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, RefObject } from "react";
 import { useToast } from "@/hooks/common/use-toast";
 import { Button } from "@/components/ui/button";
 
@@ -15,7 +15,6 @@ import PromptInput from "@/components/features/playground-v2/PromptInput";
 import ControlToolbar from "@/components/features/playground-v2/ControlToolbar";
 import HistoryList from "@/components/features/playground-v2/HistoryList";
 import GalleryView from "@/components/features/playground-v2/GalleryView";
-import Spiral from "@/components/ui/spiral";
 import ImagePreviewModal from "@/components/features/playground-v2/ImagePreviewModal";
 import ImageEditorModal from "@/components/features/playground-v2/ImageEditorModal";
 import WorkflowSelectorDialog from "@/components/features/playground-v2/WorkflowSelectorDialog";
@@ -23,14 +22,13 @@ import BaseModelSelectorDialog from "@/components/features/playground-v2/BaseMod
 import LoraSelectorDialog, { SelectedLora } from "@/components/features/playground-v2/LoraSelectorDialog";
 import { PresetCarousel } from "@/components/features/playground-v2/PresetCarousel";
 import { PresetManagerDialog } from "@/components/features/playground-v2/PresetManagerDialog";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import type { IViewComfy } from "@/lib/providers/view-comfy-provider";
 import type { WorkflowApiJSON } from "@/lib/workflow-api-parser";
 import type { UIComponent } from "@/types/features/mapping-editor";
 
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { X, Plus, Sparkles } from "lucide-react";
+import { X, Plus, Sparkles, History } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlaygroundStore } from "@/lib/store/playground-store";
 import { StylesMarquee } from "@/components/features/playground-v2/StylesMarquee";
@@ -39,6 +37,10 @@ import type { GenerationConfig, GenerationResult } from "@/components/features/p
 import gsap from "gsap";
 import { Flip } from "gsap/all";
 import { useGSAP } from "@gsap/react";
+import { observer } from "mobx-react-lite";
+import { projectStore } from "@/lib/store/project-store";
+import { ProjectSidebar } from "@/components/features/playground-v2/project-sidebar/ProjectSidebar";
+import { AllProjectsView } from "@/components/features/playground-v2/project-sidebar/AllProjectsView";
 
 gsap.registerPlugin(Flip, useGSAP);
 
@@ -56,7 +58,7 @@ export interface PlaygroundV2PageProps {
   };
 }
 
-export function PlaygroundV2Page({
+export const PlaygroundV2Page = observer(function PlaygroundV2Page({
   onEditMapping,
   onGenerate,
 }: PlaygroundV2PageProps) {
@@ -99,6 +101,21 @@ export function PlaygroundV2Page({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [showAllProjects, setShowAllProjects] = useState(false);
+
+  useEffect(() => {
+    const currentProject = projectStore.currentProject;
+    if (currentProject) {
+      usePlaygroundStore.getState().setGenerationHistory([...currentProject.history]);
+    }
+  }, [projectStore.currentProjectId]);
+
+  useEffect(() => {
+    if (projectStore.currentProjectId) {
+      projectStore.setProjectHistory(projectStore.currentProjectId, generationHistory);
+    }
+  }, [generationHistory]);
+
   const [selectedAIModel, setSelectedAIModel] = useState<AIModel>('gemini');
   const [isWorkflowDialogOpen, setIsWorkflowDialogOpen] = useState(false);
   const [isBaseModelDialogOpen, setIsBaseModelDialogOpen] = useState(false);
@@ -109,73 +126,106 @@ export function PlaygroundV2Page({
   const [isPresetExpanded] = useState(false);
   const [isDescribing, setIsDescribing] = useState(false);
   const [activeGalleryTab, setActiveGalleryTab] = useState<'gallery' | 'prompts' | 'styles'>('gallery');
+  const showHistory = usePlaygroundStore(s => s.showHistory);
+  const setShowHistory = usePlaygroundStore(s => s.setShowHistory);
 
+  useEffect(() => {
+    if (showHistory) {
+      projectStore.toggleSidebar(true);
+    }
+  }, [showHistory]);
 
+  // Unified mode logic: either generated or manually showing history
+  const isDashboardActive = hasGenerated || showHistory;
 
-
-
-  // To properly capture state before change:
   const lastState = useRef<Flip.FlipState | null>(null);
+  const prevActive = useRef(false);
+  const lastPromptHeight = useRef<number | null>(null);
+  const promptWrapperRef = useRef<HTMLDivElement | null>(null);
+  const releasePromptHeightTimeoutRef = useRef<number | null>(null);
 
   // Capture state whenever we are in the "Center" mode, so we have it ready when we switch.
   useGSAP(() => {
-    if (!hasGenerated) {
+    if (!isDashboardActive) {
       const state = Flip.getState("[data-flip-id='prompt-input-container']");
       lastState.current = state;
+      const el = document.querySelector<HTMLElement>("[data-flip-id='prompt-input-container']");
+      if (el) {
+        lastPromptHeight.current = el.getBoundingClientRect().height;
+      }
     }
-  }, [hasGenerated, uploadedImages.length]); // Update state if images change (resizes container)
+  }, [isDashboardActive, uploadedImages.length]); // Update state if images change (resizes container)
 
 
   useGSAP(() => {
-    if (hasGenerated) {
+    // Only trigger flip if we ARE active now but WEREN'T before
+    if (isDashboardActive && !prevActive.current) {
       const hasFromState = !!lastState.current;
 
       // 1. Flip Input (only if we have a previous state to flip from)
       if (hasFromState && lastState.current) {
+        if (releasePromptHeightTimeoutRef.current) {
+          window.clearTimeout(releasePromptHeightTimeoutRef.current);
+          releasePromptHeightTimeoutRef.current = null;
+        }
+        const wrapperEl = promptWrapperRef.current;
+        if (wrapperEl && lastPromptHeight.current) {
+          wrapperEl.style.height = `${lastPromptHeight.current}px`;
+        }
+
+        const releasePromptHeight = () => {
+          const wrapper = promptWrapperRef.current;
+          const target = document.querySelector<HTMLElement>("[data-flip-id='prompt-input-container']");
+          if (!wrapper) return;
+          const targetHeight = target?.getBoundingClientRect().height;
+          if (!targetHeight) {
+            wrapper.style.height = "";
+            return;
+          }
+          gsap.killTweensOf(wrapper);
+          gsap.set(wrapper, { height: wrapper.getBoundingClientRect().height });
+          gsap.to(wrapper, {
+            height: targetHeight,
+            duration: 0.25,
+            ease: "power2.out",
+            onComplete: () => {
+              wrapper.style.height = "";
+            },
+          });
+        };
+
         Flip.from(lastState.current, {
           targets: "[data-flip-id='prompt-input-container']",
-          duration: 0.8,
+          duration: 0.5,
           ease: "power2.out",
           absolute: true,
           zIndex: 50,
+          onComplete: () => releasePromptHeight(),
         });
+        releasePromptHeightTimeoutRef.current = window.setTimeout(() => releasePromptHeight(), 650);
       }
 
       // 2. Animate History/Gallery Enter
-      const delay = hasFromState ? 0.3 : 0;
-      const duration = hasFromState ? 0.8 : 0.4;
-
-      // Ensure container has opacity (if it was hidden by default)
       gsap.set(".history-enter-container", { opacity: 1 });
-
-      // Animate from invisible if we are transitioning
-      if (hasFromState) {
-        gsap.fromTo(".history-enter-container",
-          { opacity: 0 },
-          { opacity: 1, duration: 0.4, delay: 0 }
-        );
-      } else {
-        // If just loading/refreshing, ensure it's visible. 
-        // We can do a quick fade in for polish
-        gsap.fromTo(".history-enter-container",
-          { opacity: 0 },
-          { opacity: 1, duration: 0.3 }
-        );
-      }
+      gsap.fromTo(".history-enter-container",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.4, delay: 0 }
+      );
 
       gsap.fromTo([".history-list-content", ".gallery-view-content"],
         { y: 60, opacity: 0 },
         {
           y: 0,
           opacity: 1,
-          duration: duration,
+          duration: 0.5,
           stagger: 0.1,
           ease: "power3.out",
-          delay: delay
+          delay: 0.3
         }
       );
     }
-  }, [hasGenerated]);
+    prevActive.current = isDashboardActive;
+  }, [isDashboardActive]);
 
   useEffect(() => {
     initPresets();
@@ -535,7 +585,15 @@ export function PlaygroundV2Page({
 
   const handleDownload = (imageUrl: string) => { const link = document.createElement("a"); link.href = imageUrl; link.download = `PlaygroundV2-${Date.now()}.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
 
-  const openImageModal = (result: GenerationResult) => { setSelectedResult(result); setIsImageModalOpen(true); };
+  const openImageModal = (result: GenerationResult) => {
+    setSelectedResult(result);
+    setIsImageModalOpen(true);
+    // Ensure dashboard mode is active if we're viewing a specific result
+    if (!isDashboardActive) {
+      setShowHistory(true);
+    }
+  };
+
   const closeImageModal = () => {
     setIsImageModalOpen(false);
     // Don't clear selectedResult here to allow exit animation to use the data
@@ -582,7 +640,6 @@ export function PlaygroundV2Page({
 
   // 样式定义
 
-  const Inputbg = "relative z-10 flex items-center justify-center w-full text-black flex-col rounded-[30px] bg-black/40 backdrop-blur-xl border border-white/20 p-2 mx-auto";
 
   /**
    * Refactored to inline into the main input container for aggregation + hover expansion
@@ -593,12 +650,12 @@ export function PlaygroundV2Page({
   // Input UI Helper to avoid duplication
   const renderInputUI = (isSidebar: boolean) => (
     <div className={cn(
-      "flex flex-col items-center w-full transition-all duration-500 ease-in-out px-4 pointer-events-auto",
-      isSidebar ? "w-full" : "max-w-4xl -mt-36"
+      "flex flex-col items-center w-full pointer-events-auto",
+      isSidebar ? "w-full" : "w-full max-w-4xl -mt-36 mx-auto"
     )}>
       {!isSidebar && (
         <h1
-          className="text-[6rem] text-white font-medium text-center mb-4 h-auto opacity-100 transition-all duration-300  whitespace-nowrap"
+          className="text-[2rem] text-white font-medium text-center mb-4 h-auto opacity-100 z-10 transition-all duration-300  whitespace-nowrap"
           style={{ fontFamily: "'InstrumentSerif', serif" }}
         >
           ✨Turn any idea into a stunning image
@@ -606,9 +663,13 @@ export function PlaygroundV2Page({
       )}
 
       <div
-        className="relative w-full rounded-[10px] transition-all duration-300"
+        className="relative w-full rounded-[10px]"
       >
-        <div className={Inputbg}>
+        <div className={
+          cn(
+            "relative z-10 flex items-center justify-center w-full text-black flex-col rounded-[30px] backdrop-blur-xl border border-white/20 p-2 transition-colors duration-100",
+            hasGenerated ? "bg-[#302e38]" : "bg-black/40"
+          )}>
           <div className="flex items-start gap-0 bg-black/80 border border-white/20 rounded-3xl w-full pl-2">
             <div
               className="flex items-center"
@@ -852,156 +913,214 @@ export function PlaygroundV2Page({
   );
 
   return (
-    <main className="relative h-screen flex bg-transparent overflow-hidden">
-      <input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        accept="image/*"
-        multiple
-        onChange={handleImageUpload}
-      />
+    <div className="flex-1 relative p-16 pt-20 h-full flex flex-col overflow-hidden">
+      <div className="flex-1 bg-transparent border border-white/20 rounded-[2rem] overflow-hidden relative flex flex-col">
+        <main className="relative h-full flex bg-transparent overflow-hidden">
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            multiple
+            onChange={handleImageUpload}
+          />
 
-      <div ref={containerRef} className="relative w-full h-full">
-        {/* Input Container - Persists across views */}
-        <div
-          className={cn(
-            "fixed z-[40] transition-none flex justify-center pointer-events-none", // Fixed positioning to help Flip calculation, pointer-events-none so it doesn't block
-            !hasGenerated
-              ? "top-[40vh] left-0 right-0 -translate-y-1/2 w-full"
-              : "top-24 left-0 w-[70%] " // Position at top of left panel (assuming 70% default width)
-          )}
-        >
-          <div
-            data-flip-id="prompt-input-container"
-            className={cn(
-              "w-full relative",
-              !hasGenerated ? "max-w-4xl" : "max-w-[65vw]"
-            )}
-          >
-            {renderInputUI(hasGenerated)}
-          </div>
-        </div>
-
-
-        {!hasGenerated ? (
-          // Initial State Content
-          <motion.div
-            key="initial-state"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="relative flex-1 flex flex-col items-center justify-center h-full pb-20 pointer-events-none" // pointer-events-none to let input click through if needed, though input is z-40
-          >
-            {/* Only show StylesMarquee in initial state */}
-            <div className="absolute bottom-4 left-0 right-0 z-20 overflow-visible pointer-events-auto">
-              <StylesMarquee />
-            </div>
-          </motion.div>
-        ) : (
-          // Split Layout Content
-          <div className="flex flex-1 w-full h-full overflow-hidden opacity-0 history-enter-container p-0 relative">
-            {/* Spiral Background */}
-            {/* <div className="absolute inset-0 z-0 pointer-events-none opacity-50">
-              <Spiral
-                totalDots={300}
-                dotColor="#ffffff"
-                backgroundColor="transparent"
-                minOpacity={0.1}
-                maxOpacity={0.3}
-                duration={8}
-              />
-            </div> */}
-
-            <ResizablePanelGroup orientation="horizontal" className="w-full h-full p-6 z-10 bg-neutral-900  relative">
-              <div className="absolute top-0 left-0 w-full h-full blur-sm opacity-55 ">
-                <Image src="/images/19.jpg" alt="lemo-logo" style={{ width: '100%', height: '100%' }} fill />
-              </div>
-              {/* Left Column: Spacer for Input + History */}
-              <ResizablePanel defaultSize={70} minSize={20}>
-                <div className="h-full flex flex-col  z-20">
-                  {/* Spacer for the Input Box which is now fixed/absolute */}
-                  <div className="h-[200px] w-full shrink-0" /> {/* Adjust height as needed for input box reservation */}
-
-                  <div className="flex-1 overflow-hidden history-list-content">
-                    <HistoryList
-                      variant="sidebar"
-                      history={generationHistory}
-                      onRegenerate={handleRegenerate}
-                      onDownload={handleDownload}
-                      onImageClick={openImageModal}
-                      onBatchUse={handleBatchUse}
+          <div ref={containerRef} className="relative w-full h-full flex flex-col items-center">
+            {/* 背景处理 */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+              <AnimatePresence mode="wait">
+                {!isDashboardActive ? (
+                  <motion.div
+                    key="video-bg"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0"
+                  >
+                    <video
+                      src="/images/1.mp4"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      poster="/images/1.webp"
+                      preload="metadata"
+                      className="w-full h-full object-cover"
                     />
+                    <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(88,131,112,1)]" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="image-bg"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0"
+                  >
+                    {/* <Image
+                      src="/images/112.jpg"
+                      alt="Background"
+                      fill
+                      className="object-cover opacity-100 "
+                      priority
+                    /> */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-[#56bbff] via-[#fbfeff] to-[#fff7ef]" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            {/* Input and History Container - Centered max-w-4xl if not active, or left part of dashboard */}
+            <div className={cn(
+              "relative z-20 flex w-full h-full",
+              isDashboardActive ? "flex-row px-6 gap-6" : "flex-col items-center"
+            )}>
+              {isDashboardActive && (
+                <ProjectSidebar onShowAllProjects={() => setShowAllProjects(true)} />
+              )}
+
+              {/* Left Side: Creation Area (Input + History) */}
+              <div className={cn(
+                "flex flex-col",
+                isDashboardActive
+                  ? "w-[60vw]  py-6 h-full"
+                  : "w-full  mt-[30vh]"
+                )}>
+                {/* Input UI */}
+                <div ref={promptWrapperRef} className="w-full">
+                  <div data-flip-id="prompt-input-container" className="w-full">
+                    {renderInputUI(isDashboardActive)}
                   </div>
                 </div>
-              </ResizablePanel>
 
-              {/* <ResizableHandle withHandle /> */}
+                {/* History Entry Capsule Button - Only show if not in dashboard active mode */}
+                {!isDashboardActive && (
+                  <div className="flex justify-center mt-6">
+                    <button
+                      onClick={() => setShowHistory(true)}
+                      className={cn(
+                        "flex items-center gap-2 px-6 py-2 rounded-full border border-white/20 backdrop-blur-md transition-all bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      <History className="w-4 h-4" />
+                      <span className="text-sm font-medium">History</span>
+                    </button>
+                  </div>
+                )}
 
-              {/* Right Column: Gallery */}
-              <ResizablePanel defaultSize={30} minSize={10} className=" bg-black/20 backdrop-blur-xl border border-white/10 rounded-3xl">
-                <div className="h-full overflow-y-auto custom-scrollbar relative flex flex-col gallery-view-content">
+                {/* 历史记录区域 */}
 
-                  {/* Tab Switcher Header */}
-                  <div className="flex items-center gap-1 px-4 pt-6 pb-2 sticky top-0 z-10">
-                    <div className="flex items-center bg-black/40 backdrop-blur-md p-1 rounded-full border border-white/10">
-                      {(['gallery', 'prompts', 'styles'] as const).map(tab => (
-                        <button
-                          key={tab}
-                          onClick={() => setActiveGalleryTab(tab)}
-                          className={cn(
-                            "px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300",
-                            activeGalleryTab === tab
-                              ? "bg-white text-black shadow-lg"
-                              : "text-white/50 hover:text-white hover:bg-white/10"
-                          )}
-                        >
-                          {tab === 'gallery' && "全部作品"}
-                          {tab === 'prompts' && "Prompt"}
-                          {tab === 'styles' && "Style"}
-                        </button>
-                      ))}
+                <AnimatePresence>
+                  {isDashboardActive && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 30 }}
+                      className="mt-6 flex-1 overflow-hidden min-h-0 relative z-10"
+                    >
+
+                      <div className="bg-black/20  border border-white/5 rounded-3xl p-2 h-full flex flex-col shadow-2xl relative">
+                        {/* Collapse Button in top-right */}
+                        <div className="absolute top-6 right-8 z-30">
+                          <button
+                            onClick={() => {
+                              setShowHistory(false);
+                              setHasGenerated(false);
+                            }}
+                            className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all text-xs"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>收起历史记录</span>
+                          </button>
+                        </div>
+
+                        <HistoryList
+                          variant="sidebar"
+                          history={generationHistory}
+                          onRegenerate={handleRegenerate}
+                          onDownload={handleDownload}
+                          onImageClick={openImageModal}
+                          onBatchUse={handleBatchUse}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Right Side: Gallery Module - Only show in active mode */}
+              {isDashboardActive && (
+                <div className="flex-1 shrink-0 py-6 flex flex-col">
+                  <div className="bg-black/20  border border-white/10 rounded-3xl h-full flex flex-col overflow-hidden">
+                    {/* Tab Switcher Header */}
+                    <div className="flex items-center gap-1 px-4 pt-6 pb-2 sticky top-0 z-10">
+                      <div className="flex items-center bg-black/40 backdrop-blur-md p-1 rounded-full border border-white/10">
+                        {(['gallery', 'prompts', 'styles'] as const).map(tab => (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveGalleryTab(tab)}
+                            className={cn(
+                              "px-4 py-1.5 rounded-full text-[10px] font-medium transition-all duration-300",
+                              activeGalleryTab === tab
+                                ? "bg-white text-black shadow-lg"
+                                : "text-white/50 hover:text-white hover:bg-white/10"
+                            )}
+                          >
+                            {tab === 'gallery' && "全部作品"}
+                            {tab === 'prompts' && "Prompt"}
+                            {tab === 'styles' && "Style"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-h-0">
+                      <GalleryView variant="sidebar" activeTab={activeGalleryTab} />
                     </div>
                   </div>
-
-                  <div className="flex-1">
-                    <GalleryView variant="sidebar" activeTab={activeGalleryTab} />
-                  </div>
                 </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
+              )}
+            </div>
+
+            {!isDashboardActive && (
+              <div className="absolute bottom-4 left-0 right-0 z-20 overflow-visible">
+                <StylesMarquee />
+              </div>
+            )}
           </div>
-        )}
+
+          <GoogleApiStatus className="fixed bottom-4 right-4 z-[60]" />
+
+          <AnimatePresence>
+            {showAllProjects && <AllProjectsView onClose={() => setShowAllProjects(false)} />}
+          </AnimatePresence>
+
+          <div className="top-0 left-0 right-0 pt-24 pointer-events-none">
+            <ImagePreviewModal
+              isOpen={isImageModalOpen}
+              onClose={closeImageModal}
+              result={selectedResult}
+              onEdit={handleEditImage}
+            />
+
+            <ImageEditorModal
+              isOpen={isEditorOpen}
+              imageUrl={editingImageUrl}
+              onClose={() => setIsEditorOpen(false)}
+              onSave={handleSaveEditedImage}
+            />
+          </div>
+
+          <WorkflowSelectorDialog open={isWorkflowDialogOpen} onOpenChange={setIsWorkflowDialogOpen} onSelect={(wf) => setSelectedWorkflowConfig(wf)} onEdit={onEditMapping} />
+          <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={config.base_model || selectedModel} onConfirm={(m) => updateConfig({ base_model: m })} />
+          <LoraSelectorDialog open={isLoraDialogOpen} onOpenChange={setIsLoraDialogOpen} value={selectedLoras} onConfirm={(list) => setSelectedLoras(list)} />
+          <PresetManagerDialog open={isPresetManagerOpen} onOpenChange={setIsPresetManagerOpen} />
+        </main>
       </div>
-
-      <GoogleApiStatus className="fixed bottom-4 right-4 z-[60]" />
-
-      <div className="top-0 left-0 right-0 pt-24 pointer-events-none">
-        <ImagePreviewModal
-          isOpen={isImageModalOpen}
-          onClose={closeImageModal}
-          result={selectedResult}
-          onEdit={handleEditImage}
-        />
-
-        <ImageEditorModal
-          isOpen={isEditorOpen}
-          imageUrl={editingImageUrl}
-          onClose={() => setIsEditorOpen(false)}
-          onSave={handleSaveEditedImage}
-        />
-
-      </div>
-
-
-      <WorkflowSelectorDialog open={isWorkflowDialogOpen} onOpenChange={setIsWorkflowDialogOpen} onSelect={(wf) => setSelectedWorkflowConfig(wf)} onEdit={onEditMapping} />
-      <BaseModelSelectorDialog open={isBaseModelDialogOpen} onOpenChange={setIsBaseModelDialogOpen} value={config.base_model || selectedModel} onConfirm={(m) => updateConfig({ base_model: m })} />
-      <LoraSelectorDialog open={isLoraDialogOpen} onOpenChange={setIsLoraDialogOpen} value={selectedLoras} onConfirm={(list) => setSelectedLoras(list)} />
-      <PresetManagerDialog open={isPresetManagerOpen} onOpenChange={setIsPresetManagerOpen} />
-    </main>
+    </div>
   );
-}
-
+});
 
 export default function PlaygroundV2Route() {
   return <PlaygroundV2Page />;

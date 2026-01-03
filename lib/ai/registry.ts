@@ -48,7 +48,7 @@ export const REGISTRY: RegistryItem[] = [
         task: ['text', 'vision'],
         defaultConfig: {
             providerId: 'google',
-            modelId: 'gemini-2.0-flash',
+            modelId: 'gemini-3-pro-image-preview',
             apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY
         }
     },

@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
+import { VariableSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import { cn } from "@/lib/utils";
 import { Download, Search, Image as ImageIcon, Type, Box, RefreshCw, X } from "lucide-react";
 import ImagePreviewModal from './ImagePreviewModal';
@@ -309,17 +311,25 @@ export default function GalleryView({ variant = 'full', activeTab }: GalleryView
                         </div>
                     </div>
                 ) : (
-                    <MasonryLayout
-                        items={combinedHistory.filter(h => h.type !== 'text')}
-                        columnsCount={columnsCount}
-                        renderItem={(item) => (
-                            <GalleryCard
-                                item={item}
-                                onClick={() => !item.isLoading && setSelectedItem(item)}
-                                onDownload={handleDownload}
-                            />
-                        )}
-                    />
+                    <div className="flex-1 min-h-0 w-full overflow-hidden">
+                        <AutoSizer>
+                            {({ height, width }) => (
+                                <VirtualizedMasonry
+                                    items={combinedHistory.filter(h => h.type !== 'text')}
+                                    columnsCount={columnsCount}
+                                    width={width}
+                                    height={height}
+                                    renderItem={(item) => (
+                                        <GalleryCard
+                                            item={item}
+                                            onClick={() => !item.isLoading && setSelectedItem(item)}
+                                            onDownload={handleDownload}
+                                        />
+                                    )}
+                                />
+                            )}
+                        </AutoSizer>
+                    </div>
                 )}
             </div>
 
@@ -348,66 +358,98 @@ export default function GalleryView({ variant = 'full', activeTab }: GalleryView
                 onClose={() => setIsEditorOpen(false)}
                 onSave={handleSaveEditedImage}
             />
-        </div>
+        </div >
     );
 }
 
-interface MasonryColumn<T> {
+interface VirtualizedMasonryProps<T> {
     items: T[];
+    columnsCount: number;
+    width: number;
     height: number;
+    renderItem: (item: T) => React.ReactNode;
 }
 
-function MasonryLayout<T extends HistoryItem>({
+const LIST_PADDING = 0; // Padding between items
+
+function VirtualizedMasonry<T extends HistoryItem>({
     items,
     columnsCount,
+    width,
+    height,
     renderItem
-}: {
-    items: T[],
-    columnsCount: number,
-    renderItem: (item: T) => React.ReactNode
-}) {
-    const columns = React.useMemo(() => {
-        const cols: MasonryColumn<T>[] = Array.from({ length: columnsCount }, () => ({
+}: VirtualizedMasonryProps<T>) {
+    const listRefs = useRef<(List | null)[]>([]);
+    const columnWidth = (width - (columnsCount - 1)) / columnsCount;
+
+    // Distribute items into columns
+    const columnsData = useMemo(() => {
+        const cols: { items: T[]; heights: number[] }[] = Array.from({ length: columnsCount }, () => ({
             items: [],
-            height: 0,
+            heights: []
         }));
+
+        const currentColumnHeights = new Array(columnsCount).fill(0);
 
         items.forEach((item, index) => {
             let targetColIndex = 0;
-
-            // Algorithm: For the first columnsCount items, force 0, 1, 2... allocation to ensure top LTR
             if (index < columnsCount) {
                 targetColIndex = index;
             } else {
-                // Find shortest column to avoid large gaps
                 let minHeight = Infinity;
-                cols.forEach((col, idx) => {
-                    if (col.height < minHeight) {
-                        minHeight = col.height;
+                currentColumnHeights.forEach((h, idx) => {
+                    if (h < minHeight) {
+                        minHeight = h;
                         targetColIndex = idx;
                     }
                 });
             }
 
+            const imgWidth = item.metadata?.img_width || 1024;
+            const imgHeight = item.metadata?.img_height || 1024;
+            const cardHeight = (imgHeight / imgWidth) * columnWidth;
+
             cols[targetColIndex].items.push(item);
-            // Simulate height based on aspect ratio (fallback to 1 if metadata missing)
-            const width = item.metadata?.img_width || 1024;
-            const height = item.metadata?.img_height || 1024;
-            cols[targetColIndex].height += height / width;
+            cols[targetColIndex].heights.push(cardHeight + LIST_PADDING);
+            currentColumnHeights[targetColIndex] += cardHeight + LIST_PADDING;
         });
 
         return cols;
-    }, [items, columnsCount]);
+    }, [items, columnsCount, columnWidth]);
+
+    const handleScroll = useCallback(({ scrollOffset }: { scrollOffset: number }) => {
+        listRefs.current.forEach((list) => {
+            if (list) {
+                list.scrollTo(scrollOffset);
+            }
+        });
+    }, []);
 
     return (
-        <div className="flex gap-px w-full">
-            {columns.map((column, colIdx) => (
-                <div key={colIdx} className="flex-1 flex flex-col gap-px">
-                    {column.items.map((item) => (
-                        <div key={item.id}>
-                            {renderItem(item)}
-                        </div>
-                    ))}
+        <div className="flex w-full h-full overflow-hidden" style={{ gap: '1px' }}>
+            {columnsData.map((col, idx) => (
+                <div key={idx} style={{ width: columnWidth, height }}>
+                    <List
+                        ref={(el) => { listRefs.current[idx] = el; }}
+                        height={height}
+                        itemCount={col.items.length}
+                        itemSize={(index) => col.heights[index]}
+                        width={columnWidth}
+                        className="custom-scrollbar overflow-x-hidden"
+                        onScroll={idx === 0 ? handleScroll : undefined}
+                        style={{
+                            overflowX: 'hidden',
+                            // Only first column's scroll event syncs others. 
+                            // Others should hide their scrollbar or be controlled.
+                            scrollbarWidth: idx === 0 ? 'auto' : 'none',
+                        }}
+                    >
+                        {({ index, style }) => (
+                            <div style={style}>
+                                {renderItem(col.items[index])}
+                            </div>
+                        )}
+                    </List>
                 </div>
             ))}
         </div>
@@ -450,6 +492,8 @@ function GalleryCard({ item, onClick, onDownload }: { item: HistoryItem, onClick
                         height={item.metadata?.img_height || 1024}
                         sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, (max-width: 1536px) 20vw, 15vw"
                         quality={75}
+                        placeholder="blur"
+                        blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
                         className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
                     />
 

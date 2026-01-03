@@ -51,6 +51,8 @@
     "lucide-react": "^0.441.0",
     "mathjs": "^14.9.1",
     "mime-types": "^2.1.35",
+    "mobx": "^6.15.0",
+    "mobx-react-lite": "^4.1.1",
     "motion": "^12.23.26",
     "next": "^15.0.0",
     "node-fetch": "^3.3.2",
@@ -62,8 +64,8 @@
     "react-medium-image-zoom": "^5.4.0",
     "react-progressive-blur": "^1.0.6",
     "react-resizable-panels": "^4.0.16",
-    "react-virtualized-auto-sizer": "^2.0.1",
-    "react-window": "^2.2.3",
+    "react-virtualized-auto-sizer": "^1.0.24",
+    "react-window": "^1.8.10",
     "react18-json-view": "^0.2.9-canary.8",
     "sass": "^1.79.3",
     "sonner": "^2.0.7",
@@ -76,6 +78,8 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.1",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^20",
     "@types/node-fetch": "^2.6.13",
@@ -87,12 +91,16 @@
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.26.1",
     "@typescript-eslint/parser": "^8.26.1",
+    "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.23",
     "cross-env": "^7.0.3",
     "eslint": "^8",
     "eslint-config-next": "^15.0.0",
+    "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^6.0.3",
+    "vitest": "^4.0.16"
   }
 }
